@@ -1,0 +1,25 @@
+{% extends 'template.html' %}
+
+{% block title %}Background Remover{% endblock %}
+
+{% block content %}
+<h1>Background Remover</h1>
+
+<!-- Image Upload Section -->
+<div class="upload-area" id="uploadfile">
+    <h3>Drag & Drop or Click to Upload Image</h3>
+    <input type="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
+</div>
+
+<!-- Image Preview -->
+<div id="image-preview">
+    <img id="preview" src="" alt="Your Image" style="display: none;">
+</div>
+
+<!-- Processed Image Section -->
+<div id="result">
+    <img id="output" src="" alt="Processed Image" style="display: none;">
+    <a id="download-btn" href="" download style="display: none;">Download Image</a>
+</div>
+
+{% endblock %}
