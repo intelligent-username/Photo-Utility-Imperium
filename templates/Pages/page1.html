@@ -2,24 +2,36 @@
 
 {% block title %}Background Remover{% endblock %}
 
+{% block page_name %}page1{% endblock %}
+
 {% block content %}
-<h1>Background Remover</h1>
+<div class="row">
+    <!-- Left Side: Upload Area -->
+    <div class="col-md-4">
+        <h2>Background Remover</h2>
+        <div class="upload-area" id="uploadfile">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+            </div>
+            <h3>Drag & Drop or Click to Upload Image</h3>
+            <input type="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
+        </div>
+    </div>
 
-<!-- Image Upload Section -->
-<div class="upload-area" id="uploadfile">
-    <h3>Drag & Drop or Click to Upload Image</h3>
-    <input type="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
+    <!-- Right Side: Image Preview and Result -->
+    <div class="col-md-8">
+        <!-- Image Preview -->
+        <div id="image-preview" style="display: none;">
+            <h4>Original Image:</h4>
+            <img id="preview" src="" alt="Your Image" class="img-fluid">
+        </div>
+
+        <!-- Processed Image -->
+        <div id="result" style="display: none;">
+            <h4>Processed Image:</h4>
+            <img id="output" src="" alt="Processed Image" class="img-fluid">
+            <a id="download-btn" href="" download class="btn btn-primary mt-3">Download Image</a>
+        </div>
+    </div>
 </div>
-
-<!-- Image Preview -->
-<div id="image-preview">
-    <img id="preview" src="" alt="Your Image" style="display: none;">
-</div>
-
-<!-- Processed Image Section -->
-<div id="result">
-    <img id="output" src="" alt="Processed Image" style="display: none;">
-    <a id="download-btn" href="" download style="display: none;">Download Image</a>
-</div>
-
 {% endblock %}

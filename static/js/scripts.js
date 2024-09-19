@@ -5,64 +5,60 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultImage = document.getElementById('output');
     const downloadBtn = document.getElementById('download-btn');
 
-    // Handle Drag and Drop
+    // Detect current page from data-page attribute
+    const page = document.body.getAttribute('data-page');
+
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
-        e.stopPropagation();
         uploadArea.classList.add('dragging');
     });
 
-    uploadArea.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    uploadArea.addEventListener('dragleave', function() {
         uploadArea.classList.remove('dragging');
     });
 
     uploadArea.addEventListener('drop', function(e) {
         e.preventDefault();
-        e.stopPropagation();
-        uploadArea.classList.remove('dragging');
-
         const file = e.dataTransfer.files[0];
         handleFile(file);
     });
 
-    // Handle file selection from input
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+    fileInput.addEventListener('change', function() {
+        const file = fileInput.files[0];
         handleFile(file);
     });
 
     function handleFile(file) {
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
             previewImage.src = e.target.result;
             previewImage.style.display = 'block';
-            sendFileToBackend(file);
         };
         reader.readAsDataURL(file);
+
+        // Call the correct function based on the page
+        if (page === 'page1') {
+            sendFileToBackend(file, '/process_bg_removal');
+        } else if (page === 'page2') {
+            sendFileToBackend(file, '/process_compression');
+        }
+        // Add more conditions for other pages as needed
     }
 
-    // Send file to backend for processing via AJAX
-    function sendFileToBackend(file) {
+    function sendFileToBackend(file, url) {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Adjust the URL depending on the feature (e.g., '/process_background_removal', '/process_compression', etc.)
-        fetch('/process_image', {
+        fetch(url, {
             method: 'POST',
             body: formData
         })
         .then(response => response.blob())
         .then(blob => {
-            // Convert blob to URL and display processed image
             const url = URL.createObjectURL(blob);
             resultImage.src = url;
             resultImage.style.display = 'block';
-
-            // Enable download button
             downloadBtn.href = url;
             downloadBtn.style.display = 'inline-block';
         })
