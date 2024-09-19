@@ -2,7 +2,7 @@
 
 ## PROJECT INCOMPLETE, Not in use; currently being developed
 
-![Solid Painting](./media/RM1.png)
+![Solid Painting](./static/media/RM1.png)
 
 ## Every Image Manipulation operation I need in one place
 

@@ -93,5 +93,19 @@ def process_perspective_fix():
     
     return send_file(corrected_io, mimetype='image/jpeg')
 
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
+
+# If you want to handle specific exceptions:
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # You can use `e` to get the exception details
+    return render_template('500.html'), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

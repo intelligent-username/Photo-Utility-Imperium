@@ -32,6 +32,14 @@ body {
   text-decoration: none;
 }
 
+.navbar-nav .nav-link {
+  transition: color 0.3s;
+}
+
+.navbar-nav .nav-link:hover {
+  color: #f8f9fa;
+}
+
 .hero {
   background-image: linear-gradient(to bottom, #333, #555);
   background-size: 100% 300px;
@@ -98,6 +106,13 @@ body {
   cursor: pointer;
 }
 
+.upload-area, #image-preview, #result {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 15px;
+  background: #fff;
+}
+
 .upload-icon {
   color: #007bff;
   margin-bottom: 15px;
@@ -130,13 +145,34 @@ body {
   border-radius: 5px;
 }
 
+@media (max-width: 767px) {
+  .upload-area {
+      text-align: center;
+  }
+
+  #image-preview, #result {
+      text-align: center;
+  }
+}
+
 /* Heading Styles */
 h2 {
   margin-top: 20px;
   color: #333;
 }
 
+main.container {
+  margin-top: 30px;
+}
+
+header {
+  padding: 20px 0;
+  background: linear-gradient(to right, #343a40, #495057);
+}
+
 footer {
+  background-color: #212529;
+  padding: 20px 0;
   position: fixed;
   bottom: 0;
   width: 100%;
