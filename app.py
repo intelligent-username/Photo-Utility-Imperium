@@ -1,3 +1,4 @@
+# app.py (Backend for Photo Utility Imperium)
 import os
 import io
 from flask import Flask, render_template, request, send_file
@@ -45,19 +46,19 @@ def process_background_removal():
         return 'No file uploaded', 400
     file = request.files['file']
     
-    # Save the uploaded file
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
     
-    # Remove background using local removebg library
-    rmbg = RemoveBg()
-    rmbg.remove_background_from_img_file(filepath)
-    
-    # Save processed image and return it
-    processed_filepath = os.path.join(PROCESSED_FOLDER, f"processed_{file.filename}")
-    os.rename(filepath[:-4] + "_no_bg.png", processed_filepath)  # Assuming it generates a _no_bg file
+    try:
+        # Background removal logic (Assume RemoveBg works correctly)
+        rmbg = RemoveBg()
+        processed_filepath = rmbg.remove_background_from_img_file(filepath)
+        
+        # Respond with the processed file
+        return send_file(processed_filepath, mimetype='image/png')
+    except Exception as e:
+        return str(e), 500
 
-    return send_file(processed_filepath, mimetype='image/png')
 
 # Route for processing image compression (Page 2)
 @app.route('/process_compression', methods=['POST'])

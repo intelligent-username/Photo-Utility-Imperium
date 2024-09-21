@@ -4,9 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewImage = document.getElementById('preview');
     const resultImage = document.getElementById('output');
     const downloadBtn = document.getElementById('download-btn');
-
-    // Detect current page from data-page attribute
-    const page = document.body.getAttribute('data-page');
+    const page = document.body.getAttribute('data-page');  // Ensure page detection works
 
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
@@ -37,13 +35,13 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         reader.readAsDataURL(file);
 
-        // Call the correct function based on the page
         if (page === 'page1') {
-            sendFileToBackend(file, '/process_bg_removal');
+            sendFileToBackend(file, '/process_background_removal');
         } else if (page === 'page2') {
             sendFileToBackend(file, '/process_compression');
+        } else if (page === 'page3') {
+            sendFileToBackend(file, '/process_perspective_fix');
         }
-        // Add more conditions for other pages as needed
     }
 
     function sendFileToBackend(file, url) {
@@ -54,12 +52,17 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.blob())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error processing file');
+            }
+            return response.blob();
+        })
         .then(blob => {
-            const url = URL.createObjectURL(blob);
-            resultImage.src = url;
+            const fileURL = URL.createObjectURL(blob);
+            resultImage.src = fileURL;
             resultImage.style.display = 'block';
-            downloadBtn.href = url;
+            downloadBtn.href = fileURL;
             downloadBtn.style.display = 'inline-block';
         })
         .catch(error => {
