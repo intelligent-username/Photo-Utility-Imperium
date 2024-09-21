@@ -1,19 +1,17 @@
-# app.py (Backend for Photo Utility Imperium)
+# app.py, the backend
 import os
 import io
 from flask import Flask, render_template, request, send_file
 from PIL import Image, ImageOps
-from removebg import RemoveBg  # Local library for background removal
+from removebg import RemoveBg
 
 app = Flask(__name__)
 
-# Set up paths
 UPLOAD_FOLDER = 'static/uploads'
 PROCESSED_FOLDER = 'static/processed'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
-# Landing page route
 @app.route('/')
 def index():
     return render_template('Pages/main.html')
@@ -39,7 +37,6 @@ def sample_page3():
 def sample_page4():
     return render_template('Pages/page4.html')
 
-# Route for processing background removal (Page 1)
 @app.route('/process_background_removal', methods=['POST'])
 def process_background_removal():
     if 'file' not in request.files:
@@ -50,24 +47,20 @@ def process_background_removal():
     file.save(filepath)
     
     try:
-        # Background removal logic (Assume RemoveBg works correctly)
         rmbg = RemoveBg()
         processed_filepath = rmbg.remove_background_from_img_file(filepath)
         
-        # Respond with the processed file
         return send_file(processed_filepath, mimetype='image/png')
     except Exception as e:
         return str(e), 500
 
 
-# Route for processing image compression (Page 2)
 @app.route('/process_compression', methods=['POST'])
 def process_compression():
     if 'file' not in request.files:
         return 'No file uploaded', 400
     file = request.files['file']
     
-    # Open image and compress it
     img = Image.open(file.stream)
     compressed_io = io.BytesIO()
     img.save(compressed_io, format='JPEG', quality=50)  # Compress quality to 50%
@@ -75,17 +68,14 @@ def process_compression():
     
     return send_file(compressed_io, mimetype='image/jpeg')
 
-# Route for processing perspective fix (Page 3)
 @app.route('/process_perspective_fix', methods=['POST'])
 def process_perspective_fix():
     if 'file' not in request.files:
         return 'No file uploaded', 400
     file = request.files['file']
     
-    # Open image and apply a simple perspective correction
     img = Image.open(file.stream)
     
-    # Example: Apply a transformation (dummy for now, customize as needed)
     corrected_img = ImageOps.exif_transpose(img)
     
     corrected_io = io.BytesIO()
@@ -102,10 +92,8 @@ def not_found_error(error):
 def internal_error(error):
     return render_template('500.html'), 500
 
-# If you want to handle specific exceptions:
 @app.errorhandler(Exception)
 def handle_exception(e):
-    # You can use `e` to get the exception details
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
