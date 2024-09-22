@@ -4,7 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewImage = document.getElementById('preview');
     const resultImage = document.getElementById('output');
     const downloadBtn = document.getElementById('download-btn');
-    const page = document.body.getAttribute('data-page');  // Ensure page detection works
+    const imagePreviewContainer = document.getElementById('image-preview');
+    const resultContainer = document.getElementById('result');
+    const page = document.body.getAttribute('data-page');  // Detect which page we are on
 
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
@@ -30,28 +32,32 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.click();
     });
 
+    let isFileUploaded = false; // Prevent multiple uploads
     function handleFile(file) {
-        if (!file) return;
+        if (!file || isFileUploaded) return;
+        isFileUploaded = true; // Mark as uploaded
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewImage.src = e.target.result;
+            previewImage.src = e.target.result;  // Display original image
             previewImage.style.display = 'block';
+            imagePreviewContainer.style.display = 'block';  // Show the preview container
         };
         reader.readAsDataURL(file);
 
+        // Route handling based on the page
         if (page === 'page1') {
-            sendFileToBackend(file, '/process_background_removal');
+            // For Page 1 (Background Remover)
+            sendFileToBackend(file, '/process_background_removal');  // Send to background removal route
         } else if (page === 'page2') {
-            sendFileToBackend(file, '/process_compression');
-        } else if (page === 'page3') {
-            sendFileToBackend(file, '/process_perspective_fix');
+            // For Page 2 (Image Compressor)
+            sendFileToBackend(file, '/process_compression');  // Send to the compressor route
         }
     }
 
     function sendFileToBackend(file, url) {
         const formData = new FormData();
         formData.append('file', file);
-
+    
         fetch(url, {
             method: 'POST',
             body: formData
@@ -60,17 +66,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) {
                 throw new Error('Error processing file');
             }
-            return response.blob();
+            return response.blob();  // Get the processed image blob
         })
         .then(blob => {
-            const fileURL = URL.createObjectURL(blob);
-            resultImage.src = fileURL;
-            resultImage.style.display = 'block';
+            const fileURL = URL.createObjectURL(blob);  // Create a URL for the processed image
+            resultImage.src = fileURL;  // Display the processed image
+            resultImage.style.display = 'block';  // Show the processed image
+            resultContainer.style.display = 'block';  // Make result container visible
+    
+            // Set the download button URL and show the button
             downloadBtn.href = fileURL;
-            downloadBtn.style.display = 'inline-block';
+            downloadBtn.setAttribute('download', 'processed_image.jpg');  // Set default filename for download
+            downloadBtn.style.display = 'inline-block';  // Show the download button
+        })
+        .finally(() => {
+            isFileUploaded = false;  // Reset for new uploads
         })
         .catch(error => {
             console.error('Error:', error);
         });
-    }
+    }    
 });

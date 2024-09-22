@@ -2,8 +2,8 @@
 import os
 import io
 from flask import Flask, render_template, request, send_file
-from PIL import Image, ImageOps
-from removebg import RemoveBg
+from rembg import remove
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -42,30 +42,35 @@ def process_background_removal():
     if 'file' not in request.files:
         return 'No file uploaded', 400
     file = request.files['file']
-    
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
-    
-    try:
-        rmbg = RemoveBg()
-        processed_filepath = rmbg.remove_background_from_img_file(filepath)
-        
-        return send_file(processed_filepath, mimetype='image/png')
-    except Exception as e:
-        return str(e), 500
 
+    img = Image.open(file.stream)
+    output = remove(img)
+
+    processed_io = io.BytesIO()
+    output.save(processed_io, format='PNG')
+    processed_io.seek(0)
+
+    return send_file(processed_io, mimetype='image/png')  
 
 @app.route('/process_compression', methods=['POST'])
 def process_compression():
     if 'file' not in request.files:
         return 'No file uploaded', 400
-    file = request.files['file']
     
+    file = request.files['file']
     img = Image.open(file.stream)
+    
+    # Ensure correct format: convert non-JPEG images to RGB first to avoid issues with transparency
+    if img.mode in ("RGBA", "P"):  # If image has transparency or is in palette mode
+        img = img.convert("RGB")  # JPEG does not support transparency
+    
     compressed_io = io.BytesIO()
-    img.save(compressed_io, format='JPEG', quality=50)  # Compress quality to 50%
+    
+    # Compress and save to in-memory buffer
+    img.save(compressed_io, format='JPEG', quality=50)  # Compression to 50% quality
     compressed_io.seek(0)
     
+    # Return the compressed image as a response
     return send_file(compressed_io, mimetype='image/jpeg')
 
 @app.route('/process_perspective_fix', methods=['POST'])

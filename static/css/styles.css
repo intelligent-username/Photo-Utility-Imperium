@@ -3,7 +3,9 @@
 
 /* Custom styles */
 body {
-  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
 }
@@ -162,7 +164,9 @@ h2 {
 }
 
 main.container {
+  flex: 1; 
   margin-top: 30px;
+  margin-bottom: 100px;
 }
 
 header {
@@ -173,9 +177,8 @@ header {
 footer {
   background-color: #212529;
   padding: 20px 0;
-  position: fixed;
-  bottom: 0;
+  text-align: center;
   width: 100%;
+  margin-top: auto; 
 }
-
 
