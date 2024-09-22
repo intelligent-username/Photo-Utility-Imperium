@@ -26,6 +26,10 @@ document.addEventListener('DOMContentLoaded', function() {
         handleFile(file);
     });
 
+    uploadArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+
     function handleFile(file) {
         if (!file) return;
         const reader = new FileReader();
