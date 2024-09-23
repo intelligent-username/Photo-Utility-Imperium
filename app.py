@@ -1,9 +1,14 @@
-# app.py, the backend
+# app.py  backend
+import cv2
+import numpy as np 
+from PIL import Image
+from rembg import remove
+
 import os
 import io
+
 from flask import Flask, render_template, request, send_file
-from rembg import remove
-from PIL import Image
+from perspective_fixer import unwarp, order_points
 
 app = Flask(__name__)
 
@@ -73,21 +78,40 @@ def process_compression():
     # Return the compressed image as a response
     return send_file(compressed_io, mimetype='image/jpeg')
 
+# Convert PIL image to OpenCV format
+def pil_to_cv2(pil_image):
+    return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+
+# Convert OpenCV image to PIL format
+def cv2_to_pil(cv2_image):
+    return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
+
 @app.route('/process_perspective_fix', methods=['POST'])
 def process_perspective_fix():
     if 'file' not in request.files:
         return 'No file uploaded', 400
+    
     file = request.files['file']
-    
-    img = Image.open(file.stream)
-    
-    corrected_img = ImageOps.exif_transpose(img)
-    
-    corrected_io = io.BytesIO()
-    corrected_img.save(corrected_io, format='JPEG')
-    corrected_io.seek(0)
-    
-    return send_file(corrected_io, mimetype='image/jpeg')
+
+    try:
+        img = Image.open(file.stream)
+        
+        cv_img = pil_to_cv2(img)
+
+        fixed_img = unwarp(cv_img)
+
+        fixed_pil_img = cv2_to_pil(fixed_img)
+
+        fixed_io = io.BytesIO()
+        fixed_pil_img.save(fixed_io, format='JPEG')
+        fixed_io.seek(0)
+
+        return send_file(fixed_io, mimetype='image/jpeg')
+
+    except Exception as e:
+        print(f"Error processing perspective fix: {e}")
+        return 'Error processing image', 500
+
 
 @app.errorhandler(404)
 def not_found_error(error):

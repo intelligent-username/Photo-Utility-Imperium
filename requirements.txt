@@ -1,3 +1,6 @@
 Flask
 Pillow
-removebg
+rembg
+opencv-python
+matplotlib
+numpy

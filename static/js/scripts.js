@@ -32,32 +32,32 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.click();
     });
 
-    let isFileUploaded = false; // Prevent multiple uploads
+    // Function to handle the file upload and preview
     function handleFile(file) {
-        if (!file || isFileUploaded) return;
-        isFileUploaded = true; // Mark as uploaded
+        if (!file) return;  // Ensure file exists before proceeding
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewImage.src = e.target.result;  // Display original image
+            previewImage.src = e.target.result;  // Display the original image in the preview
             previewImage.style.display = 'block';
-            imagePreviewContainer.style.display = 'block';  // Show the preview container
+            imagePreviewContainer.style.display = 'block';  // Show the image preview container
         };
         reader.readAsDataURL(file);
 
-        // Route handling based on the page
+        // Determine the appropriate route based on the page
         if (page === 'page1') {
-            // For Page 1 (Background Remover)
-            sendFileToBackend(file, '/process_background_removal');  // Send to background removal route
+            sendFileToBackend(file, '/process_background_removal');  // Background remover route
         } else if (page === 'page2') {
-            // For Page 2 (Image Compressor)
-            sendFileToBackend(file, '/process_compression');  // Send to the compressor route
+            sendFileToBackend(file, '/process_compression');  // Image compressor route
+        } else if (page === 'page3') {
+            sendFileToBackend(file, '/process_perspective_fix');  // Perspective fixer route
         }
     }
 
+    // Function to send the file to the backend and handle the response
     function sendFileToBackend(file, url) {
         const formData = new FormData();
         formData.append('file', file);
-    
+
         fetch(url, {
             method: 'POST',
             body: formData
@@ -71,19 +71,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(blob => {
             const fileURL = URL.createObjectURL(blob);  // Create a URL for the processed image
             resultImage.src = fileURL;  // Display the processed image
-            resultImage.style.display = 'block';  // Show the processed image
-            resultContainer.style.display = 'block';  // Make result container visible
-    
-            // Set the download button URL and show the button
+            resultImage.style.display = 'block';
+            resultContainer.style.display = 'block';  // Show the result container
             downloadBtn.href = fileURL;
-            downloadBtn.setAttribute('download', 'processed_image.jpg');  // Set default filename for download
+            downloadBtn.setAttribute('download', 'processed_image.jpg');  // Set download filename
             downloadBtn.style.display = 'inline-block';  // Show the download button
-        })
-        .finally(() => {
-            isFileUploaded = false;  // Reset for new uploads
         })
         .catch(error => {
             console.error('Error:', error);
         });
-    }    
+    }
 });
