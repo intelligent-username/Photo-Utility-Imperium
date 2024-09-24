@@ -4,3 +4,6 @@ rembg
 opencv-python
 matplotlib
 numpy
+fastai
+torchvision
+tensorflow

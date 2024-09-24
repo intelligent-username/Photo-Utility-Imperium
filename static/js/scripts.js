@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to handle the file upload and preview
     function handleFile(file) {
-        if (!file) return;  // Ensure file exists before proceeding
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
             previewImage.src = e.target.result;  // Display the original image in the preview
