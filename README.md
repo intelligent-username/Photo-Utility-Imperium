@@ -12,7 +12,7 @@ Most image manipulation tasks are handled on slow, ad-ridden websites with water
 
 ## Features
 
-### Currently Implemented:
+### Currently Implemented
 
 - **Background Remover**  
   Remove backgrounds from images effortlessly.
@@ -54,4 +54,4 @@ In the terminal, navigate to the directory that contains app.py. Then, type
         flask run
     ```
 
-This will start a local web server. You can access the application by visiting http://127.0.0.1:5000 in your browser.
+This will start a local web server. You can access the application by visiting <http://127.0.0.1:5000> in your browser.
