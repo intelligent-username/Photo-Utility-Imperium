@@ -2,5 +2,4 @@ Flask
 Pillow
 rembg
 opencv-python
-matplotlib
 numpy
