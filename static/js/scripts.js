@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const downloadBtn = document.getElementById('download-btn');
     const imagePreviewContainer = document.getElementById('image-preview');
     const resultContainer = document.getElementById('result');
+    const formatSelect = document.getElementById('formatSelect');
     const page = document.body.getAttribute('data-page');  // Detect which page we are on
 
+    // Drag-and-drop handling
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
         uploadArea.classList.add('dragging');
@@ -19,17 +21,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     uploadArea.addEventListener('drop', function(e) {
         e.preventDefault();
+        uploadArea.classList.remove('dragging');
         const file = e.dataTransfer.files[0];
         handleFile(file);
     });
 
+    // File input handling
     fileInput.addEventListener('change', function() {
         const file = fileInput.files[0];
         handleFile(file);
-    });
-
-    uploadArea.addEventListener('click', function() {
-        fileInput.click();
     });
 
     // Function to handle the file upload and preview
@@ -44,38 +44,34 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsDataURL(file);
 
         // Determine the appropriate route based on the page
-        if (page === 'page1') {
-            sendFileToBackend(file, '/process_background_removal');  // Background remover route
-        } else if (page === 'page2') {
-            sendFileToBackend(file, '/process_compression');  // Image compressor route
-        } else if (page === 'page3') {
-            sendFileToBackend(file, '/process_perspective_fix');  // Perspective fixer route
+        if (page === 'page4') {
+            const format = formatSelect.value;  // Get selected format
+            sendFileToBackend(file, '/process_image_conversion', { output_format: format });  // Image converter route
         }
     }
 
     // Function to send the file to the backend and handle the response
-    function sendFileToBackend(file, url) {
+    function sendFileToBackend(file, url, extraData = {}) {
         const formData = new FormData();
         formData.append('file', file);
+
+        // Append extra form data if provided
+        for (const key in extraData) {
+            formData.append(key, extraData[key]);
+        }
 
         fetch(url, {
             method: 'POST',
             body: formData
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error processing file');
-            }
-            return response.blob();  // Get the processed image blob
-        })
+        .then(response => response.blob())
         .then(blob => {
-            const fileURL = URL.createObjectURL(blob);  // Create a URL for the processed image
-            resultImage.src = fileURL;  // Display the processed image
+            const objectURL = URL.createObjectURL(blob);
+            resultImage.src = objectURL;  // Display the result image
             resultImage.style.display = 'block';
             resultContainer.style.display = 'block';  // Show the result container
-            downloadBtn.href = fileURL;
-            downloadBtn.setAttribute('download', 'processed_image.jpg');  // Set download filename
-            downloadBtn.style.display = 'inline-block';  // Show the download button
+            downloadBtn.href = objectURL;
+            downloadBtn.style.display = 'block';  // Show the download button
         })
         .catch(error => {
             console.error('Error:', error);

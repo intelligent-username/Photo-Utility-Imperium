@@ -1,8 +1,50 @@
 {% extends 'template.html' %}
 
-{% block title %}Future Feature{% endblock %}
+{% block title %}Image Converter{% endblock %}
 
+{% block bodytag %} data-page="page4" {% endblock %}
 {% block content %}
-<h1>Coming Soon</h1>
-<p>This page will be updated with a new feature in the future.</p>
+<div class="row">
+    <!-- Left Side: Upload Area -->
+    <div class="col-md-4">
+        <h2>Image Converter</h2>
+        <div class="upload-area" id="uploadfile">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+            </div>
+            <h3>Drag & Drop or Click to Upload Image</h3>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <!-- Separate File Format Selection -->
+        <div class="form-group mt-3">
+            <label for="formatSelect">Select Output Format</label>
+            <select id="formatSelect" class="form-control">
+                <option value="PNG" selected>PNG</option>
+                <option value="JPEG">JPEG</option>
+                <option value="BMP">BMP</option>
+                <option value="TIFF">TIFF</option>
+                <option value="GIF">GIF</option>
+                <option value="WEBP">WEBP</option>
+                <option value="PPM">PPM</option>
+                <option value="EPS">EPS</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Right Side: Image Preview and Result -->
+    <div class="col-md-8">
+        <!-- Image Preview -->
+        <div id="image-preview">
+            <h4>Original Image:</h4>
+            <img id="preview" src="" alt="Your Image" class="img-fluid">
+        </div>
+
+        <div id="result">
+            <h4>Converted Image:</h4>
+            <img id="output" src="" alt="Converted Image" class="img-fluid">
+            <a id="download-btn" href="" download class="btn btn-primary mt-3" style="display: none;">Download Converted Image</a>
+        </div>
+    </div>
+</div>
 {% endblock %}

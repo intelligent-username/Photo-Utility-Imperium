@@ -1,14 +1,13 @@
 {% extends 'template.html' %}
 
-{% block title %}Perspective Fixer{% endblock %}
+{% block title %}Image Cleaner{% endblock %}
 
-{% block page_name %}page3{% endblock %}
 {% block bodytag %} data-page="page3" {% endblock %}
 {% block content %}
 <div class="row">
     <!-- Left Side: Upload Area -->
     <div class="col-md-4">
-        <h2>Perspective Fixer</h2>
+        <h2>Image Cleaner</h2>
         <div class="upload-area" id="uploadfile">
             <div class="upload-icon">
                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
@@ -21,16 +20,16 @@
     <!-- Right Side: Image Preview and Result -->
     <div class="col-md-8">
         <!-- Image Preview -->
-        <div id="image-preview" style="display: none;">
+        <div id="image-preview">
             <h4>Original Image:</h4>
             <img id="preview" src="" alt="Your Image" class="img-fluid">
         </div>
 
         <!-- Processed Image -->
-        <div id="result" style="display: none;">
-            <h4>Fixed Image:</h4>
-            <img id="output" src="" alt="Fixed Image" class="img-fluid">
-            <a id="download-btn" href="" download class="btn btn-primary mt-3" style="display: none;">Download Fixed Image</a>
+        <div id="result">
+            <h4>Cleaned Image:</h4>
+            <img id="output" src="" alt="Cleaned Image" class="img-fluid">
+            <a id="download-btn" href="" download class="btn btn-primary mt-3" style="display: none;">Download Cleaned Image</a>
         </div>
     </div>
 </div>

@@ -1,0 +1,24 @@
+{% extends "template.html" %}
+
+{% block title %}Bad Request (400){% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-4">400</h1>
+    <p class="lead">Oops! Something went wrong.</p>
+    <p>Error 400: Bad Request</p>
+    <hr>
+    <p>It seems like you did not upload a file, or the request was invalid. Please ensure that:</p>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">You have selected a file to upload.</li>
+        <li class="list-group-item">The file format is supported (e.g., PNG, JPEG).</li>
+        <li class="list-group-item">Your file size does not exceed the maximum limit.</li>
+    </ul>
+    <br>
+    <p>If the issue persists, try refreshing the page or contacting the project maintainers for support.</p>
+    <img src="/static/media/400.gif" alt="400 Error Image" style="max-width: 400px; margin-top: 20px;">
+    <br><br>
+    <a href="/main" class="btn btn-primary">Go Back to Home</a>
+    <a href="/upload" class="btn btn-secondary">Try Again</a>
+</div>
+{% endblock %}

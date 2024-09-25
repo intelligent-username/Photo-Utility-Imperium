@@ -7,7 +7,6 @@ body {
   flex-direction: column;
   min-height: 100vh;
   margin: 0;
-  padding: 0;
 }
 
 .navbar {
@@ -44,7 +43,7 @@ body {
 
 .hero {
   background-image: linear-gradient(to bottom, #333, #555);
-  background-size: 100% 300px;
+  background-size: cover;
   background-position: 0% 100%;
   height: 100vh;
   display: flex;
@@ -85,7 +84,7 @@ body {
   position: relative;
   margin-top: 20px;
   background-color: #f9f9f9;
-  transition: background-color 0.3s, border-color 0.3s;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .upload-area:hover {
@@ -106,6 +105,7 @@ body {
   width: 100%;
   height: 100%;
   cursor: pointer;
+  outline: 2px solid #007bff;
 }
 
 .upload-area, #image-preview, #result {
@@ -138,6 +138,7 @@ body {
 .btn-primary:hover {
   background-color: #0056b3;
   border-color: #0056b3;
+  cursor: pointer;
 }
 
 /* Image Styling */
@@ -148,6 +149,7 @@ body {
 }
 
 @media (max-width: 767px) {
+  
   .upload-area {
       text-align: center;
   }
@@ -155,6 +157,16 @@ body {
   #image-preview, #result {
       text-align: center;
   }
+
+  .navbar ul {
+    flex-direction: column;
+    align-items: center;
+  }
+  .navbar li {
+    margin-right: 0;
+    margin-bottom: 10px;
+  }
+
 }
 
 /* Heading Styles */
@@ -179,5 +191,5 @@ footer {
   padding: 20px 0;
   text-align: center;
   width: 100%;
-  margin-top: auto; 
+  margin-top: 20px; 
 }
