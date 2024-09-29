@@ -10,9 +10,7 @@
 
 Most image manipulation tasks are handled on slow, ad-ridden websites with watermarks, and limited features locked behind premium paywalls. This project provides a solution for performing these operations offline and efficiently, with no restrictions. It is built for those who want a fast, watermark-free experience for cleaning up images for projects, presentations, or any other design-related task.
 
-## Features
-
-### Currently Implemented
+## Currently Implemented Features
 
 - **Background Remover**  
   Remove backgrounds from images effortlessly.

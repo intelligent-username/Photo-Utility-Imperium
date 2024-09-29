@@ -18,27 +18,33 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
+    print("At main page")
     return render_template('Pages/main.html')
 
 @app.route('/main')
 def main():
+    print("At main page")
     return render_template('Pages/main.html')
 
-# Routes for each feature page
+# Routes
 @app.route('/page1')
 def sample_page1():
+    print("Background remover page")
     return render_template('Pages/page1.html')
 
 @app.route('/page2')
 def sample_page2():
+    print("At image compressor")
     return render_template('Pages/page2.html')
 
 @app.route('/page3')
 def sample_page3():
+    print("At noise reducer page")
     return render_template('Pages/page3.html')
 
 @app.route('/page4')
 def sample_page4():
+    print("Format converter")
     return render_template('Pages/page4.html')
 
 # Page 1
@@ -73,7 +79,7 @@ def process_compression():
     compressed_io = io.BytesIO()
     
     # Compress and save to in-memory buffer
-    img.save(compressed_io, format='JPEG', quality=50)  # Compression to 50% quality, change quantity later (or allow customization)?
+    img.save(compressed_io, format='JPEG', quality=50)  # Compression to 50% quality, change quantity later (or allow customization)
     compressed_io.seek(0)
     
     # Return the compressed image as a response
@@ -110,12 +116,11 @@ def process_image_conversion():
         return 'File or format not provided', 400
     
     file = request.files['file']
-    output_format = request.form['output_format'].upper()  # Ensure uppercase (e.g., 'JPEG', 'PNG')
+    output_format = request.form['output_format'].upper()
     
     try:
         img = Image.open(file.stream)
 
-        # Convert image to the desired format and save it to a byte buffer
         processed_io = io.BytesIO()
         img.save(processed_io, format=output_format)
         processed_io.seek(0)
@@ -128,9 +133,9 @@ def process_image_conversion():
         print(f"Error processing image conversion: {e}")
         return 'Error processing image', 500
 
-# Helpers & Error Handlers
+# Helpers & Error Handler Routes
 
-# Not used rn but maybe later?
+# Not used rn but maybe later
 def pil_to_cv2(pil_image):
     return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
