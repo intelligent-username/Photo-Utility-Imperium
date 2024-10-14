@@ -1,7 +1,5 @@
 # Image Utility Imperium
 
-## PROJECT INCOMPLETE, Not yet in full use; currently under development
-
 ![Solid Painting](./static/media/RM1.png)
 
 ## All the Essential Image Manipulation Operations in One Place

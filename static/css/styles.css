@@ -1,7 +1,5 @@
-/* Import Bootstrap */
 @import url('https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css');
 
-/* Custom styles */
 body {
   display: flex;
   flex-direction: column;
@@ -74,7 +72,6 @@ body {
   margin-right: 10px;
 }
 
-/* Upload Area Styles */
 .upload-area {
   border: 2px dashed #ccc;
   border-radius: 10px;
@@ -169,7 +166,6 @@ body {
 
 }
 
-/* Heading Styles */
 h2 {
   margin-top: 20px;
   color: #333;
