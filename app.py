@@ -1,13 +1,14 @@
-# app.py                                            backend
-import cv2
-import numpy as np 
+# app.py  backend
+                    
 from PIL import Image
 from rembg import remove
 
+import cv2
 import os
 import io
 
 from flask import Flask, render_template, request, send_file
+from utils import *
 
 app = Flask(__name__)
 
@@ -46,6 +47,11 @@ def sample_page3():
 def sample_page4():
     print("Format converter")
     return render_template('Pages/page4.html')
+
+@app.route('/page5')
+def sample_page5():
+    print("PDF merger")
+    return render_template('Pages/page5.html')
 
 # Page 1
 @app.route('/process_background_removal', methods=['POST'])
@@ -133,15 +139,27 @@ def process_image_conversion():
         print(f"Error processing image conversion: {e}")
         return 'Error processing image', 500
 
-# Helpers & Error Handler Routes
+# Page 5
+@app.route('/process_pdf_merge', methods=['POST'])
+def process_pdf_merge():
+    try:
+        files = [request.files[key] for key in request.files if key.startswith('file')]
+        pages_between = int(request.form.get('pages_between', 0))
 
-# Not used rn but maybe later
-def pil_to_cv2(pil_image):
-    return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        readers = [PdfReader(file.stream) for file in files]
+        merged_writer = merge_pdfs(readers, num_blank_pages=pages_between)  # Pass pages_between to utility function
 
-def cv2_to_pil(cv2_image):
-    return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
+        output_io = io.BytesIO()
+        merged_writer.write(output_io)
+        output_io.seek(0)
 
+        return send_file(output_io, mimetype='application/pdf', as_attachment=True, download_name='merged.pdf')
+
+    except Exception as e:
+        print(f"Error merging PDFs: {e}")
+        return 'Error merging PDFs', 500
+
+# Error Handler Routes
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('404.html'), 404
@@ -158,6 +176,6 @@ def bad_request(error):
 def handle_exception(e):
     return render_template('500.html'), 500
     
-
+# Just run the app
 if __name__ == '__main__':
     app.run(debug=True)

@@ -74,11 +74,12 @@ body {
 
 .upload-area {
   border: 2px dashed #ccc;
-  border-radius: 10px;
-  padding: 40px 20px;
+  border-radius: 15px;
+  padding: 20px;
   text-align: center;
   cursor: pointer;
   position: relative;
+  margin-bottom: 20px;
   margin-top: 20px;
   background-color: #f9f9f9;
   transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -188,4 +189,32 @@ footer {
   text-align: center;
   width: 100%;
   margin-top: 20px; 
+}
+
+#file-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+iframe {
+  border: 1px solid #ccc;
+  margin-top: 10px;
+}
+
+.d-flex {
+  display: flex;
+  align-items: center;
+}
+
+#merge-btn, #reset-btn {
+  height: 40px; /* Ensure uniform button height */
+}
+
+.col-md-6:nth-child(2) {
+  padding-left: 30px; /* Move the preview section to the right */
+}
+
+#merged-pdf-preview {
+  width: 100%; /* Full width of its container */
+  height: 600px; /* Enlarged height */
 }

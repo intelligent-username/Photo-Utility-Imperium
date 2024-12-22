@@ -3,3 +3,6 @@ Pillow
 rembg
 opencv-python
 numpy
+reportlab
+PyPDF2
+

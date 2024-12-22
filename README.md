@@ -6,7 +6,11 @@
 
 ### Why use this?
 
-Most image manipulation tasks are handled on slow, ad-ridden websites with watermarks, and limited features locked behind premium paywalls. This project provides a solution for performing these operations offline and efficiently, with no restrictions. It is built for those who want a fast, watermark-free experience for cleaning up images for projects, presentations, or any other design-related task.
+All of the image manipulation methods that are integrated in this website handled on slow, ad-ridden websites with watermarks, and limited features. Often they are unreliable and fall behind a paywall past a certain point.
+
+This project provides a solution for performing these operations offline and efficiently, with no restrictions. It is built for those who want a fast, watermark-free experience for cleaning up images for projects, presentations, or any other design-related task. It can be run on the web as well.
+
+Implemented are faster, more efficient, and accessible alternatives. The UI is simple for your (and my) usage convenience.
 
 ## Currently Implemented Features
 
@@ -22,13 +26,16 @@ Most image manipulation tasks are handled on slow, ad-ridden websites with water
 - **File Format Converter**  
   Convert an image file to any format you need (PNG, JPEG, etc.).
 
+- **PDF Merger**  
+  Merge PDFs and add pages between them.
+  
 ## Requirements
 
 To run this project locally, you need to have:
 
 - Python 3.0 or higher
-- Flask installed
-- A code editor such as VSCode or any other IDE supporting Python
+- A code editor (like VSCode) or any other IDE to Python on
+- The required libraries (from readme.txt (see step 2 below))
 
 ### Installation
 

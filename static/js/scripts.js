@@ -77,4 +77,77 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
         });
     }
+    // PDF merging page handling
+    if (page === 'page5') {
+        let pdfFiles = []; // Array to store selected PDF files
+    
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragging');
+            const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+            pdfFiles = pdfFiles.concat(files); // Append files to the list
+            updateFileList(pdfFiles);
+        });
+    
+        fileInput.addEventListener('change', function() {
+            const files = Array.from(fileInput.files).filter(file => file.type === 'application/pdf');
+            pdfFiles = pdfFiles.concat(files);
+            updateFileList(pdfFiles);
+        });
+    
+        function updateFileList(files) {
+            const fileListContainer = document.getElementById('file-list');
+            fileListContainer.innerHTML = ''; // Clear existing list
+            files.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${index + 1}. ${file.name}`;
+                fileListContainer.appendChild(li);
+            });
+        }
+    
+        document.getElementById('merge-btn').addEventListener('click', function() {
+            if (pdfFiles.length === 0) {
+                alert('No PDF files selected!');
+                return;
+            }
+    
+            // Get the number of pages between PDFs
+            const pagesBetweenInput = document.getElementById('pages-between').value;
+            const pagesBetween = Math.floor(Math.abs(parseInt(pagesBetweenInput) || 0));
+    
+            const formData = new FormData();
+            pdfFiles.forEach((file, index) => formData.append(`file${index}`, file));
+            formData.append('pages_between', pagesBetween);
+    
+            fetch('/process_pdf_merge', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const objectURL = URL.createObjectURL(blob);
+    
+                // Display the merged PDF in the preview iframe
+                const pdfPreview = document.getElementById('merged-pdf-preview');
+                pdfPreview.src = objectURL;
+                pdfPreview.hidden = false;
+    
+                // Reset files after successful merge
+                pdfFiles = [];
+                updateFileList(pdfFiles);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while merging PDFs.');
+            });
+        });
+    
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            pdfFiles = []; // Clear the list of files
+            updateFileList(pdfFiles); // Refresh the displayed list
+            const pdfPreview = document.getElementById('merged-pdf-preview');
+            pdfPreview.hidden = true; // Hide the merged PDF preview
+            pdfPreview.src = ''; // Clear the preview source
+        });
+    }    
 });
