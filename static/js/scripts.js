@@ -48,6 +48,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const format = formatSelect.value;  // Get selected format
             sendFileToBackend(file, '/process_image_conversion', { output_format: format });  // Image converter route
         }
+        if (page === 'page1') {
+            sendFileToBackend(file, '/process_background_removal');  // Background remover route
+        }
+        if (page === 'page2') {
+            sendFileToBackend(file, '/process_image_cleaning');  // Image cleaner route
+        }
+        if (page === 'page3') {
+            sendFileToBackend(file, '/process_compression');  // Image compressor route
+        }
     }
 
     // Function to send the file to the backend and handle the response

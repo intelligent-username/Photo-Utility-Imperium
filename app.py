@@ -19,38 +19,38 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
-    print("At main page")
+    print("Arrived at Main Page")
     return render_template('Pages/main.html')
 
 @app.route('/main')
 def main():
-    print("At main page")
+    print("Arrived at Main Page")
     return render_template('Pages/main.html')
 
 # Routes
 @app.route('/page1')
 def sample_page1():
-    print("Background remover page")
+    print("Background Remover Page")
     return render_template('Pages/page1.html')
 
 @app.route('/page2')
 def sample_page2():
-    print("At image compressor")
+    print("Image Compressor")
     return render_template('Pages/page2.html')
 
 @app.route('/page3')
 def sample_page3():
-    print("At noise reducer page")
+    print("Noise Reduction Page")
     return render_template('Pages/page3.html')
 
 @app.route('/page4')
 def sample_page4():
-    print("Format converter")
+    print("Format Converter Page")
     return render_template('Pages/page4.html')
 
 @app.route('/page5')
 def sample_page5():
-    print("PDF merger")
+    print("PDF Merger Page")
     return render_template('Pages/page5.html')
 
 # Page 1
@@ -80,15 +80,15 @@ def process_compression():
     
     # Ensure correct format: convert non-JPEG images to RGB first to avoid issues with transparency
     if img.mode in ("RGBA", "P"):  # If image has transparency or is in palette mode
-        img = img.convert("RGB")  # JPEG does not support transparency
+        img = img.convert("RGB")  # Colour the image
     
     compressed_io = io.BytesIO()
     
-    # Compress and save to in-memory buffer
+    # Compress & save to in-memory buffer
     img.save(compressed_io, format='JPEG', quality=50)  # Compression to 50% quality, change quantity later (or allow customization)
     compressed_io.seek(0)
     
-    # Return the compressed image as a response
+    # Return compressed image as response
     return send_file(compressed_io, mimetype='image/jpeg')
 
 # Page 3
@@ -100,10 +100,10 @@ def process_image_cleaning():
     file = request.files['file']
     img = Image.open(file.stream)
     
-    # Convert the image to OpenCV format
+    # Convert image to OpenCV format
     cv_img = pil_to_cv2(img)
     
-    # Apply Gaussian Blur to reduce noise
+    # Apply Gaussian Blur, reduce noise
     cleaned_img = cv2.GaussianBlur(cv_img, (5, 5), 0)
     
     # Convert back to PIL for output
