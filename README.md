@@ -36,6 +36,7 @@ To run this project locally, you need to have:
 - Python 3.0 or higher
 - A code editor (like VSCode) or any other IDE to Python on
 - The required libraries (from readme.txt (see step 2 below))
+- Microsoft Visual C++ Redistributable
 
 ### Installation
 

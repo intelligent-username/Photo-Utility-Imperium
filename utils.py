@@ -5,10 +5,12 @@ import cv2
 from PIL import Image
 import numpy as np
 
+#
 # Helpers & Utilities
-
 #-----------------------#
 # PDF Merger
+#
+
 def create_blank_page():
     """Creates a single blank PDF page in memory."""
     packet = BytesIO()

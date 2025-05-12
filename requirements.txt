@@ -5,4 +5,4 @@ opencv-python
 numpy
 reportlab
 PyPDF2
-
+onnxruntime
