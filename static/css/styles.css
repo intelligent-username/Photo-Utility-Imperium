@@ -61,8 +61,8 @@ body.theme-dark {
   height: 34px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  object-fit: cover;
-  padding: 2px; /* Optional: adds a subtle border effect */
+  object-fit: cover;  
+  padding: 2px;
 }
 
 .app-brand .brand-text {
