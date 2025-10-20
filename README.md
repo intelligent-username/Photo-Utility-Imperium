@@ -1,6 +1,6 @@
 # Photo Utility Imperium
 
-![Solid Painting](./static/media/RM1.png)
+![Nighthawks by Edward Hopper 1942](./static/media/RM1.png)
 
 ## All the Essential Image Manipulation Operations in One Place
 
