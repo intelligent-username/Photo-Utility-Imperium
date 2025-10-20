@@ -1,0 +1,36 @@
+{% extends 'template.html' %}
+
+{% block title %}Image Cleaner{% endblock %}
+
+{% block bodytag %} data-page="NR" {% endblock %}
+{% block content %}
+<div class="row">
+    <!-- Left Side: Upload Area -->
+    <div class="col-md-4">
+        <h2>Image Cleaner</h2>
+        <div class="upload-area" id="uploadfile">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+            </div>
+            <h3>Drag & Drop or Click to Upload Image</h3>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+    </div>
+
+    <!-- Right Side: Image Preview and Result -->
+    <div class="col-md-8">
+        <!-- Image Preview -->
+        <div id="image-preview">
+            <h4>Original Image:</h4>
+            <img id="preview" src="" alt="Your Image" class="img-fluid">
+        </div>
+
+        <!-- Processed Image -->
+        <div id="result">
+            <h4>Cleaned Image:</h4>
+            <img id="output" src="" alt="Cleaned Image" class="img-fluid">
+            <a id="download-btn" href="" download class="btn btn-primary mt-3" style="display: none;">Download Cleaned Image</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

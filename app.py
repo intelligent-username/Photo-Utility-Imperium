@@ -1,5 +1,7 @@
 # app.py  backend
-                    
+import warnings; warnings.simplefilter("ignore")
+
+
 from PIL import Image
 from rembg import remove
 
@@ -28,30 +30,30 @@ def main():
     return render_template('Pages/main.html')
 
 # Routes
-@app.route('/page1')
+@app.route('/BR')
 def sample_page1():
     print("Background Remover Page")
-    return render_template('Pages/page1.html')
+    return render_template('Pages/BR.html')
 
-@app.route('/page2')
+@app.route('/IC')
 def sample_page2():
     print("Image Compressor")
-    return render_template('Pages/page2.html')
+    return render_template('Pages/IC.html')
 
-@app.route('/page3')
+@app.route('/NR')
 def sample_page3():
     print("Noise Reduction Page")
-    return render_template('Pages/page3.html')
+    return render_template('Pages/NR.html')
 
-@app.route('/page4')
+@app.route('/FC')
 def sample_page4():
     print("Format Converter Page")
-    return render_template('Pages/page4.html')
+    return render_template('Pages/FC.html')
 
-@app.route('/page5')
+@app.route('/PDF')
 def sample_page5():
     print("PDF Merger Page")
-    return render_template('Pages/page5.html')
+    return render_template('Pages/PDF.html')
 
 # Page 1
 @app.route('/process_background_removal', methods=['POST'])
@@ -127,11 +129,18 @@ def process_image_conversion():
     try:
         img = Image.open(file.stream)
 
+        # Convert to RGB if saving as PDF and mode is not RGB
+        if output_format == 'PDF' and img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
         processed_io = io.BytesIO()
         img.save(processed_io, format=output_format)
         processed_io.seek(0)
-        
-        return send_file(processed_io, mimetype=f'image/{output_format.lower()}')
+
+        if output_format == 'PDF':
+            return send_file(processed_io, mimetype='application/pdf', as_attachment=True, download_name='converted.pdf')
+        else:
+            return send_file(processed_io, mimetype=f'image/{output_format.lower()}')
 
     except IOError:
         return 'Error: File format not supported or invalid image', 400
