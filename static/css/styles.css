@@ -1,18 +1,17 @@
-/* GitHub-Inspired Dark Theme with Bluish Tones */
 :root {
-  --bg: #0d1117; /* GitHub dark bg */
-  --bg-soft: #161b22; /* GitHub panel bg */
+  --bg: #0d1117;
+  --bg-soft: #161b22;
   --panel: rgba(22, 27, 34, 0.8);
   --panel-elev: rgba(33, 38, 45, 0.9);
   --border: rgba(48, 54, 61, 0.5);
-  --text: #f0f6fc; /* GitHub text */
-  --muted: #8b949e; /* GitHub muted */
-  --primary: #58a6ff; /* GitHub blue */
-  --primary-2: #79c0ff; /* Lighter blue */
-  --success: #238636; /* GitHub green */
-  --danger: #da3633; /* GitHub red */
-  --warning: #d29922; /* GitHub yellow */
-  --accent: #990F02; /* User requested red accent */
+  --text: #f0f6fc;
+  --muted: #8b949e;
+  --primary: #58a6ff;
+  --primary-2: #79c0ff;
+  --success: #238636;
+  --danger: #da3633;
+  --warning: #d29922;
+  --accent: #990F02;
   --shadow: 0 8px 24px rgba(1, 4, 9, 0.75);
   --radius: 12px;
 }
