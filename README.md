@@ -55,6 +55,24 @@ To run this project locally, you need to have:
 - Python 3.10 or higher
 - Microsoft Visual C++ Redistributable (for Windows users)
 
+### Technical Details
+
+The tech stack for this application is really simple: Flask for the Python backend, along with vanilla JS and HTML/CSS for the frontend. The image processing is done using popular libraries like OpenCV, Pillow, and PyMuPDF.
+
+The directory layout is lightly documented below for component-wise reference.
+
+```
+Photo-Utility-Imperium/
+├── app.py                 # Flask entry point & routes
+├── utils.py               # Helpers
+├── requirements.txt       # Python dependencies
+├── static/                # Frontend assets (CSS, JS, media)
+│   ├── css/styles.css     # Theme, layout, and component styling
+│   ├── js/                # Different (modular) client scripts
+│   └── media/             # Images used in the UI & README
+└── templates/             # Jinja2 views per tool + shared layout
+```
+
 ### Installation
 
 1. **Clone the repository**  
@@ -96,13 +114,13 @@ Visit [http://127.0.0.1:5000/](http://127.0.0.1:5000/) to open the application i
 
 ### Deactivating the Environment
 
-For conda:
+With conda:
 
 ```bash
 conda deactivate
 ```
 
-For pip:
+With pip:
 
 ```bash
 deactivate
