@@ -32,6 +32,7 @@
                 <option value="PPM">PPM</option>
                 <option value="EPS">EPS</option>
             </select>
+            <button id="convert-again-btn" class="btn btn-primary mt-2 hidden">Convert Again</button>
         </div>
     </div>
 
@@ -39,12 +40,18 @@
     <div class="col-md-8">
         <!-- Image Preview -->
         <div id="image-preview">
-            <h4>Original Image:</h4>
+            <div class="preview-header">
+                <h4>Original Image:</h4>
+                <span id="original-name" class="file-name-badge hidden"></span>
+            </div>
             <img id="preview" src="" alt="Your Image" class="img-fluid hidden">
         </div>
 
         <div id="result">
-            <h4>Converted Image:</h4>
+            <div class="preview-header">
+                <h4>Converted Image:</h4>
+                <span id="converted-name" class="file-name-badge hidden"></span>
+            </div>
             <img id="output" src="" alt="Converted Image" class="img-fluid hidden">
             <a id="download-btn" href="" download="converted" class="btn btn-primary mt-3 hidden">Download</a>
         </div>

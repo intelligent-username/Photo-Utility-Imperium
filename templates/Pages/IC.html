@@ -23,13 +23,19 @@
     <div class="col-md-8">
         <!-- Image Preview -->
         <div id="image-preview">
-            <h4>Original Image:</h4>
+            <div class="preview-header">
+                <h4>Original Image:</h4>
+                <span id="original-size" class="file-size-badge hidden"></span>
+            </div>
             <img id="preview" src="" alt="Your Image" class="img-fluid hidden">
         </div>
 
         <!-- Processed Image -->
         <div id="result">
-            <h4>Compressed Image:</h4>
+            <div class="preview-header">
+                <h4>Compressed Image:</h4>
+                <span id="compressed-size" class="file-size-badge hidden"></span>
+            </div>
             <img id="output" src="" alt="Compressed Image" class="img-fluid hidden">
             <a id="download-btn" href="" download="compressed.jpg" class="btn btn-primary mt-3 hidden">Download</a>
         </div>

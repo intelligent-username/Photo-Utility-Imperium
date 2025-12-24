@@ -20,12 +20,15 @@ Input an image in any format, and get back a PNG with the background removed.
 
 ### Image Compressor
 
-Compress images by reducing their resolution while maintaining quality and essential contents.
+Reduce file size by getting rid of redundant data in the image.
+
 Note: for "compression", it's often advisable to convert to `webp` instead of using this tool, as it's an inherently efficient format.
 
 ### Noise Reducer
 
-Reduce image noise to create a cleaner, more professional look.
+Get rid of image noise to make the subjects appear more defined.
+
+Note: do not use this on documents as this tends to blur the text.
 
 ### File Format Converter
 
@@ -35,14 +38,12 @@ Convert an image file to any format you need (PDF, PNG, JPEG, etc.).
 
 Merge PDFs and add pages between them.
   
-## Requirements
+## Prerequisites
 
 To run this project locally, you need to have:
 
-- Python 3.8 or higher
-- A code editor (like VSCode) or any other IDE to Python on
-- The required libraries (see installation options below)
-- Microsoft Visual C++ Redistributable
+- Python 3.10 or higher
+- Microsoft Visual C++ Redistributable (for Windows users)
 
 ### Installation
 

@@ -8,7 +8,7 @@
 {% block content %}
 <div class="row">
     <!-- Left Side: Upload Area -->
-    <div class="col-md-4">
+    <div class="col-md-3">
         <h2>Noise Reducer</h2>
         <div class="upload-area" id="uploadfile">
             <div class="upload-icon">
@@ -19,20 +19,35 @@
         </div>
     </div>
 
-    <!-- Right Side: Image Preview and Result -->
-    <div class="col-md-8">
-        <!-- Image Preview -->
-        <div id="image-preview">
-            <h4>Original Image:</h4>
-            <img id="preview" src="" alt="Your Image" class="img-fluid hidden">
-        </div>
-
-        <!-- Processed Image -->
-        <div id="result">
-            <h4>Cleaned Image:</h4>
-            <img id="output" src="" alt="Cleaned Image" class="img-fluid hidden">
+    <!-- Right Side: Comparison -->
+    <div class="col-md-9">
+        <!-- Comparison container -->
+        <div id="comparison-container" class="comparison-container hidden">
+            <p class="comparison-hint"><i class="fas fa-search"></i> Hover to compare</p>
+            <div class="comparison-row">
+                <!-- Original Image -->
+                <div class="comparison-pane" id="original-pane">
+                    <h4>Original</h4>
+                    <div class="magnify-wrapper" data-pair="compare">
+                        <img id="preview" src="" alt="Original Image" class="img-fluid">
+                        <div class="magnifier-lens"></div>
+                    </div>
+                </div>
+                <!-- Processed Image -->
+                <div class="comparison-pane" id="result-pane">
+                    <h4>Cleaned</h4>
+                    <div class="magnify-wrapper" data-pair="compare">
+                        <img id="output" src="" alt="Cleaned Image" class="img-fluid">
+                        <div class="magnifier-lens"></div>
+                    </div>
+                </div>
+            </div>
             <a id="download-btn" href="" download="cleaned.png" class="btn btn-primary mt-3 hidden">Download</a>
         </div>
+
+        <!-- Hidden containers for JS compatibility -->
+        <div id="image-preview" class="hidden"></div>
+        <div id="result" class="hidden"></div>
     </div>
 </div>
 {% endblock %}
