@@ -1,4 +1,4 @@
-name: image-utility-imperium
+name: pui
 channels:
   - conda-forge
   - defaults

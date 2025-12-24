@@ -6,28 +6,34 @@
 
 ### Why use this?
 
-All of the image manipulation methods that are integrated in this website handled on slow, ad-ridden websites with watermarks, and limited features. Often they are unreliable and fall behind a paywall past a certain point.
+When working with images, there's usually a long set of things that one needs to do. For eample, removing backgrounds, converting to PDFs, and merging those PDFs. These functionalites are often found in online websites which are slow, ad-ridden, watermarked, and rate-limited.
 
-This project provides a solution for performing these operations offline and efficiently, with no restrictions. It is built for those who want a fast, watermark-free experience for cleaning up images for projects, presentations, or any other design-related task.
+This project provides a solution for performing these operations offline and efficiently, with no restrictions. You get all of the upsides of having access to the processing, without the hassles that come with online tools, and an extra added layer of complete privacy.
 
-Implemented are faster, more efficient, and accessible alternatives. The UI is simple for your (and my) usage convenience. Many of the models, like those from opencv, can definetely be tuned and improved. for better results but, for most use cases, what we have now is sufficient.
+The implemented methods are faster, more efficient, and accessible. The UI is simple for your (and my) usage convenience. Many of the models, like those from opencv, can definetely be tuned and improved for better results but, for most use cases, what we have now is sufficient.
 
 ## Features
 
-- **Background Remover**  
-  Remove backgrounds from images effortlessly.
-  
-- **Image Compressor**  
-  Compress images by reducing their resolution while maintaining quality and essential contents.
-  
-- **Noise Reducer**  
-  Reduce image noise to create a cleaner, more professional look.
-  
-- **File Format Converter**  
-  Convert an image file to any format you need (PNG, JPEG, etc.).
+### Background Removal
 
-- **PDF Merger**  
-  Merge PDFs and add pages between them.
+Input an image in any format, and get back a PNG with the background removed.
+
+### Image Compressor
+
+Compress images by reducing their resolution while maintaining quality and essential contents.
+Note: for "compression", it's often advisable to convert to `webp` instead of using this tool, as it's an inherently efficient format.
+
+### Noise Reducer
+
+Reduce image noise to create a cleaner, more professional look.
+
+### File Format Converter
+
+Convert an image file to any format you need (PDF, PNG, JPEG, etc.). 
+
+### PDF Merger
+
+Merge PDFs and add pages between them.
   
 ## Requirements
 

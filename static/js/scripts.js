@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const imagePreviewContainer = document.getElementById('image-preview');
     const resultContainer = document.getElementById('result');
     const formatSelect = document.getElementById('formatSelect');
-    const page = document.body.getAttribute('data-page');  // Detect which page we are on
+    const page = (document.body.getAttribute('data-page') || '').trim();  // Detect which page we are on
     const processingOverlay = document.getElementById('processing-overlay');
 
     // Navbar toggle for mobile
@@ -15,13 +15,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const navbarCollapse = document.getElementById('navbarSupportedContent');
     if (navbarToggler && navbarCollapse) {
         navbarToggler.addEventListener('click', function() {
-            navbarCollapse.classList.toggle('show');
+            const nextState = !navbarCollapse.classList.contains('show');
+            navbarCollapse.classList.toggle('show', nextState);
+            navbarToggler.setAttribute('aria-expanded', String(nextState));
+        });
+
+        navbarCollapse.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                navbarCollapse.classList.remove('show');
+                navbarToggler.setAttribute('aria-expanded', 'false');
+            });
         });
     }
 
     // Helper to toggle processing overlay
-    const showProcessing = () => processingOverlay && processingOverlay.classList.add('active');
-    const hideProcessing = () => processingOverlay && processingOverlay.classList.remove('active');
+    const setProcessing = (isActive) => {
+        if (!processingOverlay) return;
+        processingOverlay.classList.toggle('active', isActive);
+        processingOverlay.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    };
+    const showProcessing = () => setProcessing(true);
+    const hideProcessing = () => setProcessing(false);
+
+    const clearOutputs = () => {
+        if (downloadBtn) {
+            downloadBtn.removeAttribute('href');
+            downloadBtn.style.display = 'none';
+        }
+        if (resultImage) {
+            resultImage.src = '';
+            resultImage.style.display = 'none';
+        }
+        if (resultContainer) {
+            resultContainer.style.display = 'none';
+        }
+    };
 
     // Safeguard: elements may be missing on some pages
     if (uploadArea) {
@@ -52,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to handle the file upload and preview
     function handleFile(file) {
         if (!file) return;  // Ensure file exists before proceeding
+        clearOutputs();
         if (previewImage && imagePreviewContainer) {
             const reader = new FileReader();
             reader.onload = function(e) {
