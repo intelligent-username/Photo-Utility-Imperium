@@ -57,15 +57,18 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="app-footer">
-      <div class="container d-flex align-items-center">
-        <div class="text-muted small mr-auto">&copy; 2026 intelligent-username</div>
-        <div class="footer-links">
-          <a href="/main">Home</a>
-          <a href="https://github.com/intelligent-username/Image-Utility-Imperium" target="_blank" rel="noopener">GitHub</a>
-        </div>
-      </div>
-    </footer>
+        <footer class="app-footer">
+            <div class="container footer-inner">
+                <div class="footer-text text-muted small">&copy; 2026 intelligent-username</div>
+                <div class="footer-links">
+                    <img src="{{ url_for('static', filename='media/GH_Logo.svg') }}" alt="GitHub" class="footer-github-logo" aria-hidden="true">
+
+                    <a href="https://github.com/intelligent-username/Photo-Utility-Imperium" target="_blank" rel="noopener">
+                        Repository
+                    </a>
+                </div>
+            </div>
+        </footer>
 
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>

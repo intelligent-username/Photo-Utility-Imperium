@@ -40,16 +40,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearOutputs = () => {
         if (downloadBtn) {
             downloadBtn.removeAttribute('href');
-            downloadBtn.style.display = 'none';
+            downloadBtn.classList.add('hidden');
         }
         if (resultImage) {
             resultImage.src = '';
-            resultImage.style.display = 'none';
-        }
-        if (resultContainer) {
-            resultContainer.style.display = 'none';
+            resultImage.classList.add('hidden');
         }
     };
+
+    // Filename without extension
+    const getBaseName = (filename) => filename.replace(/\.[^/.]+$/, '');
 
     // Safeguard: elements may be missing on some pages
     if (uploadArea) {
@@ -85,8 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 previewImage.src = e.target.result;  // Display the original image in the preview
-                previewImage.style.display = 'block';
-                imagePreviewContainer.style.display = 'block';  // Show the image preview container
+                previewImage.classList.remove('hidden');
             };
             reader.readAsDataURL(file);
         }
@@ -94,23 +93,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Determine the appropriate route based on the page
         if (page === 'FC') {
             const format = formatSelect ? formatSelect.value : 'PNG';  // Get selected format
-            sendFileToBackend(file, '/process_image_conversion', { output_format: format });  // Image converter route
+            sendFileToBackend(file, '/process_image_conversion', { output_format: format }, 'converted', format.toLowerCase());  // Image converter route
         }
         if (page === 'BR') {
-            sendFileToBackend(file, '/process_background_removal');  // Background remover route
+            sendFileToBackend(file, '/process_background_removal', {}, 'bg-removed', 'png');  // Background remover route
         }
         if (page === 'IC') {
-            sendFileToBackend(file, '/process_compression');  // Image compressor route
+            sendFileToBackend(file, '/process_compression', {}, 'compressed', 'jpg');  // Image compressor route
         }
         if (page === 'NR') {
-            sendFileToBackend(file, '/process_image_cleaning');  // Image cleaner route
+            sendFileToBackend(file, '/process_image_cleaning', {}, 'cleaned', 'png');  // Image cleaner route
         }
     }
 
     // Function to send the file to the backend and handle the response
-    function sendFileToBackend(file, url, extraData = {}) {
+    function sendFileToBackend(file, url, extraData = {}, operation = 'processed', ext = 'png') {
         const formData = new FormData();
         formData.append('file', file);
+        const baseName = getBaseName(file.name);
 
         // Append extra form data if provided
         for (const key in extraData) {
@@ -130,10 +130,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const objectURL = URL.createObjectURL(blob);
             if (resultImage && resultContainer && downloadBtn) {
                 resultImage.src = objectURL;  // Display the result image
-                resultImage.style.display = 'block';
-                resultContainer.style.display = 'block';  // Show the result container
+                resultImage.classList.remove('hidden');
                 downloadBtn.href = objectURL;
-                downloadBtn.style.display = 'inline-block';  // Show the download button
+                downloadBtn.download = `${baseName}_${operation}.${ext}`;
+                downloadBtn.classList.remove('hidden');  // Show the download button
             }
         })
         .catch(error => {
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const pdfPreview = document.getElementById('merged-pdf-preview');
                     if (pdfPreview) {
                         pdfPreview.src = objectURL;
-                        pdfPreview.hidden = false;
+                        pdfPreview.classList.remove('hidden');
                     }
 
                     // Reset files after successful merge
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateFileList(pdfFiles); // Refresh the displayed list
                 const pdfPreview = document.getElementById('merged-pdf-preview');
                 if (pdfPreview) {
-                    pdfPreview.hidden = true; // Hide the merged PDF preview
+                    pdfPreview.classList.add('hidden'); // Hide the merged PDF preview
                     pdfPreview.src = ''; // Clear the preview source
                 }
             });

@@ -6,7 +6,7 @@
 {% block content %}
 <div class="row">
     <!-- Left Side: Upload Area -->
-    <div class="col-md-6">
+    <div class="col-md-4">
         <h2>PDF Merger</h2>
         <div class="upload-area" id="uploadfile">
             <div class="upload-icon">
@@ -27,9 +27,9 @@
     </div>
 
     <!-- Right Side: Merged PDF Preview -->
-    <div class="col-md-6" style="padding-left: 30px;">
+    <div class="col-md-8">
         <h4>Merged PDF Preview</h4>
-        <iframe id="merged-pdf-preview" style="width: 100%; height: 600px; border: 1px solid #ccc;" hidden></iframe>
+        <iframe id="merged-pdf-preview" class="hidden"></iframe>
     </div>
 </div>
 {% endblock %}

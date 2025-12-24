@@ -52,43 +52,47 @@ To run this project locally, you need to have:
 2. **Install dependencies**  
    After cloning, open a terminal and navigate to the project directory.
 
-   **Using Conda:**
+   Using conda:
 
    ```bash
-   conda env create -f environment.yml
-   conda activate image-utility-imperium
+   conda create -n pui python=3.10
+   conda activate pui
+   pip install -r requirements.txt
    ```
 
-   Note, this will create a temporary file called `condaenv.4nfgkqjk.requirements.txt` (or something like it) when installing the dependencies, nothing to worry about.
-
-   activate the environment so you have access to the installed packages.
+   Using pip:
 
    ```bash
-    conda activate image-utility-imperium
+   python -m venv pui_env
+   source pui_env/bin/activate  # For MacOS/Linux
+   pui_env\Scripts\activate     # For Windows
+   pip install -r requirements.txt
    ```
 
-   **Or, Using pip:**
+#### Run the Application
 
-   ```bash
-   pip install -r requirements.txt # Or create a venv and then run this
-   ```
+Make sure the virtual environment is activated (or at least the dependencies are installed). Navigate to the directory containing `app.py`.
 
-#### Run the Flask application
-
-In the terminal, navigate to the directory that contains app.py. Make sure your environment is activated (if using conda), then type:
+Then, run:
 
 ```bash
 python app.py
 ```
 
-Note that, when running locally for the first time, it will take a while to load.
+This will start a local server. Note that, when running locally for the first time, it will take a while to load.
 
-This will start a local server. You can access the application by visiting [http://127.0.0.1:5000/](http://127.0.0.1:5000/) in your browser.
+Visit [http://127.0.0.1:5000/](http://127.0.0.1:5000/) (or a link to it) to open the application in your browser.
 
 ### Deactivating the Environment
 
-If you used conda, you can deactivate the environment when done:
+For conda:
 
 ```bash
 conda deactivate
+```
+
+For pip:
+
+```bash
+deactivate
 ```
