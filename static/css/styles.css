@@ -326,7 +326,7 @@ iframe { border: 1px solid var(--border); margin-top: 10px; border-radius: 10px;
 .hidden { display: none; }
 .d-flex { display: flex; align-items: center; }
 #merge-btn, #reset-btn { height: 40px; }
-#merged-pdf-preview { width: 100%; height: 600px; }
+#merged-pdf-preview, #preview-pdf, #output-pdf { width: 100%; height: 600px; border: none; border-radius: var(--radius); }
 
 .comparison-container {
   background: linear-gradient(180deg, var(--panel), var(--panel-elev));
@@ -343,6 +343,55 @@ iframe { border: 1px solid var(--border); margin-top: 10px; border-radius: 10px;
   font-size: 0.85rem;
   text-align: center;
   margin-bottom: 12px;
+  margin: 0;
+}
+
+.slideshow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.slideshow-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.slideshow-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.slideshow-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
+.slideshow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#slide-counter {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  min-width: 50px;
+  text-align: center;
 }
 
 .comparison-row {

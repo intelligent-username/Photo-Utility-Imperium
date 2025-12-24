@@ -14,8 +14,8 @@
             <div class="upload-icon">
                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
             </div>
-            <h3>Drag & Drop or Click to Upload Image</h3>
-            <input type="file" id="fileInput" accept="image/*">
+            <h3>Drag & Drop or Click to Upload</h3>
+            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
         </div>
 
         <!-- Separate File Format Selection -->
@@ -38,21 +38,33 @@
 
     <!-- Right Side: Image Preview and Result -->
     <div class="col-md-8">
+        <!-- Slideshow header -->
+        <div class="slideshow-header hidden" id="slideshow-header">
+            <span></span>
+            <div class="slideshow-counter">
+                <button id="prev-slide" class="slideshow-btn" title="Previous image"><i class="fas fa-chevron-left"></i></button>
+                <span id="slide-counter">1/1</span>
+                <button id="next-slide" class="slideshow-btn" title="Next image"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+
         <!-- Image Preview -->
         <div id="image-preview">
             <div class="preview-header">
-                <h4>Original Image:</h4>
+                <h4>Original File:</h4>
                 <span id="original-name" class="file-name-badge hidden"></span>
             </div>
             <img id="preview" src="" alt="Your Image" class="img-fluid hidden">
+            <iframe id="preview-pdf" class="hidden"></iframe>
         </div>
 
         <div id="result">
             <div class="preview-header">
-                <h4>Converted Image:</h4>
+                <h4>Converted File:</h4>
                 <span id="converted-name" class="file-name-badge hidden"></span>
             </div>
             <img id="output" src="" alt="Converted Image" class="img-fluid hidden">
+            <iframe id="output-pdf" class="hidden"></iframe>
             <a id="download-btn" href="" download="converted" class="btn btn-primary mt-3 hidden">Download</a>
         </div>
     </div>

@@ -1,0 +1,12 @@
+<!-- templates/error.html -->
+{% extends "template.html" %}
+{% block title %}{{ code }} — {{ title }}{% endblock %}
+
+{% block content %}
+  <div class="error-page">
+    <h1>{{ code }} — {{ title }}</h1>
+    <p>{{ message }}</p>
+    <img src="/static/media/errors/misc.png" alt="Error Image">
+    <a class="btn btn-secondary" href="{{ url_for('main') }}">Return home</a>
+  </div>
+{% endblock %}

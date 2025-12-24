@@ -184,7 +184,30 @@ def bad_request(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     return render_template('500.html'), 500
-    
+
+from flask import render_template
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('error.html', code=403, title='Forbidden',
+                           message="You don't have permission to access this resource."), 403
+
+@app.errorhandler(503)
+def service_unavailable(e):
+    return render_template('error.html', code=503, title='Service Unavailable',
+                           message="The service is temporarily unavailable. Try again later."), 503
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return render_template('error.html', code=401, title='Unauthorized',
+                           message="Please sign in to continue."), 401
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    response = render_template('error.html', code=429, title='Too Many Requests',
+                               message="You're sending requests too quickly. Please try again later.")
+    return response, 429
+
 # Just run the app
 if __name__ == '__main__':
     app.run(debug=True)
