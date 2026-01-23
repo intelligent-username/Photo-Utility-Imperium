@@ -1,0 +1,146 @@
+/* ===========================================
+   Comparison / Slideshow Styles
+   =========================================== */
+
+.comparison-container {
+    background: linear-gradient(180deg, var(--panel), var(--panel-elev));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-top: 16px;
+    min-height: 50vh;
+}
+
+.comparison-hint {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-bottom: 12px;
+    margin: 0;
+}
+
+.slideshow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 16px;
+}
+
+.slideshow-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.slideshow-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.slideshow-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text);
+}
+
+.slideshow-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#slide-counter {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    min-width: 50px;
+    text-align: center;
+}
+
+.comparison-row {
+    display: flex;
+    gap: 16px;
+    min-height: 45vh;
+}
+
+.comparison-pane {
+    flex: 1;
+    min-width: 0;
+    max-width: 50%;
+    display: flex;
+    flex-direction: column;
+}
+
+.comparison-pane h4 {
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    color: var(--text);
+    flex-shrink: 0;
+}
+
+.magnify-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-soft);
+}
+
+.magnify-wrapper img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.magnifier-lens {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2), var(--shadow);
+    background-repeat: no-repeat;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.15s ease;
+    z-index: 10;
+}
+
+.magnify-wrapper.magnify-active .magnifier-lens {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .comparison-row {
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .comparison-pane {
+        max-width: 100%;
+    }
+
+    .magnifier-lens {
+        width: 90px;
+        height: 90px;
+    }
+}

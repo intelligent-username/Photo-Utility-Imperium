@@ -40,7 +40,7 @@ Note: do not use this on documents as this tends to blur the text.
 
 ![JPEG to PDF conversion demo](static/media/rm/FC.png)
 
-Convert an image file to any format you need (PDF, PNG, JPEG, etc.). 
+Convert an image file to any format you need (PDF, PNG, JPEG, etc.).
 
 ### PDF Merger
 
@@ -61,15 +61,13 @@ The tech stack for this application is really simple: Flask for the Python backe
 
 The directory layout is lightly documented below for component-wise reference.
 
-```
+```md
 Photo-Utility-Imperium/
-├── app.py                 # Flask entry point & routes
-├── utils.py               # Helpers
-├── requirements.txt       # Python dependencies
+├── app.py                 # Flask entry point, routes
+├── utils.py               # Random helpers
 ├── static/                # Frontend assets (CSS, JS, media)
 │   ├── css/styles.css     # Theme, layout, and component styling
 │   ├── js/                # Different (modular) client scripts
-│   └── media/             # Images used in the UI & README
 └── templates/             # Jinja2 views per tool + shared layout
 ```
 

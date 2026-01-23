@@ -6,12 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
     <title>{% block title %}{% endblock %}</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <!-- Bootstrap (for basic grid/utilities only) -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='media/assets/logo.png') }}">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
     <!-- App styles -->
@@ -20,27 +15,32 @@
 
 <body class="theme-dark" {% block bodytag%} {% endblock %}>
     <header>
-        <nav class="navbar navbar-expand-lg app-navbar" aria-label="Primary">
-            <div class="container">
-                <a class="navbar-brand app-brand" href="/main">
+        <nav class="app-navbar" aria-label="Primary">
+            <div class="container navbar-inner">
+                <a class="app-brand" href="/main">
                     <img class="brand-mark" src="{{ url_for('static', filename='media/assets/logo.png') }}" alt="Logo">
                     <span class="brand-text">Photo Utility Imperium</span>
                 </a>
-                <button class="navbar-toggler app-nav-toggle" type="button" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="app-nav-toggle-bar"></span>
-                    <span class="app-nav-toggle-bar"></span>
-                    <span class="app-nav-toggle-bar"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav ml-auto app-nav">
-                        <li class="nav-item active"><a class="nav-link" href="/main"><i class="fas fa-home mr-1"></i>Home</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/BR"><i class="fas fa-cut mr-1"></i>Background</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/IC"><i class="fas fa-compress-alt mr-1"></i>Compress</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/NR"><i class="fas fa-magic mr-1"></i>Noise</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/FC"><i class="fas fa-exchange-alt mr-1"></i>Convert</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/PDF"><i class="far fa-file-pdf mr-1"></i>PDF</a></li>
-                    </ul>
-                </div>
+                <ul class="app-nav">
+                    <li><a class="nav-link" href="/main"><img
+                                src="{{ url_for('static', filename='media/assets/house.svg') }}" alt="Home"
+                                class="nav-icon mr-1">Home</a></li>
+                    <li><a class="nav-link" href="/BR"><img
+                                src="{{ url_for('static', filename='media/assets/scissor.png') }}" alt="Background"
+                                class="nav-icon mr-1">Background</a></li>
+                    <li><a class="nav-link" href="/IC"><img
+                                src="{{ url_for('static', filename='media/assets/compress.svg') }}" alt="Compress"
+                                class="nav-icon mr-1">Compress</a></li>
+                    <li><a class="nav-link" href="/NR"><img
+                                src="{{ url_for('static', filename='media/assets/wand.svg') }}" alt="Noise"
+                                class="nav-icon mr-1">Noise</a></li>
+                    <li><a class="nav-link" href="/FC"><img
+                                src="{{ url_for('static', filename='media/assets/convert.png') }}" alt="Convert"
+                                class="nav-icon mr-1">Convert</a></li>
+                    <li><a class="nav-link" href="/PDF"><img
+                                src="{{ url_for('static', filename='media/assets/pdf.png') }}" alt="PDF"
+                                class="nav-icon mr-1">PDF</a></li>
+                </ul>
             </div>
         </nav>
     </header>
@@ -57,19 +57,21 @@
         {% block content %}{% endblock %}
     </main>
 
-        <footer class="app-footer">
-            <div class="container footer-inner">
-                <div class="footer-text text-muted small">&copy; 2026 intelligent-username</div>
-                <div class="footer-links">
-                    <img src="{{ url_for('static', filename='media/assets/GH_Logo.svg') }}" alt="GitHub" class="footer-github-logo" aria-hidden="true">
+    <footer class="app-footer">
+        <div class="container footer-inner">
+            <div class="footer-text text-muted small">&copy; 2026 intelligent-username</div>
+            <div class="footer-links">
+                <img src="{{ url_for('static', filename='media/assets/GH_Logo.svg') }}" alt="GitHub"
+                    class="footer-github-logo" aria-hidden="true">
 
-                    <a href="https://github.com/intelligent-username/Photo-Utility-Imperium" target="_blank" rel="noopener">
-                        Repository
-                    </a>
-                </div>
+                <a href="https://github.com/intelligent-username/Photo-Utility-Imperium" target="_blank" rel="noopener">
+                    Repository
+                </a>
             </div>
-        </footer>
+        </div>
+    </footer>
 
     <script type="module" src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
+
 </html>

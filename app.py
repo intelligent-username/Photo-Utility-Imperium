@@ -29,6 +29,15 @@ def main():
     print("Arrived at Main Page")
     return render_template('Pages/main.html')
 
+# Silence Chrome DevTools well-known request
+@app.route('/.well-known/appspecific/com.chrome.devtools.json')
+def chrome_devtools():
+    return '', 204
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 # Routes
 @app.route('/BR')
 def sample_page1():
