@@ -12,10 +12,17 @@
         <h2>Image Compressor</h2>
         <div class="upload-area" id="uploadfile">
             <div class="upload-icon">
-                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                <img src="{{ url_for('static', filename='media/assets/upload.png') }}" alt="Upload" class="icon-cloud">
             </div>
             <h3>Drag & Drop or Click to Upload Image</h3>
             <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+
+        <!-- Quality Control -->
+        <div class="form-group mt-3">
+            <label for="qualitySlider">Compression Quality: <span id="qualityValue">50</span>%</label>
+            <input type="range" id="qualitySlider" class="quality-slider" min="1" max="100" value="50">
+            <p class="slider-hint">Default: 50 (recommended)</p>
         </div>
     </div>
 
@@ -25,9 +32,13 @@
         <div class="slideshow-header hidden" id="slideshow-header">
             <span></span>
             <div class="slideshow-counter">
-                <button id="prev-slide" class="slideshow-btn" title="Previous image"><i class="fas fa-chevron-left"></i></button>
+                <button id="prev-slide" class="slideshow-btn" title="Previous image"><img
+                        src="{{ url_for('static', filename='media/assets/chevleft.svg') }}" alt="Previous"
+                        class="icon-chevron"></button>
                 <span id="slide-counter">1/1</span>
-                <button id="next-slide" class="slideshow-btn" title="Next image"><i class="fas fa-chevron-right"></i></button>
+                <button id="next-slide" class="slideshow-btn" title="Next image"><img
+                        src="{{ url_for('static', filename='media/assets/chevright.svg') }}" alt="Next"
+                        class="icon-chevron"></button>
             </div>
         </div>
 
@@ -49,7 +60,7 @@
             <img id="output" src="" alt="Compressed Image" class="img-fluid hidden">
             <a id="download-btn" href="" download="compressed.jpg" class="btn btn-primary mt-3 hidden">Download</a>
         </div>
-    
+
     </div>
 </div>
 {% endblock %}

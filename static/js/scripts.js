@@ -3,7 +3,7 @@ import { createProcessingController } from './overlay.js';
 import { initImageProcessing } from './imageProcessing.js';
 import { initPdfMerge } from './pdfMerge.js';
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const page = (document.body.getAttribute('data-page') || '').trim();
 
     const fileInput = document.getElementById('fileInput');
@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const nextSlideBtn = document.getElementById('next-slide');
     const slideshowHeader = document.getElementById('slideshow-header');
     const convertAgainBtn = document.getElementById('convert-again-btn');
+    const qualitySlider = document.getElementById('qualitySlider');
+    const qualityValue = document.getElementById('qualityValue');
 
     const navbarToggler = document.querySelector('.app-nav-toggle');
     const navbarCollapse = document.getElementById('navbarSupportedContent');
@@ -45,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
             nextSlideBtn,
             slideshowHeader,
             convertAgainBtn,
+            qualitySlider,
+            qualityValue,
             ...sharedProcessing,
         });
     }

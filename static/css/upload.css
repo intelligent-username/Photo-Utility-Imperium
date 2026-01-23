@@ -50,6 +50,24 @@
     filter: brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(1209%) hue-rotate(320deg) brightness(101%) contrast(104%);
 }
 
+/* Icon sizing classes for local assets */
+.icon-cloud {
+    width: 144px;
+    height: 144px;
+}
+
+.icon-chevron {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-search {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
 .upload-area h3 {
     color: var(--text);
     font-weight: 700;

@@ -18,6 +18,8 @@ export function initImageProcessing(options) {
         convertAgainBtn,
         showProcessing,
         hideProcessing,
+        qualitySlider,
+        qualityValue,
     } = options;
 
     const comparisonPages = ['BR', 'NR'];
@@ -168,7 +170,7 @@ export function initImageProcessing(options) {
     function handleFile(file, fileIndex) {
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             const previewDataUrl = e.target.result;
             if (fileIndex === currentSlideIndex) {
                 const isPdf = file.type === 'application/pdf';
@@ -192,7 +194,8 @@ export function initImageProcessing(options) {
                 sendFileToBackend(file, '/process_background_removal', {}, 'bg-removed', 'png', previewDataUrl, fileIndex);
             }
             if (page === 'IC') {
-                sendFileToBackend(file, '/process_compression', {}, 'compressed', 'jpg', previewDataUrl, fileIndex);
+                const quality = qualitySlider ? qualitySlider.value : 50;
+                sendFileToBackend(file, '/process_compression', { quality: quality }, 'compressed', 'jpg', previewDataUrl, fileIndex);
             }
             if (page === 'NR') {
                 sendFileToBackend(file, '/process_image_cleaning', {}, 'cleaned', 'png', previewDataUrl, fileIndex);
@@ -211,55 +214,55 @@ export function initImageProcessing(options) {
 
         showProcessing();
         fetch(url, { method: 'POST', body: formData })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.blob();
-        })
-        .then(blob => {
-            const objectURL = URL.createObjectURL(blob);
-            processedResults[fileIndex] = {
-                preview: previewDataUrl,
-                output: objectURL,
-                file: file,
-                baseName: baseName,
-                operation: operation,
-                ext: ext,
-                blobSize: blob.size
-            };
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.blob();
+            })
+            .then(blob => {
+                const objectURL = URL.createObjectURL(blob);
+                processedResults[fileIndex] = {
+                    preview: previewDataUrl,
+                    output: objectURL,
+                    file: file,
+                    baseName: baseName,
+                    operation: operation,
+                    ext: ext,
+                    blobSize: blob.size
+                };
 
-            if (fileIndex === currentSlideIndex) {
-                displaySlide(currentSlideIndex);
-            }
-
-            updateSlideUI();
-
-            if (comparisonPages.includes(page) && comparisonContainer) {
-                comparisonContainer.classList.remove('hidden');
                 if (fileIndex === currentSlideIndex) {
-                    initMagnifierFeature();
+                    displaySlide(currentSlideIndex);
                 }
-            } else if (resultContainer) {
-                resultContainer.classList.remove('hidden');
-            }
 
-            processingIndex++;
-            if (processingIndex < fileQueue.length) {
-                processNextFile();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('There was an error processing your file. Please try again.');
-            processingIndex++;
-            if (processingIndex < fileQueue.length) {
-                processNextFile();
-            }
-        })
-        .finally(() => {
-            if (processingIndex >= fileQueue.length) {
-                hideProcessing();
-            }
-        });
+                updateSlideUI();
+
+                if (comparisonPages.includes(page) && comparisonContainer) {
+                    comparisonContainer.classList.remove('hidden');
+                    if (fileIndex === currentSlideIndex) {
+                        initMagnifierFeature();
+                    }
+                } else if (resultContainer) {
+                    resultContainer.classList.remove('hidden');
+                }
+
+                processingIndex++;
+                if (processingIndex < fileQueue.length) {
+                    processNextFile();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error processing your file. Please try again.');
+                processingIndex++;
+                if (processingIndex < fileQueue.length) {
+                    processNextFile();
+                }
+            })
+            .finally(() => {
+                if (processingIndex >= fileQueue.length) {
+                    hideProcessing();
+                }
+            });
     }
 
     function handleFiles(files) {
@@ -280,17 +283,23 @@ export function initImageProcessing(options) {
         processNextFile();
     }
 
+    if (qualitySlider && qualityValue) {
+        qualitySlider.addEventListener('input', function () {
+            qualityValue.textContent = qualitySlider.value;
+        });
+    }
+
     if (uploadArea) {
-        uploadArea.addEventListener('dragover', function(e) {
+        uploadArea.addEventListener('dragover', function (e) {
             e.preventDefault();
             uploadArea.classList.add('dragging');
         });
 
-        uploadArea.addEventListener('dragleave', function() {
+        uploadArea.addEventListener('dragleave', function () {
             uploadArea.classList.remove('dragging');
         });
 
-        uploadArea.addEventListener('drop', function(e) {
+        uploadArea.addEventListener('drop', function (e) {
             e.preventDefault();
             uploadArea.classList.remove('dragging');
             const files = Array.from(e.dataTransfer.files);
@@ -299,14 +308,14 @@ export function initImageProcessing(options) {
     }
 
     if (fileInput) {
-        fileInput.addEventListener('change', function() {
+        fileInput.addEventListener('change', function () {
             const files = Array.from(fileInput.files);
             handleFiles(files);
         });
     }
 
     if (prevSlideBtn) {
-        prevSlideBtn.addEventListener('click', function() {
+        prevSlideBtn.addEventListener('click', function () {
             if (currentSlideIndex > 0) {
                 currentSlideIndex--;
                 displaySlide(currentSlideIndex);
@@ -315,7 +324,7 @@ export function initImageProcessing(options) {
     }
 
     if (nextSlideBtn) {
-        nextSlideBtn.addEventListener('click', function() {
+        nextSlideBtn.addEventListener('click', function () {
             if (currentSlideIndex < processedResults.length - 1) {
                 currentSlideIndex++;
                 displaySlide(currentSlideIndex);
@@ -324,13 +333,13 @@ export function initImageProcessing(options) {
     }
 
     if (convertAgainBtn && page === 'FC') {
-        convertAgainBtn.addEventListener('click', function() {
+        convertAgainBtn.addEventListener('click', function () {
             const currentResult = processedResults[currentSlideIndex];
             const fileToConvert = currentResult ? currentResult.file : null;
             if (fileToConvert && formatSelect) {
                 const format = formatSelect.value;
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     sendFileToBackend(fileToConvert, '/process_image_conversion', { output_format: format }, 'converted', format.toLowerCase(), e.target.result, currentSlideIndex);
                 };
                 reader.readAsDataURL(fileToConvert);

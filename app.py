@@ -10,14 +10,10 @@ import os
 import io
 
 from flask import Flask, render_template, request, send_file
-from utils import *
+from utils import pil_to_cv2, cv2_to_pil, merge_pdfs
+from PyPDF2 import PdfReader
 
 app = Flask(__name__)
-
-UPLOAD_FOLDER = 'static/uploads'
-PROCESSED_FOLDER = 'static/processed'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -89,6 +85,9 @@ def process_compression():
     file = request.files['file']
     img = Image.open(file.stream)
     
+    # Get quality from request, default to 50
+    quality = int(request.form.get('quality', 50))
+    
     # Ensure correct format: convert non-JPEG images to RGB first to avoid issues with transparency
     if img.mode in ("RGBA", "P"):  # If image has transparency or is in palette mode
         img = img.convert("RGB")  # Colour the image
@@ -96,7 +95,7 @@ def process_compression():
     compressed_io = io.BytesIO()
     
     # Compress & save to in-memory buffer
-    img.save(compressed_io, format='JPEG', quality=50)  # Compression to 50% quality, change quantity later (or allow customization)
+    img.save(compressed_io, format='JPEG', quality=quality)
     compressed_io.seek(0)
     
     # Return compressed image as response
