@@ -1,0 +1,7 @@
+<div class="upload-area" id="uploadfile">
+    <div class="upload-icon">
+        <img src="{{ url_for('static', filename='media/assets/upload.png') }}" alt="Upload" class="icon-cloud">
+    </div>
+    <h3>{{ upload_text | default("Drag & Drop or Click to Upload") }}</h3>
+    <input type="file" id="fileInput" accept="{{ upload_accept | default("image/*") }}" multiple>
+</div>

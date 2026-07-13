@@ -28,7 +28,7 @@
 h1,
 h2,
 h3 {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-sans);
 }
 
 /* Buttons - Base */
@@ -63,6 +63,28 @@ h3 {
 }
 
 .btn-primary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(245, 185, 66, 0.25);
+    color: var(--primary);
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 10px 16px;
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+    letter-spacing: 0.01em;
+}
+
+.btn-secondary:hover {
+    background: rgba(245, 185, 66, 0.08);
+    border-color: rgba(245, 185, 66, 0.5);
+    color: var(--primary-2);
+}
+
+.btn-secondary:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
@@ -230,4 +252,32 @@ h3 {
     color: var(--muted);
     margin-top: 4px;
     margin-bottom: 0;
+}
+
+/* Modernist Compress/Convert Again Button */
+#convert-again-btn {
+    width: 100%;
+    margin-top: 12px !important;
+    background: rgba(245, 185, 66, 0.1);
+    border: 1.5px solid var(--primary);
+    color: var(--primary);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    padding: 11px 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(245, 185, 66, 0.05);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#convert-again-btn:hover {
+    background: var(--primary);
+    color: #0b1220;
+    box-shadow: 0 6px 16px rgba(245, 185, 66, 0.2);
+    transform: translateY(-1px);
+}
+
+#convert-again-btn:active {
+    transform: translateY(0);
 }

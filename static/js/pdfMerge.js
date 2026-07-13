@@ -10,13 +10,16 @@ export function initPdfMerge(options) {
         fileListContainer.innerHTML = '';
         files.forEach((file, index) => {
             const li = document.createElement('li');
-            li.classList.add('d-flex', 'justify-content-between', 'align-items-center');
-            li.textContent = `${index + 1}. ${file.name}`;
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.classList.add('file-name');
+            nameSpan.textContent = `${index + 1}. ${file.name}`;
+            li.appendChild(nameSpan);
 
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
-            removeBtn.classList.add('btn', 'btn-sm', 'btn-outline-danger', 'ml-2');
-            removeBtn.textContent = '×';
+            removeBtn.classList.add('remove-file-btn');
+            removeBtn.innerHTML = '&times;';
             removeBtn.title = 'Remove this file';
             removeBtn.addEventListener('click', function() {
                 files.splice(index, 1);

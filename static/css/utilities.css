@@ -13,7 +13,7 @@
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Spacing - Margin */
@@ -39,6 +39,15 @@
 
 .mt-3 {
     margin-top: 1rem !important;
+}
+
+.m-0 {
+    margin: 0 !important;
+}
+
+.my-0 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 
 .mb-0 {

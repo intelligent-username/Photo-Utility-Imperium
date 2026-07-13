@@ -1,65 +1,86 @@
 <!-- Background Removal -->
 
-{% extends 'template.html' %}
-
-{% block title %}Background Remover{% endblock %}
-
-{% block bodytag %} data-page="BR"{% endblock %}
-{% block content %}
+{% extends 'template.html' %} {% block title %}Background Remover{% endblock %}
+{% block bodytag %} data-page="BR"{% endblock %} {% block content %}
 <div class="row">
-    <!-- Left Side: Upload -->
-    <div class="col-md-3">
-        <h2>Background Remover</h2>
-        <div class="upload-area" id="uploadfile">
-            <div class="upload-icon">
-                <img src="{{ url_for('static', filename='media/assets/upload.png') }}" alt="Upload" class="icon-cloud">
-            </div>
-            <h3>Drag & Drop or Click to Upload Image</h3>
-            <input type="file" id="fileInput" accept="image/*" multiple>
+  <!-- Left Side: Upload -->
+  <div class="col-md-4">
+    <h2 class="tool-title">Background Remover</h2>
+    {% set upload_text = "Drag & Drop or Click to Upload Image" %} {% set
+    upload_accept = "image/*" %} {% include 'Components/upload_area.html' %}
+  </div>
+
+  <!-- Right Side: Comparison -->
+  <div class="col-md-8">
+    <!-- Comparison container -->
+    <div id="comparison-container" class="comparison-container hidden">
+      <div class="slideshow-header">
+        <p class="comparison-hint">
+          <img
+            src="{{ url_for('static', filename='media/assets/magnifier.png') }}"
+            alt="Search"
+            class="icon-search"
+          />
+          Hover to compare
+        </p>
+        <div class="slideshow-counter">
+          <button
+            id="prev-slide"
+            class="slideshow-btn"
+            title="Previous image"
+            aria-label="Previous image"
+          >
+            <img
+              src="{{ url_for('static', filename='media/assets/chevleft.svg') }}"
+              alt="Previous"
+              class="icon-chevron"
+            />
+          </button>
+          <span id="slide-counter">1/1</span>
+          <button
+            id="next-slide"
+            class="slideshow-btn"
+            title="Next image"
+            aria-label="Next image"
+          >
+            <img
+              src="{{ url_for('static', filename='media/assets/chevright.svg') }}"
+              alt="Next"
+              class="icon-chevron"
+            />
+          </button>
         </div>
+      </div>
+      <div class="comparison-row">
+        <!-- Original Image -->
+        <div class="comparison-pane" id="original-pane">
+          <h4>Original</h4>
+          <div class="magnify-wrapper" data-pair="compare">
+            <img id="preview" src="" alt="Original Image" class="img-fluid" />
+            <div class="magnifier-lens"></div>
+          </div>
+        </div>
+        <!-- Processed Image -->
+        <div class="comparison-pane" id="result-pane">
+          <h4>Processed</h4>
+          <div class="magnify-wrapper" data-pair="compare">
+            <img id="output" src="" alt="Processed Image" class="img-fluid" />
+            <div class="magnifier-lens"></div>
+          </div>
+        </div>
+      </div>
+      <a
+        id="download-btn"
+        href=""
+        download="processed.png"
+        class="btn btn-primary mt-3 hidden"
+        >Download</a
+      >
     </div>
 
-    <!-- Right Side: Comparison -->
-    <div class="col-md-9">
-        <!-- Comparison container -->
-        <div id="comparison-container" class="comparison-container hidden">
-            <div class="slideshow-header">
-                <p class="comparison-hint"><img src="{{ url_for('static', filename='media/assets/magnifier.png') }}"
-                        alt="Search" class="icon-search"> Hover to compare</p>
-                <div class="slideshow-counter">
-                    <button id="prev-slide" class="slideshow-btn" title="Previous image"><img
-                            src="{{ url_for('static', filename='media/assets/chevleft.svg') }}" alt="Previous"
-                            class="icon-chevron"></button>
-                    <span id="slide-counter">1/1</span>
-                    <button id="next-slide" class="slideshow-btn" title="Next image"><img
-                            src="{{ url_for('static', filename='media/assets/chevright.svg') }}" alt="Next"
-                            class="icon-chevron"></button>
-                </div>
-            </div>
-            <div class="comparison-row">
-                <!-- Original Image -->
-                <div class="comparison-pane" id="original-pane">
-                    <h4>Original</h4>
-                    <div class="magnify-wrapper" data-pair="compare">
-                        <img id="preview" src="" alt="Original Image" class="img-fluid">
-                        <div class="magnifier-lens"></div>
-                    </div>
-                </div>
-                <!-- Processed Image -->
-                <div class="comparison-pane" id="result-pane">
-                    <h4>Processed</h4>
-                    <div class="magnify-wrapper" data-pair="compare">
-                        <img id="output" src="" alt="Processed Image" class="img-fluid">
-                        <div class="magnifier-lens"></div>
-                    </div>
-                </div>
-            </div>
-            <a id="download-btn" href="" download="processed.png" class="btn btn-primary mt-3 hidden">Download</a>
-        </div>
-
-        <!-- Hidden containers for JS compatibility -->
-        <div id="image-preview" class="hidden"></div>
-        <div id="result" class="hidden"></div>
-    </div>
+    <!-- Hidden containers for JS compatibility -->
+    <div id="image-preview" class="hidden"></div>
+    <div id="result" class="hidden"></div>
+  </div>
 </div>
 {% endblock %}

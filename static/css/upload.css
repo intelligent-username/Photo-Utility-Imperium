@@ -3,119 +3,206 @@
    =========================================== */
 
 .upload-area {
-    padding: 28px;
-    margin: 20px 0 24px;
-    border: 1.5px dashed rgba(148, 163, 184, 0.35);
-    color: var(--muted);
-    text-align: center;
-    position: relative;
-    transition: border-color .2s ease, transform .2s ease, background .2s ease;
-    cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 320px;
+  max-width: 100%;
+  height: 320px;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 28px;
+  margin: 10px 0;
+  border: 1.5px dashed rgba(148, 163, 184, 0.35);
+  color: var(--muted);
+  text-align: center;
+  position: relative;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+  cursor: pointer;
 }
 
 .upload-area:hover {
-    border-color: rgba(245, 185, 66, 0.6);
-    background: rgba(245, 185, 66, 0.04);
+  border-color: rgba(245, 185, 66, 0.6);
+  background: rgba(245, 185, 66, 0.04);
 }
 
 .upload-area.dragging {
-    border-color: var(--primary-2);
-    background: rgba(255, 209, 102, 0.06);
+  border-color: var(--primary-2);
+  background: rgba(255, 209, 102, 0.06);
 }
 
 .upload-area input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .upload-icon {
-    color: var(--primary-2);
-    font-size: 2rem;
-    margin-bottom: .75rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  color: var(--primary-2);
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Remove margin when upload-icon is used inline in flex containers */
-.d-flex>.upload-icon {
-    margin-bottom: 0;
+/* Remove margin when card-tool-icon is used inline in flex containers */
+.d-flex > .card-tool-icon {
+  margin-bottom: 0;
 }
 
-.upload-icon img {
-    width: 32px;
-    height: 32px;
-    filter: brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(1209%) hue-rotate(320deg) brightness(101%) contrast(104%);
+.card-tool-icon img,
+.card-tool-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.card-tool-icon img {
+  filter: brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(1209%)
+    hue-rotate(320deg) brightness(101%) contrast(104%) !important;
+}
+
+.card-tool-icon svg {
+  color: var(--primary-2);
+  stroke: var(--primary-2);
+  fill: none;
 }
 
 /* Icon sizing classes for local assets */
 .icon-cloud {
-    width: 144px;
-    height: 144px;
+  width: 144px;
+  height: 144px;
 }
 
 .icon-chevron {
-    width: 20px;
-    height: 20px;
+  width: 20px;
+  height: 20px;
 }
 
 .icon-search {
-    width: 18px;
-    height: 18px;
-    vertical-align: middle;
-    margin-right: 4px;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
 }
 
 .upload-area h3 {
-    color: var(--text);
-    font-weight: 700;
-    margin-bottom: .5rem;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
 }
 
 #image-preview,
 #result {
-    margin-top: 16px;
-    padding: 16px;
+  margin-top: 16px;
+  padding: 16px;
 }
 
 .preview-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .preview-header h4 {
-    margin: 0;
+  margin: 0;
 }
 
 #image-preview img,
 #result img {
-    max-width: 100%;
-    border-radius: 10px;
-    border: 1px solid var(--border);
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
 }
 
 /* PDF Preview */
 #file-list {
-    max-height: 200px;
-    overflow-y: auto;
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 1rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+#file-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  animation: fileFadeIn 0.2s ease-in-out;
+}
+
+@keyframes fileFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#file-list li span.file-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+#file-list li .remove-file-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+#file-list li .remove-file-btn:hover {
+  background-color: rgba(218, 54, 51, 0.15);
+  color: var(--danger);
+}
+
+#file-list li .remove-file-btn:focus-visible {
+  outline: 2px solid var(--primary);
 }
 
 iframe {
-    border: 1px solid var(--border);
-    margin-top: 10px;
-    border-radius: 10px;
-    background: var(--bg-soft);
+  border: 1px solid var(--border);
+  margin-top: 10px;
+  border-radius: 10px;
+  background: var(--bg-soft);
 }
 
 #merged-pdf-preview,
 #preview-pdf,
 #output-pdf {
-    width: 100%;
-    height: 600px;
-    border: none;
-    border-radius: var(--radius);
+  width: 100%;
+  height: 600px;
+  border: none;
+  border-radius: var(--radius);
 }

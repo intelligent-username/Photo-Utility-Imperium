@@ -1,37 +1,52 @@
 /* ===========================================
-   Footer Styles
+   Footer Styles — Ultra Modern & Clean
    =========================================== */
 
 .app-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    background: linear-gradient(0deg, rgba(32, 32, 32, 0.98), rgba(26, 26, 26, 0.94));
-    backdrop-filter: saturate(140%) blur(8px);
-    padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 0;
+  background: transparent;
 }
 
 .app-footer .footer-inner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
 .footer-text {
-    margin: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
-.footer-links {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-left: auto;
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.footer-link:hover {
+  color: var(--text);
 }
 
 .app-footer .footer-github-logo {
-    width: 20px;
-    height: 20px;
+  width: 16px;
+  height: 16px;
+  color: var(--success);
+  fill: currentColor;
+  transition: color var(--transition), transform var(--transition);
 }
 
-.app-footer .footer-links a:hover {
-    color: var(--text);
+.footer-link:hover .footer-github-logo {
+  color: #fff;
+  transform: scale(1.1);
 }

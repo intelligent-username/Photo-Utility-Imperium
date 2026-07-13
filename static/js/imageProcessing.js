@@ -1,4 +1,5 @@
 import { initMagnifierFeature } from './magnifier.js';
+import { initComparisonSlider } from './comparison-slider.js';
 
 export function initImageProcessing(options) {
     const {
@@ -59,6 +60,10 @@ export function initImageProcessing(options) {
         const compressedSizeEl = document.getElementById('compressed-size');
         if (originalSizeEl) originalSizeEl.classList.add('hidden');
         if (compressedSizeEl) compressedSizeEl.classList.add('hidden');
+        const sliderToolbar = document.getElementById('slider-toolbar');
+        if (sliderToolbar) sliderToolbar.classList.add('hidden');
+        const sliderWrapper = document.getElementById('comparison-slider');
+        if (sliderWrapper) sliderWrapper.classList.add('hidden');
         const originalNameEl = document.getElementById('original-name');
         const convertedNameEl = document.getElementById('converted-name');
         if (originalNameEl) originalNameEl.classList.add('hidden');
@@ -124,6 +129,7 @@ export function initImageProcessing(options) {
         if (page === 'IC') {
             const originalSizeEl = document.getElementById('original-size');
             const compressedSizeEl = document.getElementById('compressed-size');
+            const toolbar = document.getElementById('slider-toolbar');
             if (originalSizeEl) {
                 originalSizeEl.textContent = formatFileSize(result.file.size);
                 originalSizeEl.classList.remove('hidden');
@@ -132,6 +138,28 @@ export function initImageProcessing(options) {
                 compressedSizeEl.textContent = formatFileSize(result.blobSize);
                 compressedSizeEl.classList.remove('hidden');
                 compressedSizeEl.classList.add('savings');
+            }
+            if (toolbar) toolbar.classList.remove('hidden');
+
+            const sliderBefore = document.getElementById('slider-before');
+            const sliderAfter = document.getElementById('slider-after');
+            const sliderWrapper = document.getElementById('comparison-slider');
+            if (sliderBefore && sliderAfter && sliderWrapper) {
+                sliderBefore.src = result.preview;
+                sliderAfter.src = result.output;
+                sliderWrapper.classList.remove('hidden');
+                let loadedCount = 0;
+                const onLoad = () => {
+                    if (loadedCount >= 2) return;
+                    loadedCount++;
+                    if (loadedCount === 2) {
+                        initComparisonSlider(sliderWrapper);
+                    }
+                };
+                sliderBefore.onload = onLoad;
+                sliderAfter.onload = onLoad;
+                if (sliderBefore.complete) onLoad();
+                if (sliderAfter.complete) onLoad();
             }
         }
 
@@ -227,7 +255,8 @@ export function initImageProcessing(options) {
                     baseName: baseName,
                     operation: operation,
                     ext: ext,
-                    blobSize: blob.size
+                    blobSize: blob.size,
+                    quality: extraData.quality
                 };
 
                 if (fileIndex === currentSlideIndex) {
@@ -241,7 +270,7 @@ export function initImageProcessing(options) {
                     if (fileIndex === currentSlideIndex) {
                         initMagnifierFeature();
                     }
-                } else if (resultContainer) {
+                } else if (resultContainer && page !== 'IC') {
                     resultContainer.classList.remove('hidden');
                 }
 
@@ -286,6 +315,20 @@ export function initImageProcessing(options) {
     if (qualitySlider && qualityValue) {
         qualitySlider.addEventListener('input', function () {
             qualityValue.textContent = qualitySlider.value;
+            if (page === 'IC' && convertAgainBtn) {
+                const currentResult = processedResults[currentSlideIndex];
+                if (currentResult && currentResult.quality !== undefined) {
+                    const currentQuality = parseInt(currentResult.quality);
+                    const newQuality = parseInt(qualitySlider.value);
+                    if (newQuality !== currentQuality) {
+                        convertAgainBtn.classList.remove('hidden');
+                    } else {
+                        convertAgainBtn.classList.add('hidden');
+                    }
+                } else {
+                    convertAgainBtn.classList.add('hidden');
+                }
+            }
         });
     }
 
@@ -332,18 +375,43 @@ export function initImageProcessing(options) {
         });
     }
 
-    if (convertAgainBtn && page === 'FC') {
+    if (convertAgainBtn) {
         convertAgainBtn.addEventListener('click', function () {
             const currentResult = processedResults[currentSlideIndex];
-            const fileToConvert = currentResult ? currentResult.file : null;
-            if (fileToConvert && formatSelect) {
-                const format = formatSelect.value;
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    sendFileToBackend(fileToConvert, '/process_image_conversion', { output_format: format }, 'converted', format.toLowerCase(), e.target.result, currentSlideIndex);
-                };
-                reader.readAsDataURL(fileToConvert);
+            const fileToReProcess = currentResult ? currentResult.file : null;
+            if (!fileToReProcess) return;
+
+            // Hide old outputs and download buttons while re-compressing
+            if (downloadBtn) {
+                downloadBtn.classList.add('hidden');
             }
+            if (resultImage) {
+                resultImage.classList.add('hidden');
+            }
+            const outputPdf = document.getElementById('output-pdf');
+            if (outputPdf) {
+                outputPdf.classList.add('hidden');
+            }
+            const compressedSizeEl = document.getElementById('compressed-size');
+            if (compressedSizeEl) {
+                compressedSizeEl.classList.add('hidden');
+            }
+            const convertedNameEl = document.getElementById('converted-name');
+            if (convertedNameEl) {
+                convertedNameEl.classList.add('hidden');
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                if (page === 'FC' && formatSelect) {
+                    sendFileToBackend(fileToReProcess, '/process_image_conversion', { output_format: formatSelect.value }, 'converted', formatSelect.value.toLowerCase(), e.target.result, currentSlideIndex);
+                } else if (page === 'IC' && qualitySlider) {
+                    sendFileToBackend(fileToReProcess, '/process_compression', { quality: qualitySlider.value }, 'compressed', 'jpg', e.target.result, currentSlideIndex);
+                }
+            };
+            reader.readAsDataURL(fileToReProcess);
+            // Hide button until user changes quality again
+            convertAgainBtn.classList.add('hidden');
         });
     }
 }

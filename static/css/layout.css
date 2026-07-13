@@ -3,47 +3,86 @@
    =========================================== */
 
 .page-container {
-    flex: 1;
-    padding-top: 28px;
-    padding-bottom: 60px;
-}
-
-/* BR and NR have comparison menus, so they need more room */
-body[data-page="BR"] .page-container,
-body[data-page="NR"] .page-container {
-    max-width: 90vw;
+  flex: 1;
+  padding-top: 28px;
+  padding-bottom: 60px;
+  max-width: 90vw;
 }
 
 /* Typography */
 h1,
 h2,
 h3 {
-    letter-spacing: -0.02em;
+  letter-spacing: -0.02em;
 }
 
 h2 {
-    color: var(--text);
-    font-weight: 700;
-    margin-top: 16px;
-    margin-bottom: 12px;
+  color: var(--text);
+  font-weight: 700;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.tool-title {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.75rem;
+  margin-top: 16px;
+  margin-bottom: 16px;
+  letter-spacing: -0.025em;
+  text-align: center;
+}
+
+/* Force sidebar column to shrink-wrap the upload area's intrinsic width, and make children span 100% of it */
+body[data-page] .col-md-4 {
+    width: fit-content !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+}
+
+body[data-page] .col-md-4 > * {
+    width: 100% !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+}
+
+/* Make preview column expand to fill the remaining screen space */
+body[data-page] .col-md-8 {
+    flex: 1 1 0% !important;
+    max-width: 100% !important;
+}
+
+@media (min-width: 768px) {
+    /* Set exactly 10px gap between columns and remove padding to sit them flush */
+    body[data-page] .page-container > .row {
+        gap: 10px !important;
+    }
+    
+    body[data-page] .col-md-8,
+    body[data-page] .col-md-4 {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
 }
 
 .important-header-text {
-    font-family: "Times New Roman", serif;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* Responsive column padding fix */
 @media (max-width: 768px) {
-    .col-md-6:nth-child(2) {
-        padding-left: 0;
-    }
+  .col-md-6:nth-child(2) {
+    padding-left: 0;
+  }
 
-    .app-brand .brand-text {
-        font-size: 0.95rem;
-    }
+  .app-brand .brand-text {
+    font-size: 0.95rem;
+  }
 
-    .app-nav .nav-link {
-        margin: 0.35rem 0;
-        display: block;
-    }
+  .app-nav .nav-link {
+    margin: 0.35rem 0;
+    display: block;
+  }
 }

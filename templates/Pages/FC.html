@@ -1,76 +1,94 @@
 <!-- Format Converter -->
 
-{% extends 'template.html' %}
-
-{% block title %}Image Converter{% endblock %}
-
-{% block bodytag %} data-page="FC" {% endblock %}
-{% block content %}
+{% extends 'template.html' %} {% block title %}Image Converter{% endblock %} {%
+block bodytag %} data-page="FC" {% endblock %} {% block content %}
 <div class="row">
-    <!-- Left Side: Upload Area -->
-    <div class="col-md-4">
-        <h2>Format Converter</h2>
-        <div class="upload-area" id="uploadfile">
-            <div class="upload-icon">
-                <img src="{{ url_for('static', filename='media/assets/upload.png') }}" alt="Upload" class="icon-cloud">
-            </div>
-            <h3>Drag & Drop or Click to Upload</h3>
-            <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
-        </div>
+  <!-- Left Side: Upload Area -->
+  <div class="col-md-4">
+    <h2 class="tool-title">Format Converter</h2>
+    {% set upload_text = "Drag & Drop or Click to Upload" %} {% set
+    upload_accept = "image/*,application/pdf" %} {% include
+    'Components/upload_area.html' %}
 
-        <!-- Separate File Format Selection -->
-        <div class="form-group mt-3">
-            <label for="formatSelect">Select Output Format</label>
-            <select id="formatSelect" class="form-control">
-                <option value="PNG" selected>PNG</option>
-                <option value="PDF">PDF</option>
-                <option value="JPEG">JPEG</option>
-                <option value="WEBP">WEBP</option>
-                <option value="GIF">GIF</option>
-                <option value="BMP">BMP</option>
-                <option value="TIFF">TIFF</option>
-                <option value="PPM">PPM</option>
-                <option value="EPS">EPS</option>
-            </select>
-            <button id="convert-again-btn" class="btn btn-primary mt-2 hidden">Convert Again</button>
-        </div>
+    <!-- Separate File Format Selection -->
+    <div class="form-group mt-3">
+      <label for="formatSelect">Select Output Format</label>
+      <select id="formatSelect" class="form-control">
+        <option value="PNG" selected>PNG</option>
+        <option value="PDF">PDF</option>
+        <option value="JPEG">JPEG</option>
+        <option value="WEBP">WEBP</option>
+        <option value="GIF">GIF</option>
+        <option value="BMP">BMP</option>
+        <option value="TIFF">TIFF</option>
+        <option value="PPM">PPM</option>
+        <option value="EPS">EPS</option>
+      </select>
+      <button id="convert-again-btn" class="btn btn-primary mt-2 hidden">
+        Convert Again
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side: Image Preview and Result -->
+  <div class="col-md-8">
+    <!-- Slideshow header -->
+    <div class="slideshow-header hidden" id="slideshow-header">
+      <span></span>
+      <div class="slideshow-counter">
+        <button
+          id="prev-slide"
+          class="slideshow-btn"
+          title="Previous image"
+          aria-label="Previous image"
+        >
+          <img
+            src="{{ url_for('static', filename='media/assets/chevleft.svg') }}"
+            alt="Previous"
+            class="icon-chevron"
+          />
+        </button>
+        <span id="slide-counter">1/1</span>
+        <button
+          id="next-slide"
+          class="slideshow-btn"
+          title="Next image"
+          aria-label="Next image"
+        >
+          <img
+            src="{{ url_for('static', filename='media/assets/chevright.svg') }}"
+            alt="Next"
+            class="icon-chevron"
+          />
+        </button>
+      </div>
     </div>
 
-    <!-- Right Side: Image Preview and Result -->
-    <div class="col-md-8">
-        <!-- Slideshow header -->
-        <div class="slideshow-header hidden" id="slideshow-header">
-            <span></span>
-            <div class="slideshow-counter">
-                <button id="prev-slide" class="slideshow-btn" title="Previous image"><img
-                        src="{{ url_for('static', filename='media/assets/chevleft.svg') }}" alt="Previous"
-                        class="icon-chevron"></button>
-                <span id="slide-counter">1/1</span>
-                <button id="next-slide" class="slideshow-btn" title="Next image"><img
-                        src="{{ url_for('static', filename='media/assets/chevright.svg') }}" alt="Next"
-                        class="icon-chevron"></button>
-            </div>
-        </div>
-
-        <!-- Image Preview -->
-        <div id="image-preview">
-            <div class="preview-header">
-                <h4>Original File:</h4>
-                <span id="original-name" class="file-name-badge hidden"></span>
-            </div>
-            <img id="preview" src="" alt="Your Image" class="img-fluid hidden">
-            <iframe id="preview-pdf" class="hidden"></iframe>
-        </div>
-
-        <div id="result">
-            <div class="preview-header">
-                <h4>Converted File:</h4>
-                <span id="converted-name" class="file-name-badge hidden"></span>
-            </div>
-            <img id="output" src="" alt="Converted Image" class="img-fluid hidden">
-            <iframe id="output-pdf" class="hidden"></iframe>
-            <a id="download-btn" href="" download="converted" class="btn btn-primary mt-3 hidden">Download</a>
-        </div>
+    <!-- Image Preview -->
+    <div id="image-preview">
+      <div class="preview-header">
+        <h4>Original File:</h4>
+        <span id="original-name" class="file-name-badge hidden"></span>
+      </div>
+      <img id="preview" src="" alt="Your Image" class="img-fluid hidden" />
+      <iframe id="preview-pdf" class="hidden"></iframe>
     </div>
+
+    <div id="result">
+      <div class="preview-header">
+        <h4>Converted File:</h4>
+        <span id="converted-name" class="file-name-badge hidden"></span>
+      </div>
+      <img id="output" src="" alt="Converted Image" class="img-fluid hidden" />
+      <iframe id="output-pdf" class="hidden"></iframe>
+      <a
+        id="download-btn"
+        href=""
+        download="converted"
+        class="btn btn-primary mt-3 hidden"
+        >Download</a
+      >
+    </div>
+  </div>
 </div>
 {% endblock %}

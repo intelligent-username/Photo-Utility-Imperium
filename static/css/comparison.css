@@ -74,12 +74,21 @@
     min-height: 45vh;
 }
 
+.comparison-row.vertical {
+    flex-direction: column;
+    min-height: auto;
+}
+
 .comparison-pane {
     flex: 1;
     min-width: 0;
     max-width: 50%;
     display: flex;
     flex-direction: column;
+}
+
+.comparison-row.vertical .comparison-pane {
+    max-width: 100%;
 }
 
 .comparison-pane h4 {
@@ -118,6 +127,7 @@
     border: 2px solid var(--primary);
     box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2), var(--shadow);
     background-repeat: no-repeat;
+    background-color: var(--bg-soft);
     pointer-events: none;
     opacity: 0;
     transform: translate(-50%, -50%);
