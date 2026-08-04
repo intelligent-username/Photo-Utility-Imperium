@@ -83,7 +83,43 @@ export function setAppMode(modeName) {
     }
 }
 
-// ---- Canvas rendering (fast base PDF render + dynamic DOM layer stack z-index) ----
+// ---- Canvas Cache & Rendering (Instant 60fps Cached Canvas Engine) ----
+async function getPageCanvasCache(page, targetWidth) {
+    if (!page._pdfPage && !page.isBlank) return null;
+
+    if (!page._cacheCanvas || page._cacheWidth !== targetWidth) {
+        const offCanvas = document.createElement('canvas');
+        if (page.isBlank) {
+            const ar = page.aspectRatio || (792 / 612);
+            offCanvas.width = targetWidth;
+            offCanvas.height = Math.round(targetWidth * ar);
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.fillStyle = '#ffffff';
+            offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+        } else if (page._pdfPage) {
+            const origVp = page._pdfPage.getViewport({ scale: 1.0 });
+            const scale = targetWidth / origVp.width;
+            const vp = page._pdfPage.getViewport({ scale });
+            offCanvas.width = Math.round(vp.width);
+            offCanvas.height = Math.round(vp.height);
+            const offCtx = offCanvas.getContext('2d');
+
+            if (page._renderTask) {
+                try { await page._renderTask.promise; } catch (e) {}
+            }
+            page._renderTask = page._pdfPage.render({ canvasContext: offCtx, viewport: vp });
+            try {
+                await page._renderTask.promise;
+            } catch (e) {}
+            page._renderTask = null;
+        }
+        page._cacheCanvas = offCanvas;
+        page._cacheWidth = targetWidth;
+    }
+
+    return page._cacheCanvas;
+}
+
 export async function renderCardCanvas(page) {
     const card = document.getElementById(page.id);
     if (!card) return;
@@ -93,29 +129,61 @@ export async function renderCardCanvas(page) {
 
     const targetWidth = state.isLargeView ? 340 : 160;
 
-    let vpWidth = targetWidth;
-    let vpHeight = 440;
+    const baseCache = await getPageCanvasCache(page, targetWidth);
+    if (!baseCache) return;
 
-    if (page.isBlank) {
-        const ar = page.aspectRatio || (792 / 612);
-        vpHeight = Math.round(vpWidth * ar);
-        canvas.width = vpWidth;
-        canvas.height = vpHeight;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, vpWidth, vpHeight);
-    } else if (page._pdfPage) {
-        const origVp = page._pdfPage.getViewport({ scale: 1.0 });
-        const scale = targetWidth / origVp.width;
-        const vp = page._pdfPage.getViewport({ scale });
+    canvas.width = baseCache.width;
+    canvas.height = baseCache.height;
+    const vpWidth = canvas.width;
+    const vpHeight = canvas.height;
 
-        vpWidth = vp.width;
-        vpHeight = vp.height;
-        canvas.width = vpWidth;
-        canvas.height = vpHeight;
-        ctx.clearRect(0, 0, vpWidth, vpHeight);
+    ctx.clearRect(0, 0, vpWidth, vpHeight);
 
-        // Render base PDF page
-        await page._pdfPage.render({ canvasContext: ctx, viewport: vp }).promise;
+    // 1. Draw Base Page
+    ctx.drawImage(baseCache, 0, 0);
+
+    const basePdfW = page._pdfPage ? page._pdfPage.getViewport({ scale: 1.0 }).width : 612.0;
+    const canvasScale = vpWidth / basePdfW;
+
+    // 2. Draw Unified Layer Stack in EXACT Chronological Creation Order directly on canvas ctx
+    if (page.layers && page.layers.length > 0) {
+        for (const layer of page.layers) {
+            if (layer.type === 'whiteout') {
+                ctx.fillStyle = '#ffffff';
+                const wx = layer.leftRatio * vpWidth;
+                const wy = layer.topRatio * vpHeight;
+                const ww = layer.widthRatio * vpWidth;
+                const wh = layer.heightRatio * vpHeight;
+                ctx.fillRect(wx, wy, ww, wh);
+
+            } else if (layer.type === 'overlay') {
+                const ovPageObj = state.pages.find(p => p.id === layer.sourceId) ||
+                                  state.pages.find(p => (p.fileIdx === layer.fileIdx || p.fileIdx === layer.fileIndex) &&
+                                                        (p.pageIdx === layer.pageIdx || p.pageIdx === layer.pageIndex));
+                if (ovPageObj) {
+                    const ovCache = await getPageCanvasCache(ovPageObj, vpWidth);
+                    if (ovCache) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.90;
+                        const dx = (layer.dxRatio || 0) * vpWidth;
+                        const dy = (layer.dyRatio || 0) * vpHeight;
+                        const scaleW = layer.scaleWidthRatio || 1.0;
+                        const scaleH = layer.scaleHeightRatio || 1.0;
+
+                        if (layer.cropBox) {
+                            const cx = layer.cropBox.leftRatio * vpWidth;
+                            const cy = layer.cropBox.topRatio * vpHeight;
+                            const cw = layer.cropBox.widthRatio * vpWidth;
+                            const ch = layer.cropBox.heightRatio * vpHeight;
+                            ctx.drawImage(ovCache, cx, cy, cw, ch, dx, dy, cw * scaleW, ch * scaleH);
+                        } else {
+                            ctx.drawImage(ovCache, 0, 0, ovCache.width, ovCache.height, dx, dy, vpWidth * scaleW, vpHeight * scaleH);
+                        }
+                        ctx.restore();
+                    }
+                }
+            }
+        }
     }
 
     const wrap = card.querySelector('.page-canvas-wrap');
@@ -348,13 +416,57 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'ann-input';
+    let currentAnnColor = existingAnn ? (existingAnn.color || state.annColor) : state.annColor;
+    let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : state.annSize;
+
+    const controls = document.createElement('div');
+    controls.className = 'ann-box-controls';
+    controls.style.display = 'inline-flex';
+    controls.style.alignItems = 'center';
+    controls.style.gap = '4px';
+
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.className = 'ann-popover-color';
+    colorPicker.value = currentAnnColor;
+    colorPicker.title = 'Font Color';
+    colorPicker.addEventListener('input', (e) => {
+        currentAnnColor = e.target.value;
+        state.annColor = currentAnnColor;
+        input.style.color = currentAnnColor;
+        const mainPicker = document.getElementById('ann-color');
+        if (mainPicker) mainPicker.value = currentAnnColor;
+    });
+
+    const sizeSelect = document.createElement('select');
+    sizeSelect.className = 'ann-popover-size';
+    sizeSelect.title = 'Font Size';
+    [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64].forEach(sz => {
+        const opt = document.createElement('option');
+        opt.value = sz;
+        opt.textContent = `${sz}px`;
+        if (sz === currentAnnSize) opt.selected = true;
+        sizeSelect.appendChild(opt);
+    });
+    sizeSelect.addEventListener('change', (e) => {
+        currentAnnSize = parseInt(e.target.value, 10);
+        state.annSize = currentAnnSize;
+        const scaleFactor = state.isLargeView ? 0.75 : 0.45;
+        input.style.fontSize = `${Math.max(11, Math.round(currentAnnSize * scaleFactor))}px`;
+        const mainSize = document.getElementById('ann-size');
+        if (mainSize) mainSize.value = currentAnnSize;
+    });
+
+    controls.appendChild(colorPicker);
+    controls.appendChild(sizeSelect);
+    box.appendChild(controls);
+
     input.placeholder = 'Text...';
     input.value = existingAnn ? existingAnn.text : '';
-    input.style.color = existingAnn ? (existingAnn.color || state.annColor) : state.annColor;
+    input.style.color = currentAnnColor;
 
     const scaleFactor = state.isLargeView ? 0.75 : 0.45;
-    const fontSz = existingAnn ? existingAnn.fontSize : state.annSize;
-    input.style.fontSize = `${Math.max(11, Math.round((fontSz || 16) * scaleFactor))}px`;
+    input.style.fontSize = `${Math.max(11, Math.round(currentAnnSize * scaleFactor))}px`;
     input.size = Math.max(1, input.value.length || 1);
     input.addEventListener('input', () => {
         input.size = Math.max(1, input.value.length || 1);
@@ -374,8 +486,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
                 if (idx !== -1) page.layers.splice(idx, 1);
             } else {
                 existingAnn.text = text;
-                existingAnn.color = state.annColor;
-                existingAnn.fontSize = state.annSize;
+                existingAnn.color = currentAnnColor;
+                existingAnn.fontSize = currentAnnSize;
             }
         } else if (text) {
             const ann = {
@@ -384,8 +496,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
                 text,
                 xRatio: xR,
                 yRatio: yR,
-                color: state.annColor,
-                fontSize: state.annSize,
+                color: currentAnnColor,
+                fontSize: currentAnnSize,
             };
             page.layers.push(ann);
         }
@@ -412,25 +524,35 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
         box.appendChild(delBtn);
     }
 
+    box.addEventListener('mousedown', (e) => e.stopPropagation());
+    box.addEventListener('click', (e) => e.stopPropagation());
+
     wrap.appendChild(box);
     input.focus();
     input.select();
 
+    const onDocClick = (e) => {
+        if (!box.contains(e.target)) {
+            document.removeEventListener('pointerdown', onDocClick);
+            commit();
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener('pointerdown', onDocClick);
+    }, 50);
+
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            document.removeEventListener('pointerdown', onDocClick);
             commit();
         } else if (e.key === 'Escape') {
             committed = true;
+            document.removeEventListener('pointerdown', onDocClick);
             if (existingMarker) existingMarker.style.visibility = 'visible';
             box.remove();
             renderCardCanvas(page);
         }
-    });
-
-    input.addEventListener('blur', (e) => {
-        if (e.relatedTarget && box.contains(e.relatedTarget)) return;
-        commit();
     });
 }
 
@@ -527,28 +649,7 @@ function handleOverlayClick(page, card) {
 }
 
 function updateOverlayBadge(card, page) {
-    let badge = card.querySelector('.overlay-badge');
-    if (page.overlays && page.overlays.length > 0) {
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.className = 'overlay-badge';
-            card.appendChild(badge);
-        }
-        badge.innerHTML = `<span>+${page.overlays.length} overlay</span>`;
-
-        const rmBtn = document.createElement('button');
-        rmBtn.className = 'overlay-remove-btn';
-        rmBtn.innerHTML = '&times;';
-        rmBtn.title = 'Remove overlay';
-        rmBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeOverlay(page);
-        });
-        badge.appendChild(rmBtn);
-    } else if (badge) {
-        badge.remove();
-        card.classList.remove('has-overlay');
-    }
+    // Overlay badge removed per user request; no UI badge needed.
 }
 
 function removeOverlay(targetPage) {
@@ -570,20 +671,20 @@ function removeOverlay(targetPage) {
 }
 
 // ---- Overlay Draggable & Resizable Positioning ----
-function syncOverlayRectToPercentage(ovRect, page) {
-    if (!page.overlays || page.overlays.length === 0) return;
-    const lastOv = page.overlays[page.overlays.length - 1];
+function syncOverlayRectToPercentage(ovRect, page, layer = null) {
+    const targetLayer = layer || page.overlays[page.overlays.length - 1];
+    if (!targetLayer) return;
 
-    let baseL = lastOv.cropBox ? lastOv.cropBox.leftRatio : 0.0;
-    let baseT = lastOv.cropBox ? lastOv.cropBox.topRatio : 0.0;
-    let baseW = lastOv.cropBox ? lastOv.cropBox.widthRatio : 1.0;
-    let baseH = lastOv.cropBox ? lastOv.cropBox.heightRatio : 1.0;
+    let baseL = targetLayer.cropBox ? targetLayer.cropBox.leftRatio : 0.0;
+    let baseT = targetLayer.cropBox ? targetLayer.cropBox.topRatio : 0.0;
+    let baseW = targetLayer.cropBox ? targetLayer.cropBox.widthRatio : 1.0;
+    let baseH = targetLayer.cropBox ? targetLayer.cropBox.heightRatio : 1.0;
 
-    let scaleW = lastOv.scaleWidthRatio || 1.0;
-    let scaleH = lastOv.scaleHeightRatio || 1.0;
+    let scaleW = targetLayer.scaleWidthRatio || 1.0;
+    let scaleH = targetLayer.scaleHeightRatio || 1.0;
 
-    let lR = baseL + (lastOv.dxRatio || 0);
-    let tR = baseT + (lastOv.dyRatio || 0);
+    let lR = baseL + (targetLayer.dxRatio || 0);
+    let tR = baseT + (targetLayer.dyRatio || 0);
     let wR = baseW * scaleW;
     let hR = baseH * scaleH;
 
@@ -593,7 +694,7 @@ function syncOverlayRectToPercentage(ovRect, page) {
     ovRect.style.height = `${(hR * 100).toFixed(2)}%`;
 }
 
-function addOverlayControls(ovRect, wrap, page) {
+function addOverlayControls(ovRect, wrap, page, layer = null) {
     ovRect.querySelectorAll('.overlay-handle').forEach(h => h.remove());
 
     const positions = ['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'];
@@ -604,10 +705,10 @@ function addOverlayControls(ovRect, wrap, page) {
         ovRect.appendChild(h);
     });
 
-    makeOverlayInteractive(ovRect, wrap, page);
+    makeOverlayInteractive(ovRect, wrap, page, layer);
 }
 
-function makeOverlayInteractive(ovRect, wrap, page) {
+function makeOverlayInteractive(ovRect, wrap, page, layer = null) {
     if (ovRect._isInteractive) return;
     ovRect._isInteractive = true;
 
@@ -620,16 +721,16 @@ function makeOverlayInteractive(ovRect, wrap, page) {
         const startX = e.clientX;
         const startY = e.clientY;
 
-        const lastOv = page.overlays[page.overlays.length - 1];
-        if (!lastOv) return;
+        const targetLayer = layer || page.overlays[page.overlays.length - 1];
+        if (!targetLayer) return;
 
-        const baseW = lastOv.cropBox ? lastOv.cropBox.widthRatio * wrapRect.width : wrapRect.width;
-        const baseH = lastOv.cropBox ? lastOv.cropBox.heightRatio * wrapRect.height : wrapRect.height;
+        const baseW = targetLayer.cropBox ? targetLayer.cropBox.widthRatio * wrapRect.width : wrapRect.width;
+        const baseH = targetLayer.cropBox ? targetLayer.cropBox.heightRatio * wrapRect.height : wrapRect.height;
 
-        const initDx = (lastOv.dxRatio || 0) * wrapRect.width;
-        const initDy = (lastOv.dyRatio || 0) * wrapRect.height;
-        const initScaleW = lastOv.scaleWidthRatio || 1.0;
-        const initScaleH = lastOv.scaleHeightRatio || 1.0;
+        const initDx = (targetLayer.dxRatio || 0) * wrapRect.width;
+        const initDy = (targetLayer.dyRatio || 0) * wrapRect.height;
+        const initScaleW = targetLayer.scaleWidthRatio || 1.0;
+        const initScaleH = targetLayer.scaleHeightRatio || 1.0;
 
         const currentPixelW = baseW * initScaleW;
         const currentPixelH = baseH * initScaleH;
@@ -644,8 +745,8 @@ function makeOverlayInteractive(ovRect, wrap, page) {
 
                     if (!handle) {
                         // Drag position
-                        lastOv.dxRatio = (initDx + dx) / wrapRect.width;
-                        lastOv.dyRatio = (initDy + dy) / wrapRect.height;
+                        targetLayer.dxRatio = (initDx + dx) / wrapRect.width;
+                        targetLayer.dyRatio = (initDy + dy) / wrapRect.height;
                     } else {
                         // Drag handles to resize
                         let newW = currentPixelW;
@@ -664,13 +765,13 @@ function makeOverlayInteractive(ovRect, wrap, page) {
                             extraDy = currentPixelH - newH;
                         }
 
-                        lastOv.scaleWidthRatio = newW / baseW;
-                        lastOv.scaleHeightRatio = newH / baseH;
-                        lastOv.dxRatio = (initDx + extraDx) / wrapRect.width;
-                        lastOv.dyRatio = (initDy + extraDy) / wrapRect.height;
+                        targetLayer.scaleWidthRatio = newW / baseW;
+                        targetLayer.scaleHeightRatio = newH / baseH;
+                        targetLayer.dxRatio = (initDx + extraDx) / wrapRect.width;
+                        targetLayer.dyRatio = (initDy + extraDy) / wrapRect.height;
                     }
 
-                    syncOverlayRectToPercentage(ovRect, page);
+                    syncOverlayRectToPercentage(ovRect, page, targetLayer);
                     renderCardCanvas(page);
                     ticking = false;
                 });
@@ -698,7 +799,7 @@ function renderCardLayers(wrap, page) {
     const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
 
     page.layers.forEach((layer, idx) => {
-        const zIndex = 5 + idx;
+        const zIndex = 10 + idx;
 
         if (layer.type === 'whiteout') {
             const rect = document.createElement('div');
@@ -708,6 +809,7 @@ function renderCardLayers(wrap, page) {
             rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
             rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
             rect.style.zIndex = zIndex;
+            rect.style.backgroundColor = 'transparent';
             rect.title = 'Drag to move, handles to resize, double-click to remove';
 
             addWhiteoutControls(rect, wrap, page, layer);
@@ -750,9 +852,33 @@ function renderCardLayers(wrap, page) {
             label.textContent = 'Overlay Drag';
             ovRect.appendChild(label);
 
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'overlay-del-btn';
+            delBtn.innerHTML = '&times;';
+            delBtn.title = 'Remove overlay';
+
+            const removeOverlay = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const lIdx = page.layers.indexOf(layer);
+                if (lIdx !== -1) {
+                    page.layers.splice(lIdx, 1);
+                    renderCardCanvas(page);
+                }
+            };
+
+            delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+            delBtn.addEventListener('click', removeOverlay);
+            ovRect.addEventListener('dblclick', (e) => {
+                if (state.mode !== 'overlay') return;
+                removeOverlay(e);
+            });
+
+            ovRect.appendChild(delBtn);
             wrap.appendChild(ovRect);
-            addOverlayControls(ovRect, wrap, page);
-            syncOverlayRectToPercentage(ovRect, page);
+            addOverlayControls(ovRect, wrap, page, layer);
+            syncOverlayRectToPercentage(ovRect, page, layer);
         }
     });
 }
@@ -997,33 +1123,7 @@ function startCrop(e, wrap, page) {
     window.addEventListener('mouseup', onUp);
 }
 
-// ---- Whiteout Logic ----
-function renderWhiteouts(wrap, page) {
-    wrap.querySelectorAll('.whiteout-rect').forEach(w => w.remove());
-    if (!page.whiteouts) return;
 
-    page.whiteouts.forEach(w => {
-        const rect = document.createElement('div');
-        rect.className = 'whiteout-rect';
-        rect.style.left = `${(w.leftRatio * 100).toFixed(2)}%`;
-        rect.style.top = `${(w.topRatio * 100).toFixed(2)}%`;
-        rect.style.width = `${(w.widthRatio * 100).toFixed(2)}%`;
-        rect.style.height = `${(w.heightRatio * 100).toFixed(2)}%`;
-        rect.title = 'Double-click to remove whiteout';
-
-        rect.addEventListener('dblclick', (e) => {
-            if (state.mode !== 'whiteout') return;
-            e.stopPropagation();
-            const idx = page.layers.indexOf(w);
-            if (idx !== -1) {
-                page.layers.splice(idx, 1);
-                renderCardCanvas(page);
-            }
-        });
-
-        wrap.appendChild(rect);
-    });
-}
 
 function startWhiteout(e, wrap, page) {
     const wrapRect = wrap.getBoundingClientRect();
@@ -1032,10 +1132,10 @@ function startWhiteout(e, wrap, page) {
 
     const tempRect = document.createElement('div');
     tempRect.className = 'whiteout-rect';
-    tempRect.style.left = `${startX}px`;
-    tempRect.style.top = `${startY}px`;
-    tempRect.style.width = '0px';
-    tempRect.style.height = '0px';
+    tempRect.style.left = `${(startX / wrapRect.width * 100).toFixed(2)}%`;
+    tempRect.style.top = `${(startY / wrapRect.height * 100).toFixed(2)}%`;
+    tempRect.style.width = '0%';
+    tempRect.style.height = '0%';
     wrap.appendChild(tempRect);
 
     let moved = false;
@@ -1050,15 +1150,16 @@ function startWhiteout(e, wrap, page) {
         const right = Math.min(wrapRect.width, Math.max(startX, curX));
         const bottom = Math.min(wrapRect.height, Math.max(startY, curY));
 
-        tempRect.style.left = `${left}px`;
-        tempRect.style.top = `${top}px`;
-        tempRect.style.width = `${right - left}px`;
-        tempRect.style.height = `${bottom - top}px`;
+        tempRect.style.left = `${(left / wrapRect.width * 100).toFixed(2)}%`;
+        tempRect.style.top = `${(top / wrapRect.height * 100).toFixed(2)}%`;
+        tempRect.style.width = `${((right - left) / wrapRect.width * 100).toFixed(2)}%`;
+        tempRect.style.height = `${((bottom - top) / wrapRect.height * 100).toFixed(2)}%`;
     };
 
     const onUp = (me) => {
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
+        tempRect.remove();
 
         if (moved) {
             const curX = me.clientX - wrapRect.left;
@@ -1082,10 +1183,9 @@ function startWhiteout(e, wrap, page) {
                     widthRatio: wPx / wrapRect.width,
                     heightRatio: hPx / wrapRect.height,
                 });
+                renderCardCanvas(page);
             }
         }
-        tempRect.remove();
-        renderCardCanvas(page);
     };
 
     window.addEventListener('mousemove', onMove);

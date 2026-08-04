@@ -41,21 +41,18 @@ def apply_text_annotations(page, annotations):
         text = ann.get('text', '')
         if not text:
             continue
-        x_ratio = float(ann.get('xRatio', 0))
-        y_ratio = float(ann.get('yRatio', 0))
+
+        x_ratio = float(ann.get('xRatio', 0.0))
+        y_ratio = float(ann.get('yRatio', 0.0))
+        color_hex = ann.get('color', '#3b82f6')
         font_size = int(ann.get('fontSize', 16))
-        hex_color = ann.get('color', '#ff0000')
 
         x = x_ratio * width
-        y = (1.0 - y_ratio) * height  # Invert Y ratio for PDF coordinate space
+        y = (1.0 - y_ratio) * height  # Invert Y for PDF space
 
-        try:
-            can.setFillColor(HexColor(hex_color))
-        except Exception:
-            can.setFillColorRGB(1, 0, 0)
-
+        can.setFillColor(HexColor(color_hex))
         can.setFont("Helvetica-Bold", font_size)
-        can.drawString(x, y, text)
+        can.drawString(x, y - font_size, text)
 
     can.save()
     packet.seek(0)
@@ -67,15 +64,12 @@ def apply_text_annotations(page, annotations):
     return page
 
 def apply_crop_box(page, crop):
-    """Adjusts page CropBox bounds based on normalized crop coordinates."""
-    if not crop:
-        return page
-
+    """Applies crop dimensions to a page using cropbox ratios."""
     width = float(page.mediabox.width)
     height = float(page.mediabox.height)
 
-    left_ratio = float(crop.get('leftRatio', 0))
-    top_ratio = float(crop.get('topRatio', 0))
+    left_ratio = float(crop.get('leftRatio', 0.0))
+    top_ratio = float(crop.get('topRatio', 0.0))
     width_ratio = float(crop.get('widthRatio', 1.0))
     height_ratio = float(crop.get('heightRatio', 1.0))
 
@@ -204,15 +198,18 @@ def process_pdf_edit_logic(readers, manifest):
                     scale_w = float(layer.get('scaleWidthRatio', 1.0))
                     scale_h = float(layer.get('scaleHeightRatio', 1.0))
 
-                    if scale_w != 1.0 or scale_h != 1.0 or dx_ratio != 0.0 or dy_ratio != 0.0:
-                        base_width = float(page.mediabox.width)
-                        base_height = float(page.mediabox.height)
-                        tx = dx_ratio * base_width
-                        ty = -dy_ratio * base_height
-                        try:
-                            overlay_page.add_transformation(Transformation().scale(scale_w, scale_h).translate(tx, ty))
-                        except Exception as e:
-                            print(f"Overlay transformation failed: {e}")
+                    base_width = float(page.mediabox.width)
+                    base_height = float(page.mediabox.height)
+                    ov_width = float(overlay_page.mediabox.width)
+                    ov_height = float(overlay_page.mediabox.height)
+
+                    tx = dx_ratio * base_width
+                    ty = base_height - (dy_ratio * base_height) - (scale_h * ov_height)
+
+                    try:
+                        overlay_page.add_transformation(Transformation().scale(scale_w, scale_h).translate(tx, ty))
+                    except Exception as e:
+                        print(f"Overlay transformation failed: {e}")
 
                     page.merge_page(overlay_page)
 

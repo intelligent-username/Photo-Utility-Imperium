@@ -382,18 +382,66 @@
 /* ---- Draggable Overlay Layer Rect ---- */
 .overlay-rect {
     position: absolute;
+    border: none;
+    background: transparent;
+    pointer-events: none;
+    box-sizing: border-box;
+    border-radius: 2px;
+}
+
+.overlay-rect .overlay-rect-label,
+.overlay-rect .overlay-handle,
+.overlay-rect .overlay-del-btn {
+    display: none;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect {
     border: 2px solid var(--accent);
     background: rgba(192, 132, 252, 0.15);
     pointer-events: auto;
     cursor: move;
-    box-sizing: border-box;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(192, 132, 252, 0.25);
-    border-radius: 2px;
 }
 
-.overlay-rect:hover {
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-rect-label,
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-handle {
+    display: block;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-del-btn {
+    display: inline-flex;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect:hover {
     border-color: #e9d5ff;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 10px rgba(192, 132, 252, 0.5);
+}
+
+.overlay-del-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 20;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
 }
 
 .overlay-rect-label {
@@ -433,13 +481,36 @@
 .ann-edit-box {
     position: absolute;
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
-    background: rgba(45, 45, 45, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    gap: 6px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 3px 6px;
     z-index: 50;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.ann-popover-color {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.ann-popover-size {
+    height: 20px;
+    font-size: 0.75rem;
+    background: #2a2a2a;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 0 2px;
+    cursor: pointer;
 }
 
 .ann-edit-box .ann-input {
@@ -597,15 +668,24 @@
 
 .whiteout-rect {
     position: absolute;
-    background: #ffffff;
-    border: 1px dashed var(--primary);
+    background: transparent;
+    border: none;
+    outline: none;
     box-sizing: border-box;
     pointer-events: none;
+    transition: outline-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pdf-page-grid.grid-mode-whiteout .whiteout-rect {
     pointer-events: auto;
     cursor: move;
+    outline: 1px dashed var(--primary);
+    outline-offset: 0px;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-rect:hover {
+    outline: 1px dashed var(--danger);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
 }
 
 .whiteout-handle {
@@ -618,10 +698,12 @@
     z-index: 12;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
     pointer-events: none;
+    display: none;
 }
 
 .pdf-page-grid.grid-mode-whiteout .whiteout-handle {
     pointer-events: auto;
+    display: block;
 }
 
 .whiteout-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
@@ -720,42 +802,7 @@
 .crop-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
 
 /* ---- Overlay Badge & Remove Btn ---- */
-.overlay-badge {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-    z-index: 4;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
 
-.overlay-remove-btn {
-    background: rgba(0, 0, 0, 0.3);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 12px;
-    height: 12px;
-    font-size: 0.65rem;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    padding: 0;
-}
-
-.overlay-remove-btn:hover {
-    background: var(--danger);
-}
 
 
 /* ---- Add Blank Page Button ---- */
