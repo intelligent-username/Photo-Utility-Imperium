@@ -403,6 +403,28 @@ function buildCard(page) {
 
 // ... helper logic ...
 
+function getContrastBgColor(hexColor) {
+    let r = 0, g = 0, b = 0;
+    if (hexColor && hexColor.startsWith('#')) {
+        const hex = hexColor.slice(1);
+        if (hex.length === 3) {
+            r = parseInt(hex[0] + hex[0], 16);
+            g = parseInt(hex[1] + hex[1], 16);
+            b = parseInt(hex[2] + hex[2], 16);
+        } else if (hex.length === 6) {
+            r = parseInt(hex.slice(0, 2), 16);
+            g = parseInt(hex.slice(2, 4), 16);
+            b = parseInt(hex.slice(4, 6), 16);
+        }
+    }
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    if (brightness < 130) {
+        return { bg: 'rgba(238, 240, 243, 0.96)', border: 'rgba(0, 0, 0, 0.25)' };
+    } else {
+        return { bg: 'rgba(30, 30, 30, 0.95)', border: 'rgba(255, 255, 255, 0.3)' };
+    }
+}
+
 function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null) {
     wrap.querySelectorAll('.ann-edit-box, .ann-input').forEach(b => b.remove());
 
@@ -412,20 +434,38 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
 
     const box = document.createElement('div');
     box.className = 'ann-edit-box';
-    box.style.left = `${(xR * 100).toFixed(1)}%`;
+    const leftPct = (xR * 100).toFixed(1);
+    box.style.left = `${leftPct}%`;
     box.style.top = `${(yR * 100).toFixed(1)}%`;
+    box.style.maxWidth = `calc(100% - ${leftPct}%)`;
 
-    const input = document.createElement('input');
-    input.type = 'text';
+    const input = document.createElement('textarea');
     input.className = 'ann-input';
+    input.rows = 1;
+    input.style.maxWidth = '100%';
     let currentAnnColor = existingAnn ? (existingAnn.color || state.annColor) : state.annColor;
     let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : state.annSize;
 
+    const applyContrastTheme = (hexColor) => {
+        const theme = getContrastBgColor(hexColor);
+        box.style.background = theme.bg;
+        box.style.borderColor = theme.border;
+    };
+    applyContrastTheme(currentAnnColor);
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
+
+    const autoResize = () => {
+        input.style.height = 'auto';
+        input.style.height = `${input.scrollHeight}px`;
+        const lines = input.value.split('\n');
+        const maxLen = Math.max(...lines.map(l => l.length), 1);
+        input.cols = Math.max(2, maxLen + 1);
+    };
+
     const controls = document.createElement('div');
     controls.className = 'ann-box-controls';
-    controls.style.display = 'inline-flex';
-    controls.style.alignItems = 'center';
-    controls.style.gap = '4px';
 
     const colorPicker = document.createElement('input');
     colorPicker.type = 'color';
@@ -436,6 +476,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
         currentAnnColor = e.target.value;
         state.annColor = currentAnnColor;
         input.style.color = currentAnnColor;
+        applyContrastTheme(currentAnnColor);
         const mainPicker = document.getElementById('ann-color');
         if (mainPicker) mainPicker.value = currentAnnColor;
     });
@@ -453,8 +494,10 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     sizeSelect.addEventListener('change', (e) => {
         currentAnnSize = parseInt(e.target.value, 10);
         state.annSize = currentAnnSize;
-        const scaleFactor = state.isLargeView ? 0.75 : 0.45;
-        input.style.fontSize = `${Math.max(11, Math.round(currentAnnSize * scaleFactor))}px`;
+        const wRect = wrap.getBoundingClientRect();
+        const cScale = wRect.width > 0 ? (wRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
+        input.style.fontSize = `${Math.max(9, currentAnnSize * cScale)}px`;
+        autoResize();
         const mainSize = document.getElementById('ann-size');
         if (mainSize) mainSize.value = currentAnnSize;
     });
@@ -467,12 +510,9 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     input.value = existingAnn ? existingAnn.text : '';
     input.style.color = currentAnnColor;
 
-    const scaleFactor = state.isLargeView ? 0.75 : 0.45;
-    input.style.fontSize = `${Math.max(11, Math.round(currentAnnSize * scaleFactor))}px`;
-    input.size = Math.max(1, input.value.length || 1);
-    input.addEventListener('input', () => {
-        input.size = Math.max(1, input.value.length || 1);
-    });
+    const scaledFont = Math.max(9, currentAnnSize * canvasScale);
+    input.style.fontSize = `${scaledFont}px`;
+    input.addEventListener('input', autoResize);
     box.appendChild(input);
 
     let committed = false;
@@ -530,6 +570,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     box.addEventListener('click', (e) => e.stopPropagation());
 
     wrap.appendChild(box);
+    setTimeout(autoResize, 0);
     input.focus();
     input.select();
 
@@ -544,16 +585,10 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     }, 50);
 
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
             e.preventDefault();
             document.removeEventListener('pointerdown', onDocClick);
             commit();
-        } else if (e.key === 'Escape') {
-            committed = true;
-            document.removeEventListener('pointerdown', onDocClick);
-            if (existingMarker) existingMarker.style.visibility = 'visible';
-            box.remove();
-            renderCardCanvas(page);
         }
     });
 }
@@ -838,11 +873,21 @@ function renderCardLayers(wrap, page) {
 
         } else if (layer.type === 'annotation') {
             if (!layer.text) return;
+            const canvas = wrap.querySelector('canvas');
+            const canvasRect = canvas ? canvas.getBoundingClientRect() : wrapRect;
+            const canvasOffsetLeft = canvasRect.left - wrapRect.left;
+            const canvasOffsetTop = canvasRect.top - wrapRect.top;
+
+            const leftPct = ((canvasOffsetLeft + (layer.xRatio * canvasRect.width)) / (wrapRect.width || 1) * 100).toFixed(2);
+            const topPct = ((canvasOffsetTop + (layer.yRatio * canvasRect.height)) / (wrapRect.height || 1) * 100).toFixed(2);
+            const maxW = ((canvasRect.width * (1.0 - layer.xRatio)) / (wrapRect.width || 1) * 100).toFixed(2);
+
             const marker = document.createElement('span');
             marker.className = 'ann-marker';
             marker.textContent = layer.text;
-            marker.style.left = `${(layer.xRatio * 100).toFixed(1)}%`;
-            marker.style.top = `${(layer.yRatio * 100).toFixed(1)}%`;
+            marker.style.left = `${leftPct}%`;
+            marker.style.top = `${topPct}%`;
+            marker.style.maxWidth = `${maxW}%`;
             marker.style.color = layer.color || state.annColor;
             marker.style.zIndex = zIndex;
 
@@ -895,11 +940,19 @@ function renderCardLayers(wrap, page) {
 }
 
 function makeAnnotationInteractive(marker, wrap, page, ann) {
+    if (marker._isInteractive) return;
+    marker._isInteractive = true;
+
     marker.addEventListener('mousedown', (e) => {
         if (state.mode !== 'annotate') return;
         if (e.target.closest('.ann-delete-btn')) return;
         e.stopPropagation();
+        e.preventDefault();
+
+        const canvas = wrap.querySelector('canvas');
         const wrapRect = wrap.getBoundingClientRect();
+        const canvasRect = canvas ? canvas.getBoundingClientRect() : wrapRect;
+
         const startX = e.clientX;
         const startY = e.clientY;
         const initXR = ann.xRatio;
@@ -914,10 +967,18 @@ function makeAnnotationInteractive(marker, wrap, page, ann) {
 
             if (moved && !ticking) {
                 requestAnimationFrame(() => {
-                    ann.xRatio = Math.max(0, Math.min(1.0, initXR + (dx / wrapRect.width)));
-                    ann.yRatio = Math.max(0, Math.min(1.0, initYR + (dy / wrapRect.height)));
-                    marker.style.left = `${(ann.xRatio * 100).toFixed(1)}%`;
-                    marker.style.top = `${(ann.yRatio * 100).toFixed(1)}%`;
+                    ann.xRatio = Math.max(0, Math.min(1.0, initXR + (dx / (canvasRect.width || 1))));
+                    ann.yRatio = Math.max(0, Math.min(1.0, initYR + (dy / (canvasRect.height || 1))));
+
+                    const cOffsetLeft = canvasRect.left - wrapRect.left;
+                    const cOffsetTop = canvasRect.top - wrapRect.top;
+                    const leftPct = ((cOffsetLeft + (ann.xRatio * canvasRect.width)) / (wrapRect.width || 1) * 100).toFixed(2);
+                    const topPct = ((cOffsetTop + (ann.yRatio * canvasRect.height)) / (wrapRect.height || 1) * 100).toFixed(2);
+                    const maxW = ((canvasRect.width * (1.0 - ann.xRatio)) / (wrapRect.width || 1) * 100).toFixed(2);
+
+                    marker.style.left = `${leftPct}%`;
+                    marker.style.top = `${topPct}%`;
+                    marker.style.maxWidth = `${maxW}%`;
                     ticking = false;
                 });
                 ticking = true;
@@ -930,6 +991,8 @@ function makeAnnotationInteractive(marker, wrap, page, ann) {
             if (!moved) {
                 // Click without drag -> Edit annotation text (hide marker during edit)
                 openAnnotationInput(wrap, page, ann.xRatio, ann.yRatio, ann, marker);
+            } else {
+                renderCardCanvas(page);
             }
         };
 

@@ -53,7 +53,30 @@ def apply_text_annotations(page, annotations):
 
         can.setFillColor(HexColor(color_hex))
         can.setFont("Helvetica-Bold", font_size)
-        can.drawString(x, y - font_size, text)
+
+        available_width = max(20.0, width - x - 8.0)
+
+        # Word wrap text so lines don't overflow the right edge of the page
+        wrapped_lines = []
+        for paragraph in text.split('\n'):
+            if not paragraph:
+                wrapped_lines.append('')
+                continue
+            words = paragraph.split(' ')
+            current_line = []
+            for word in words:
+                candidate = ' '.join(current_line + [word]) if current_line else word
+                if can.stringWidth(candidate, "Helvetica-Bold", font_size) <= available_width or not current_line:
+                    current_line.append(word)
+                else:
+                    wrapped_lines.append(' '.join(current_line))
+                    current_line = [word]
+            if current_line:
+                wrapped_lines.append(' '.join(current_line))
+
+        line_height = font_size * 1.15
+        for i, line in enumerate(wrapped_lines):
+            can.drawString(x, y - font_size - (i * line_height), line)
 
     can.save()
     packet.seek(0)
