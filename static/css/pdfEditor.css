@@ -2,44 +2,73 @@
    PDF Editor Styles
    =========================================== */
 
-/* ---- Toolbar ---- */
+/* ---- Single-line Fixed Height Toolbar (Matches tool-title Y-position & height) ---- */
 .pdf-toolbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 12px;
+    height: 44px;
+    margin-top: 10px;
+    margin-bottom: 16px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.pdf-toolbar::-webkit-scrollbar {
+    height: 3px;
+}
+.pdf-toolbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.pdf-toolbar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
 }
 
 .pdf-toolbar .toolbar-group {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
     gap: 6px;
 }
 
 .pdf-toolbar .toolbar-group-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
 }
 
 .pdf-toolbar .toolbar-subgroup {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
     gap: 6px;
-    margin-right: 8px;
     padding-right: 8px;
     border-right: 1px solid var(--border);
 }
 
 .pdf-toolbar .toolbar-sep {
     width: 1px;
-    height: 24px;
+    height: 20px;
     background: var(--border);
-    margin: 0 4px;
+    margin: 0 2px;
+    flex-shrink: 0;
 }
 
 .pdf-toolbar-btn {
@@ -103,25 +132,26 @@
     font-weight: 500;
 }
 
-/* ---- Page Grid ---- */
+/* ---- Page Grid (Fixed 580px height matching upload-area and identical Y-location) ---- */
 .pdf-page-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 14px;
     padding: 14px;
-    min-height: 200px;
-    max-height: 550px;
+    height: 580px;
     overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+    margin: 0;
+    box-sizing: border-box;
     transition: all var(--transition);
 }
 
 .pdf-page-grid.large-view {
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    max-height: 750px;
+    height: 580px;
     gap: 20px;
     padding: 20px;
 }
@@ -311,7 +341,6 @@
     border-radius: 3px;
     border: 1px dashed transparent;
     white-space: nowrap;
-    z-index: 10;
     cursor: pointer;
     user-select: none;
     transition: border-color 0.15s ease, background 0.15s ease;
@@ -353,17 +382,18 @@
 /* ---- Draggable Overlay Layer Rect ---- */
 .overlay-rect {
     position: absolute;
-    border: 2px dashed var(--accent);
-    background: rgba(192, 132, 252, 0.12);
+    border: 2px solid var(--accent);
+    background: rgba(192, 132, 252, 0.15);
     pointer-events: auto;
     cursor: move;
-    z-index: 9;
     box-sizing: border-box;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(192, 132, 252, 0.25);
+    border-radius: 2px;
 }
 
 .overlay-rect:hover {
     border-color: #e9d5ff;
-    background: rgba(192, 132, 252, 0.2);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 10px rgba(192, 132, 252, 0.5);
 }
 
 .overlay-rect-label {
@@ -379,6 +409,26 @@
     pointer-events: none;
 }
 
+.overlay-handle {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: var(--accent);
+    border: 1px solid #0b1220;
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.overlay-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
 /* ---- Annotation Input & Edit Box ---- */
 .ann-edit-box {
     position: absolute;
@@ -388,7 +438,7 @@
     border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 4px;
     padding: 2px 6px;
-    z-index: 20;
+    z-index: 50;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
@@ -514,6 +564,12 @@
     color: var(--primary);
 }
 
+.pdf-mode-banner.banner-whiteout {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
 /* Mode-based pointer event isolation (Prevents card drag conflicts) */
 .crop-rect, .crop-handle, .crop-apply-all-btn {
     pointer-events: none;
@@ -524,10 +580,11 @@
     pointer-events: auto;
 }
 
-.overlay-rect {
+.overlay-rect, .overlay-handle {
     pointer-events: none;
 }
-.pdf-page-grid.grid-mode-overlay .overlay-rect {
+.pdf-page-grid.grid-mode-overlay .overlay-rect,
+.pdf-page-grid.grid-mode-overlay .overlay-handle {
     pointer-events: auto;
 }
 
@@ -536,6 +593,54 @@
 }
 .pdf-page-grid.grid-mode-annotate .ann-marker {
     pointer-events: auto;
+}
+
+.whiteout-rect {
+    position: absolute;
+    background: #ffffff;
+    border: 1px dashed var(--primary);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-rect {
+    pointer-events: auto;
+    cursor: move;
+}
+
+.whiteout-handle {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: #ffffff;
+    border: 1px solid var(--primary);
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-handle {
+    pointer-events: auto;
+}
+
+.whiteout-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.whiteout-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.whiteout-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.whiteout-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.whiteout-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.whiteout-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.whiteout-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.whiteout-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-rect {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.whiteout-rect:hover {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
 }
 
 /* ---- Card Mode Rings ---- */
@@ -547,6 +652,11 @@
 .pdf-page-grid.grid-mode-overlay .pdf-page-card:hover {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.3);
+}
+
+.pdf-page-grid.grid-mode-whiteout .pdf-page-card:hover {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 .pdf-page-grid.grid-mode-annotate .pdf-page-card:hover {

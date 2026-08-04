@@ -27,10 +27,13 @@ h2 {
   color: var(--text);
   font-weight: 700;
   font-size: 1.75rem;
-  margin-top: 16px;
+  height: 44px;
+  line-height: 44px;
+  margin-top: 10px;
   margin-bottom: 16px;
   letter-spacing: -0.025em;
   text-align: center;
+  box-sizing: border-box;
 }
 
 /* Force sidebar column to shrink-wrap the upload area's intrinsic width, and make children span 100% of it */
@@ -42,8 +45,6 @@ body[data-page] .col-md-4 {
 
 body[data-page] .col-md-4 > * {
     width: 100% !important;
-    margin-top: 10px !important;
-    margin-bottom: 10px !important;
 }
 
 /* Make preview column expand to fill the remaining screen space */

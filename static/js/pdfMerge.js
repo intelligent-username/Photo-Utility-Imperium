@@ -65,6 +65,7 @@ export function initPdfMerge(options) {
     const annotateBtn = document.getElementById('annotate-btn');
     const cropBtn = document.getElementById('crop-btn');
     const overlayBtn = document.getElementById('overlay-btn');
+    const whiteoutBtn = document.getElementById('whiteout-btn');
     const restoreBtn = document.getElementById('restore-all-btn');
     const largeViewBtn = document.getElementById('large-view-btn');
 
@@ -74,6 +75,7 @@ export function initPdfMerge(options) {
         if (annotateBtn) annotateBtn.classList.remove('active');
         if (cropBtn) cropBtn.classList.remove('active');
         if (overlayBtn) overlayBtn.classList.remove('active');
+        if (whiteoutBtn) whiteoutBtn.classList.remove('active');
         if (annControls) annControls.classList.add('hidden');
         setAppMode('select');
     }
@@ -83,6 +85,7 @@ export function initPdfMerge(options) {
         if (annotateBtn) annotateBtn.classList.remove('active');
         if (cropBtn) cropBtn.classList.remove('active');
         if (overlayBtn) overlayBtn.classList.remove('active');
+        if (whiteoutBtn) whiteoutBtn.classList.remove('active');
 
         if (btn) btn.classList.add('active');
         if (modeName === 'annotate' && annControls) {
@@ -96,6 +99,7 @@ export function initPdfMerge(options) {
     if (annotateBtn) annotateBtn.addEventListener('click', () => toggleMode(annotateBtn, 'annotate'));
     if (cropBtn) cropBtn.addEventListener('click', () => toggleMode(cropBtn, 'crop'));
     if (overlayBtn) overlayBtn.addEventListener('click', () => toggleMode(overlayBtn, 'overlay'));
+    if (whiteoutBtn) whiteoutBtn.addEventListener('click', () => toggleMode(whiteoutBtn, 'whiteout'));
 
     if (largeViewBtn) {
         largeViewBtn.addEventListener('click', () => {
@@ -110,8 +114,16 @@ export function initPdfMerge(options) {
         restoreBtn.addEventListener('click', () => {
             state.pages.forEach(p => {
                 p.excluded = false;
+                p.whiteouts = [];
+                p.cropBox = null;
+                p.overlays = [];
                 const card = document.getElementById(p.id);
-                if (card) card.classList.remove('excluded');
+                if (card) {
+                    card.classList.remove('excluded', 'has-overlay', 'overlay-source');
+                    const badge = card.querySelector('.overlay-badge');
+                    if (badge) badge.remove();
+                }
+                renderCardCanvas(p);
             });
         });
     }
@@ -122,12 +134,19 @@ export function initPdfMerge(options) {
     if (colorInput) colorInput.addEventListener('input', (e) => { state.annColor = e.target.value; });
     if (sizeInput) sizeInput.addEventListener('change', (e) => { state.annSize = parseInt(e.target.value, 10) || 16; });
 
-    // ---- Export ----
-    const mergeBtn = document.getElementById('merge-btn');
+    // ---- Export & Reset ----
+    const exportBtn = document.getElementById('export-pdf-btn') || document.getElementById('merge-btn');
     const resetBtn = document.getElementById('reset-btn');
 
-    if (mergeBtn) {
-        mergeBtn.addEventListener('click', async () => {
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            resetState();
+            updateFileList([], false);
+        });
+    }
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
             const activePages = state.pages.filter(p => !p.excluded);
             if (activePages.length === 0) {
                 alert('No pages to export. Upload PDF files first.');
@@ -144,6 +163,7 @@ export function initPdfMerge(options) {
                 annotations: p.annotations,
                 cropBox: p.cropBox,
                 overlays: p.overlays,
+                whiteouts: p.whiteouts,
             }));
             formData.append('manifest', JSON.stringify(manifest));
 

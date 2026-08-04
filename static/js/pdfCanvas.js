@@ -15,6 +15,40 @@ const state = {
 
 export function getState() { return state; }
 
+export function createPageObject(config) {
+    const layers = config.layers || [];
+    const page = {
+        id: config.id || `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        fileIdx: config.fileIdx !== undefined ? config.fileIdx : -1,
+        pageIdx: config.pageIdx !== undefined ? config.pageIdx : -1,
+        fileName: config.fileName || 'Page',
+        excluded: config.excluded || false,
+        cropBox: config.cropBox || null,
+        isBlank: config.isBlank || false,
+        aspectRatio: config.aspectRatio,
+        _pdfPage: config._pdfPage || null,
+        layers,
+    };
+
+    Object.defineProperty(page, 'annotations', {
+        get: () => page.layers.filter(l => l.type === 'annotation'),
+        configurable: true,
+        enumerable: true
+    });
+    Object.defineProperty(page, 'whiteouts', {
+        get: () => page.layers.filter(l => l.type === 'whiteout'),
+        configurable: true,
+        enumerable: true
+    });
+    Object.defineProperty(page, 'overlays', {
+        get: () => page.layers.filter(l => l.type === 'overlay'),
+        configurable: true,
+        enumerable: true
+    });
+
+    return page;
+}
+
 // ---- Mode Control (Enforces single active interaction type) ----
 export function setAppMode(modeName) {
     state.mode = modeName;
@@ -22,7 +56,7 @@ export function setAppMode(modeName) {
 
     const grid = document.getElementById('pdf-page-grid');
     if (grid) {
-        grid.classList.remove('grid-mode-crop', 'grid-mode-overlay', 'grid-mode-annotate');
+        grid.classList.remove('grid-mode-crop', 'grid-mode-overlay', 'grid-mode-annotate', 'grid-mode-whiteout');
         if (modeName !== 'select') {
             grid.classList.add(`grid-mode-${modeName}`);
         }
@@ -44,65 +78,44 @@ export function setAppMode(modeName) {
         updateModeBanner('Overlay Mode: Click source page, then target page. Drag purple box to reposition overlay.', 'overlay');
     } else if (modeName === 'annotate') {
         updateModeBanner('Annotate Mode: Click anywhere on a page to add text. Drag text to move, click to edit/delete.', 'annotate');
+    } else if (modeName === 'whiteout') {
+        updateModeBanner('Whiteout Mode: Drag on any page to cover content with a white block. Double-click box to delete.', 'whiteout');
     }
 }
 
-// ---- Canvas rendering (supports composite overlay preview & position translation) ----
+// ---- Canvas rendering (fast base PDF render + dynamic DOM layer stack z-index) ----
 export async function renderCardCanvas(page) {
     const card = document.getElementById(page.id);
     if (!card) return;
     const canvas = card.querySelector('canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const scale = state.isLargeView ? 0.8 : 0.4;
+
+    const targetWidth = state.isLargeView ? 340 : 160;
+
+    let vpWidth = targetWidth;
+    let vpHeight = 440;
 
     if (page.isBlank) {
         const ar = page.aspectRatio || (792 / 612);
-        const w = state.isLargeView ? 320 : 150;
-        const h = Math.round(w * ar);
-        canvas.width = w;
-        canvas.height = h;
+        vpHeight = Math.round(vpWidth * ar);
+        canvas.width = vpWidth;
+        canvas.height = vpHeight;
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, vpWidth, vpHeight);
     } else if (page._pdfPage) {
+        const origVp = page._pdfPage.getViewport({ scale: 1.0 });
+        const scale = targetWidth / origVp.width;
         const vp = page._pdfPage.getViewport({ scale });
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        ctx.clearRect(0, 0, vp.width, vp.height);
 
-        // Render base page
+        vpWidth = vp.width;
+        vpHeight = vp.height;
+        canvas.width = vpWidth;
+        canvas.height = vpHeight;
+        ctx.clearRect(0, 0, vpWidth, vpHeight);
+
+        // Render base PDF page
         await page._pdfPage.render({ canvasContext: ctx, viewport: vp }).promise;
-
-        // Render overlays on top (with position translation dxRatio/dyRatio offset)
-        if (page.overlays && page.overlays.length > 0) {
-            for (const ov of page.overlays) {
-                const ovPageObj = state.pages.find(p => p.fileIdx === ov.fileIndex && p.pageIdx === ov.pageIndex);
-                if (ovPageObj && ovPageObj._pdfPage) {
-                    const offCanvas = document.createElement('canvas');
-                    offCanvas.width = vp.width;
-                    offCanvas.height = vp.height;
-                    const offCtx = offCanvas.getContext('2d');
-                    const ovVp = ovPageObj._pdfPage.getViewport({ scale: vp.width / ovPageObj._pdfPage.getViewport({ scale: 1.0 }).width });
-                    await ovPageObj._pdfPage.render({ canvasContext: offCtx, viewport: ovVp }).promise;
-
-                    ctx.save();
-                    ctx.globalAlpha = 0.85;
-                    const dx = (ov.dxRatio || 0) * vp.width;
-                    const dy = (ov.dyRatio || 0) * vp.height;
-
-                    if (ov.cropBox) {
-                        const cx = ov.cropBox.leftRatio * vp.width;
-                        const cy = ov.cropBox.topRatio * vp.height;
-                        const cw = ov.cropBox.widthRatio * vp.width;
-                        const ch = ov.cropBox.heightRatio * vp.height;
-                        ctx.drawImage(offCanvas, cx, cy, cw, ch, cx + dx, cy + dy, cw, ch);
-                    } else {
-                        ctx.drawImage(offCanvas, dx, dy);
-                    }
-                    ctx.restore();
-                }
-            }
-        }
     }
 
     const wrap = card.querySelector('.page-canvas-wrap');
@@ -121,28 +134,8 @@ export async function renderCardCanvas(page) {
             rect.remove();
         }
 
-        // Sync Overlay Draggable Rect
-        let ovRect = wrap.querySelector('.overlay-rect');
-        if (page.overlays && page.overlays.length > 0) {
-            if (!ovRect) {
-                ovRect = document.createElement('div');
-                ovRect.className = 'overlay-rect';
-
-                const label = document.createElement('span');
-                label.className = 'overlay-rect-label';
-                label.textContent = 'Overlay Drag';
-                ovRect.appendChild(label);
-
-                wrap.appendChild(ovRect);
-                makeOverlayInteractive(ovRect, wrap, page);
-            }
-            syncOverlayRectToPercentage(ovRect, page);
-        } else if (ovRect) {
-            ovRect.remove();
-        }
-
-        // Sync Text Annotation Markers
-        renderAnnotations(wrap, page);
+        // Sync Unified Chronological Layer Elements (Whiteouts, Text Annotations, Overlays)
+        renderCardLayers(wrap, page);
     }
 }
 
@@ -198,17 +191,12 @@ export async function loadFiles(fileList) {
 
             for (let p = 0; p < pdf.numPages; p++) {
                 const pdfPage = await pdf.getPage(p + 1);
-                const page = {
-                    id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                const page = createPageObject({
                     fileIdx,
                     pageIdx: p,
                     fileName: file.name,
-                    excluded: false,
-                    annotations: [],
-                    cropBox: null,
-                    overlays: [],   // [{ fileIndex, pageIndex, cropBox, sourceId, dxRatio, dyRatio }]
                     _pdfPage: pdfPage,
-                };
+                });
                 state.pages.push(page);
                 const card = buildCard(page);
                 grid.appendChild(card);
@@ -330,10 +318,14 @@ function buildCard(page) {
     });
 
     wrap.addEventListener('mousedown', (e) => {
-        if (state.mode !== 'crop') return;
-        if (e.target.closest('.crop-rect') || e.target.closest('.overlay-rect') || e.target.closest('.ann-edit-box')) return;
-        e.preventDefault();
-        startCrop(e, wrap, page);
+        if (e.target.closest('.crop-rect') || e.target.closest('.overlay-rect') || e.target.closest('.ann-edit-box') || e.target.closest('.whiteout-rect')) return;
+        if (state.mode === 'crop') {
+            e.preventDefault();
+            startCrop(e, wrap, page);
+        } else if (state.mode === 'whiteout') {
+            e.preventDefault();
+            startWhiteout(e, wrap, page);
+        }
     });
 
     return card;
@@ -378,8 +370,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
         const text = input.value.trim();
         if (existingAnn) {
             if (!text) {
-                const idx = page.annotations.indexOf(existingAnn);
-                if (idx !== -1) page.annotations.splice(idx, 1);
+                const idx = page.layers.indexOf(existingAnn);
+                if (idx !== -1) page.layers.splice(idx, 1);
             } else {
                 existingAnn.text = text;
                 existingAnn.color = state.annColor;
@@ -387,6 +379,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
             }
         } else if (text) {
             const ann = {
+                type: 'annotation',
                 id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 text,
                 xRatio: xR,
@@ -394,7 +387,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
                 color: state.annColor,
                 fontSize: state.annSize,
             };
-            page.annotations.push(ann);
+            page.layers.push(ann);
         }
         box.remove();
         renderCardCanvas(page);
@@ -411,8 +404,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
         delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             committed = true;
-            const idx = page.annotations.indexOf(existingAnn);
-            if (idx !== -1) page.annotations.splice(idx, 1);
+            const idx = page.layers.indexOf(existingAnn);
+            if (idx !== -1) page.layers.splice(idx, 1);
             box.remove();
             renderCardCanvas(page);
         });
@@ -454,16 +447,11 @@ function insertBlankAfter(targetPage) {
         }
     }
 
-    const newBlankPage = {
-        id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    const newBlankPage = createPageObject({
         isBlank: true,
         fileName: 'Blank Page',
         aspectRatio,
-        excluded: false,
-        annotations: [],
-        cropBox: null,
-        overlays: [],
-    };
+    });
 
     if (idx !== -1) {
         state.pages.splice(idx + 1, 0, newBlankPage);
@@ -508,13 +496,18 @@ function handleOverlayClick(page, card) {
         const sourcePage = state.pages.find(p => p.id === state.overlaySource);
         if (!sourcePage) { state.overlaySource = null; return; }
 
-        page.overlays.push({
+        page.layers.push({
+            type: 'overlay',
+            id: `ov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
             fileIndex: sourcePage.fileIdx,
             pageIndex: sourcePage.pageIdx,
             cropBox: sourcePage.cropBox ? { ...sourcePage.cropBox } : null,
+            layers: sourcePage.layers ? JSON.parse(JSON.stringify(sourcePage.layers)) : [],
             sourceId: sourcePage.id,
             dxRatio: 0,
             dyRatio: 0,
+            scaleWidthRatio: 1.0,
+            scaleHeightRatio: 1.0,
         });
 
         sourcePage.excluded = true;
@@ -576,23 +569,42 @@ function removeOverlay(targetPage) {
     renderCardCanvas(targetPage);
 }
 
-// ---- Overlay Draggable Positioning ----
+// ---- Overlay Draggable & Resizable Positioning ----
 function syncOverlayRectToPercentage(ovRect, page) {
     if (!page.overlays || page.overlays.length === 0) return;
     const lastOv = page.overlays[page.overlays.length - 1];
 
-    let lR = lastOv.cropBox ? lastOv.cropBox.leftRatio : 0;
-    let tR = lastOv.cropBox ? lastOv.cropBox.topRatio : 0;
-    let wR = lastOv.cropBox ? lastOv.cropBox.widthRatio : 1.0;
-    let hR = lastOv.cropBox ? lastOv.cropBox.heightRatio : 1.0;
+    let baseL = lastOv.cropBox ? lastOv.cropBox.leftRatio : 0.0;
+    let baseT = lastOv.cropBox ? lastOv.cropBox.topRatio : 0.0;
+    let baseW = lastOv.cropBox ? lastOv.cropBox.widthRatio : 1.0;
+    let baseH = lastOv.cropBox ? lastOv.cropBox.heightRatio : 1.0;
 
-    lR += (lastOv.dxRatio || 0);
-    tR += (lastOv.dyRatio || 0);
+    let scaleW = lastOv.scaleWidthRatio || 1.0;
+    let scaleH = lastOv.scaleHeightRatio || 1.0;
+
+    let lR = baseL + (lastOv.dxRatio || 0);
+    let tR = baseT + (lastOv.dyRatio || 0);
+    let wR = baseW * scaleW;
+    let hR = baseH * scaleH;
 
     ovRect.style.left = `${(lR * 100).toFixed(2)}%`;
     ovRect.style.top = `${(tR * 100).toFixed(2)}%`;
     ovRect.style.width = `${(wR * 100).toFixed(2)}%`;
     ovRect.style.height = `${(hR * 100).toFixed(2)}%`;
+}
+
+function addOverlayControls(ovRect, wrap, page) {
+    ovRect.querySelectorAll('.overlay-handle').forEach(h => h.remove());
+
+    const positions = ['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'];
+    positions.forEach(pos => {
+        const h = document.createElement('div');
+        h.className = `overlay-handle handle-${pos}`;
+        h.dataset.handle = pos;
+        ovRect.appendChild(h);
+    });
+
+    makeOverlayInteractive(ovRect, wrap, page);
 }
 
 function makeOverlayInteractive(ovRect, wrap, page) {
@@ -603,14 +615,24 @@ function makeOverlayInteractive(ovRect, wrap, page) {
         if (state.mode !== 'overlay') return;
         e.stopPropagation();
         const wrapRect = wrap.getBoundingClientRect();
+        const handle = e.target.closest('.overlay-handle')?.dataset.handle;
+
         const startX = e.clientX;
         const startY = e.clientY;
 
         const lastOv = page.overlays[page.overlays.length - 1];
         if (!lastOv) return;
 
-        const initDxRatio = lastOv.dxRatio || 0;
-        const initDyRatio = lastOv.dyRatio || 0;
+        const baseW = lastOv.cropBox ? lastOv.cropBox.widthRatio * wrapRect.width : wrapRect.width;
+        const baseH = lastOv.cropBox ? lastOv.cropBox.heightRatio * wrapRect.height : wrapRect.height;
+
+        const initDx = (lastOv.dxRatio || 0) * wrapRect.width;
+        const initDy = (lastOv.dyRatio || 0) * wrapRect.height;
+        const initScaleW = lastOv.scaleWidthRatio || 1.0;
+        const initScaleH = lastOv.scaleHeightRatio || 1.0;
+
+        const currentPixelW = baseW * initScaleW;
+        const currentPixelH = baseH * initScaleH;
 
         let ticking = false;
 
@@ -620,8 +642,33 @@ function makeOverlayInteractive(ovRect, wrap, page) {
                     const dx = me.clientX - startX;
                     const dy = me.clientY - startY;
 
-                    lastOv.dxRatio = initDxRatio + (dx / wrapRect.width);
-                    lastOv.dyRatio = initDyRatio + (dy / wrapRect.height);
+                    if (!handle) {
+                        // Drag position
+                        lastOv.dxRatio = (initDx + dx) / wrapRect.width;
+                        lastOv.dyRatio = (initDy + dy) / wrapRect.height;
+                    } else {
+                        // Drag handles to resize
+                        let newW = currentPixelW;
+                        let newH = currentPixelH;
+                        let extraDx = 0;
+                        let extraDy = 0;
+
+                        if (handle.includes('e')) newW = Math.max(20, currentPixelW + dx);
+                        if (handle.includes('s')) newH = Math.max(20, currentPixelH + dy);
+                        if (handle.includes('w')) {
+                            newW = Math.max(20, currentPixelW - dx);
+                            extraDx = currentPixelW - newW;
+                        }
+                        if (handle.includes('n')) {
+                            newH = Math.max(20, currentPixelH - dy);
+                            extraDy = currentPixelH - newH;
+                        }
+
+                        lastOv.scaleWidthRatio = newW / baseW;
+                        lastOv.scaleHeightRatio = newH / baseH;
+                        lastOv.dxRatio = (initDx + extraDx) / wrapRect.width;
+                        lastOv.dyRatio = (initDy + extraDy) / wrapRect.height;
+                    }
 
                     syncOverlayRectToPercentage(ovRect, page);
                     renderCardCanvas(page);
@@ -642,28 +689,71 @@ function makeOverlayInteractive(ovRect, wrap, page) {
     });
 }
 
-// ---- Annotation Input, Editing & Dragging ----
-function renderAnnotations(wrap, page) {
-    wrap.querySelectorAll('.ann-marker').forEach(m => m.remove());
-    if (!page.annotations) return;
+// ---- Dynamic Layer Stack Rendering (Whiteouts, Text Annotations, Overlays with Chronological Z-Index) ----
+function renderCardLayers(wrap, page) {
+    wrap.querySelectorAll('.ann-marker, .whiteout-rect, .overlay-rect').forEach(el => el.remove());
+    if (!page.layers || page.layers.length === 0) return;
 
-    const scaleFactor = state.isLargeView ? 0.75 : 0.45;
+    const wrapRect = wrap.getBoundingClientRect();
+    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
 
-    page.annotations.forEach(ann => {
-        if (!ann.text) return;
-        const marker = document.createElement('span');
-        marker.className = 'ann-marker';
-        marker.textContent = ann.text;
-        marker.style.left = `${(ann.xRatio * 100).toFixed(1)}%`;
-        marker.style.top = `${(ann.yRatio * 100).toFixed(1)}%`;
-        marker.style.color = ann.color || state.annColor;
+    page.layers.forEach((layer, idx) => {
+        const zIndex = 5 + idx;
 
-        const scaledFont = Math.max(11, Math.round((ann.fontSize || 16) * scaleFactor));
-        marker.style.fontSize = `${scaledFont}px`;
-        marker.title = 'Click to edit, drag to move';
+        if (layer.type === 'whiteout') {
+            const rect = document.createElement('div');
+            rect.className = 'whiteout-rect';
+            rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
+            rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
+            rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
+            rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
+            rect.style.zIndex = zIndex;
+            rect.title = 'Drag to move, handles to resize, double-click to remove';
 
-        makeAnnotationInteractive(marker, wrap, page, ann);
-        wrap.appendChild(marker);
+            addWhiteoutControls(rect, wrap, page, layer);
+
+            rect.addEventListener('dblclick', (e) => {
+                if (state.mode !== 'whiteout') return;
+                e.stopPropagation();
+                const lIdx = page.layers.indexOf(layer);
+                if (lIdx !== -1) {
+                    page.layers.splice(lIdx, 1);
+                    renderCardCanvas(page);
+                }
+            });
+            wrap.appendChild(rect);
+
+        } else if (layer.type === 'annotation') {
+            if (!layer.text) return;
+            const marker = document.createElement('span');
+            marker.className = 'ann-marker';
+            marker.textContent = layer.text;
+            marker.style.left = `${(layer.xRatio * 100).toFixed(1)}%`;
+            marker.style.top = `${(layer.yRatio * 100).toFixed(1)}%`;
+            marker.style.color = layer.color || state.annColor;
+            marker.style.zIndex = zIndex;
+
+            const scaledFont = Math.max(9, (layer.fontSize || 16) * canvasScale);
+            marker.style.fontSize = `${scaledFont}px`;
+            marker.title = 'Click to edit, drag to move';
+
+            makeAnnotationInteractive(marker, wrap, page, layer);
+            wrap.appendChild(marker);
+
+        } else if (layer.type === 'overlay') {
+            const ovRect = document.createElement('div');
+            ovRect.className = 'overlay-rect';
+            ovRect.style.zIndex = zIndex;
+
+            const label = document.createElement('span');
+            label.className = 'overlay-rect-label';
+            label.textContent = 'Overlay Drag';
+            ovRect.appendChild(label);
+
+            wrap.appendChild(ovRect);
+            addOverlayControls(ovRect, wrap, page);
+            syncOverlayRectToPercentage(ovRect, page);
+        }
     });
 }
 
@@ -905,4 +995,182 @@ function startCrop(e, wrap, page) {
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+}
+
+// ---- Whiteout Logic ----
+function renderWhiteouts(wrap, page) {
+    wrap.querySelectorAll('.whiteout-rect').forEach(w => w.remove());
+    if (!page.whiteouts) return;
+
+    page.whiteouts.forEach(w => {
+        const rect = document.createElement('div');
+        rect.className = 'whiteout-rect';
+        rect.style.left = `${(w.leftRatio * 100).toFixed(2)}%`;
+        rect.style.top = `${(w.topRatio * 100).toFixed(2)}%`;
+        rect.style.width = `${(w.widthRatio * 100).toFixed(2)}%`;
+        rect.style.height = `${(w.heightRatio * 100).toFixed(2)}%`;
+        rect.title = 'Double-click to remove whiteout';
+
+        rect.addEventListener('dblclick', (e) => {
+            if (state.mode !== 'whiteout') return;
+            e.stopPropagation();
+            const idx = page.layers.indexOf(w);
+            if (idx !== -1) {
+                page.layers.splice(idx, 1);
+                renderCardCanvas(page);
+            }
+        });
+
+        wrap.appendChild(rect);
+    });
+}
+
+function startWhiteout(e, wrap, page) {
+    const wrapRect = wrap.getBoundingClientRect();
+    const startX = e.clientX - wrapRect.left;
+    const startY = e.clientY - wrapRect.top;
+
+    const tempRect = document.createElement('div');
+    tempRect.className = 'whiteout-rect';
+    tempRect.style.left = `${startX}px`;
+    tempRect.style.top = `${startY}px`;
+    tempRect.style.width = '0px';
+    tempRect.style.height = '0px';
+    wrap.appendChild(tempRect);
+
+    let moved = false;
+
+    const onMove = (me) => {
+        moved = true;
+        const curX = me.clientX - wrapRect.left;
+        const curY = me.clientY - wrapRect.top;
+
+        const left = Math.max(0, Math.min(startX, curX));
+        const top = Math.max(0, Math.min(startY, curY));
+        const right = Math.min(wrapRect.width, Math.max(startX, curX));
+        const bottom = Math.min(wrapRect.height, Math.max(startY, curY));
+
+        tempRect.style.left = `${left}px`;
+        tempRect.style.top = `${top}px`;
+        tempRect.style.width = `${right - left}px`;
+        tempRect.style.height = `${bottom - top}px`;
+    };
+
+    const onUp = (me) => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+
+        if (moved) {
+            const curX = me.clientX - wrapRect.left;
+            const curY = me.clientY - wrapRect.top;
+
+            const leftPx = Math.max(0, Math.min(startX, curX));
+            const topPx = Math.max(0, Math.min(startY, curY));
+            const rightPx = Math.min(wrapRect.width, Math.max(startX, curX));
+            const bottomPx = Math.min(wrapRect.height, Math.max(startY, curY));
+
+            const wPx = rightPx - leftPx;
+            const hPx = bottomPx - topPx;
+
+            if (wPx > 10 && hPx > 10) {
+                if (!page.layers) page.layers = [];
+                page.layers.push({
+                    type: 'whiteout',
+                    id: `wo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    leftRatio: leftPx / wrapRect.width,
+                    topRatio: topPx / wrapRect.height,
+                    widthRatio: wPx / wrapRect.width,
+                    heightRatio: hPx / wrapRect.height,
+                });
+            }
+        }
+        tempRect.remove();
+        renderCardCanvas(page);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+}
+
+function addWhiteoutControls(rect, wrap, page, layer) {
+    const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+    handles.forEach(dir => {
+        const h = document.createElement('div');
+        h.className = `whiteout-handle handle-${dir}`;
+        h.dataset.handle = dir;
+        rect.appendChild(h);
+    });
+
+    rect.addEventListener('mousedown', (e) => {
+        if (state.mode !== 'whiteout') return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const handle = e.target.classList.contains('whiteout-handle') ? e.target.dataset.handle : null;
+        const wrapRect = wrap.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+
+        const initLeftPx = layer.leftRatio * wrapRect.width;
+        const initTopPx = layer.topRatio * wrapRect.height;
+        const initWidthPx = layer.widthRatio * wrapRect.width;
+        const initHeightPx = layer.heightRatio * wrapRect.height;
+
+        let ticking = false;
+
+        const onMove = (me) => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    const dx = me.clientX - startX;
+                    const dy = me.clientY - startY;
+
+                    if (!handle) {
+                        // Position drag
+                        const newLeft = Math.max(0, Math.min(wrapRect.width - initWidthPx, initLeftPx + dx));
+                        const newTop = Math.max(0, Math.min(wrapRect.height - initHeightPx, initTopPx + dy));
+                        layer.leftRatio = newLeft / wrapRect.width;
+                        layer.topRatio = newTop / wrapRect.height;
+                    } else {
+                        // Handle resize drag
+                        let newL = initLeftPx;
+                        let newT = initTopPx;
+                        let newW = initWidthPx;
+                        let newH = initHeightPx;
+
+                        if (handle.includes('e')) newW = Math.max(10, Math.min(wrapRect.width - initLeftPx, initWidthPx + dx));
+                        if (handle.includes('s')) newH = Math.max(10, Math.min(wrapRect.height - initTopPx, initHeightPx + dy));
+                        if (handle.includes('w')) {
+                            newW = Math.max(10, initWidthPx - dx);
+                            newL = initLeftPx + (initWidthPx - newW);
+                        }
+                        if (handle.includes('n')) {
+                            newH = Math.max(10, initHeightPx - dy);
+                            newT = initTopPx + (initHeightPx - newH);
+                        }
+
+                        layer.leftRatio = newL / wrapRect.width;
+                        layer.topRatio = newT / wrapRect.height;
+                        layer.widthRatio = newW / wrapRect.width;
+                        layer.heightRatio = newH / wrapRect.height;
+                    }
+
+                    rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
+                    rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
+                    rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
+                    rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            renderCardCanvas(page);
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    });
 }
