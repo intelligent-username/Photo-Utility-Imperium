@@ -19,7 +19,15 @@ export function initMagnifierFeature() {
         if (img.complete) updateLensBackground();
 
         wrapper.addEventListener('mouseenter', () => {
-            wrappers.forEach(w => w.classList.add('magnify-active'));
+            wrappers.forEach(w => {
+                const wImg = w.querySelector('img');
+                const wLens = w.querySelector('.magnifier-lens');
+                if (wImg && wLens) {
+                    wLens.style.backgroundImage = `url('${wImg.src}')`;
+                    wLens.style.backgroundSize = `${wImg.offsetWidth * zoomLevel}px ${wImg.offsetHeight * zoomLevel}px`;
+                }
+                w.classList.add('magnify-active');
+            });
         });
 
         wrapper.addEventListener('mouseleave', () => {
@@ -27,12 +35,16 @@ export function initMagnifierFeature() {
         });
 
         wrapper.addEventListener('mousemove', (e) => {
-            const rect = wrapper.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const hoveredImg = wrapper.querySelector('img');
+            if (!hoveredImg) return;
+            const imgRect = hoveredImg.getBoundingClientRect();
+            if (imgRect.width === 0 || imgRect.height === 0) return;
 
-            const normX = x / rect.width;
-            const normY = y / rect.height;
+            const x = Math.max(0, Math.min(imgRect.width, e.clientX - imgRect.left));
+            const y = Math.max(0, Math.min(imgRect.height, e.clientY - imgRect.top));
+
+            const normX = x / imgRect.width;
+            const normY = y / imgRect.height;
 
             wrappers.forEach(w => {
                 const wImg = w.querySelector('img');
@@ -40,8 +52,10 @@ export function initMagnifierFeature() {
                 if (!wImg || !wLens) return;
 
                 const wRect = w.getBoundingClientRect();
-                const posX = normX * wRect.width;
-                const posY = normY * wRect.height;
+                const wImgRect = wImg.getBoundingClientRect();
+
+                const posX = (wImgRect.left - wRect.left) + (normX * wImgRect.width);
+                const posY = (wImgRect.top - wRect.top) + (normY * wImgRect.height);
 
                 wLens.style.left = `${posX}px`;
                 wLens.style.top = `${posY}px`;
