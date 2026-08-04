@@ -6,3 +6,5 @@ numpy
 reportlab
 PyPDF2
 onnxruntime
+PyMuPDF
+

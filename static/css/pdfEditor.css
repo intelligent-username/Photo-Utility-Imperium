@@ -668,7 +668,7 @@
 
 .whiteout-rect {
     position: absolute;
-    background: transparent;
+    background: #ffffff;
     border: none;
     outline: none;
     box-sizing: border-box;

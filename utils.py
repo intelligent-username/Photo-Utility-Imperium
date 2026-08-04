@@ -5,6 +5,7 @@ from io import BytesIO
 import cv2
 from PIL import Image
 import numpy as np
+import fitz
 
 #
 # Helpers & Utilities
@@ -63,20 +64,23 @@ def apply_text_annotations(page, annotations):
 
     return page
 
-def apply_crop_box(page, crop):
-    """Applies crop dimensions to a page using cropbox ratios."""
+def apply_crop_box(page, crop_box):
+    """Applies a crop box to a PDF page using PyPDF2."""
+    if not crop_box:
+        return page
+
     width = float(page.mediabox.width)
     height = float(page.mediabox.height)
 
-    left_ratio = float(crop.get('leftRatio', 0.0))
-    top_ratio = float(crop.get('topRatio', 0.0))
-    width_ratio = float(crop.get('widthRatio', 1.0))
-    height_ratio = float(crop.get('heightRatio', 1.0))
+    left_ratio = float(crop_box.get('leftRatio', 0.0))
+    top_ratio = float(crop_box.get('topRatio', 0.0))
+    width_ratio = float(crop_box.get('widthRatio', 1.0))
+    height_ratio = float(crop_box.get('heightRatio', 1.0))
 
     left = left_ratio * width
-    bottom = (1.0 - top_ratio - height_ratio) * height
+    top = (1.0 - top_ratio) * height
     right = left + (width_ratio * width)
-    top = bottom + (height_ratio * height)
+    bottom = top - (height_ratio * height)
 
     page.cropbox.lower_left = (max(0.0, left), max(0.0, bottom))
     page.cropbox.upper_right = (min(width, right), min(height, top))
@@ -84,39 +88,78 @@ def apply_crop_box(page, crop):
     return page
 
 def apply_whiteouts(page, whiteouts):
-    """Draws solid white rectangles over specified regions of a PDF page."""
+    """Draws solid white rectangles over specified regions of a PDF page,
+    permanently erasing/redacting all text and content under each region.
+    """
     if not whiteouts:
         return page
 
-    packet = BytesIO()
-    width = float(page.mediabox.width)
-    height = float(page.mediabox.height)
+    # Convert PyPDF page to single-page PDF for PyMuPDF processing
+    writer = PdfWriter()
+    writer.add_page(page)
+    tmp_io = BytesIO()
+    writer.write(tmp_io)
+    tmp_io.seek(0)
 
-    can = canvas.Canvas(packet, pagesize=(width, height))
-    can.setFillColorRGB(1.0, 1.0, 1.0)
-    can.setStrokeColorRGB(1.0, 1.0, 1.0)
+    try:
+        doc = fitz.open(stream=tmp_io.getvalue(), filetype="pdf")
+        doc_page = doc[0]
+        page_w = doc_page.rect.width
+        page_h = doc_page.rect.height
 
-    for w in whiteouts:
-        left_ratio = float(w.get('leftRatio', 0.0))
-        top_ratio = float(w.get('topRatio', 0.0))
-        width_ratio = float(w.get('widthRatio', 0.0))
-        height_ratio = float(w.get('heightRatio', 0.0))
+        for w in whiteouts:
+            left_ratio = float(w.get('leftRatio', 0.0))
+            top_ratio = float(w.get('topRatio', 0.0))
+            width_ratio = float(w.get('widthRatio', 0.0))
+            height_ratio = float(w.get('heightRatio', 0.0))
 
-        x = left_ratio * width
-        y = (1.0 - top_ratio - height_ratio) * height  # Invert Y for PDF space
-        rect_w = width_ratio * width
-        rect_h = height_ratio * height
+            x0 = left_ratio * page_w
+            y0 = top_ratio * page_h
+            x1 = (left_ratio + width_ratio) * page_w
+            y1 = (top_ratio + height_ratio) * page_h
+            wo_rect = fitz.Rect(x0, y0, x1, y1)
 
-        can.rect(x, y, rect_w, rect_h, fill=1, stroke=0)
+            # Add redaction annotation for the full whiteout rectangle with white fill
+            doc_page.add_redact_annot(wo_rect, fill=(1, 1, 1))
 
-    can.save()
-    packet.seek(0)
+        # Permanently erase all text, drawings, and images inside all redaction boxes
+        doc_page.apply_redactions()
 
-    overlay_reader = PdfReader(packet)
-    if len(overlay_reader.pages) > 0:
-        page.merge_page(overlay_reader.pages[0])
+        out_io = BytesIO(doc.tobytes())
+        doc.close()
+        return PdfReader(out_io).pages[0]
 
-    return page
+    except Exception as e:
+        print(f"Error applying whiteout with PyMuPDF: {e}")
+        # Fallback to PyPDF2 + reportlab overlay if PyMuPDF fails
+        packet = BytesIO()
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+        can = canvas.Canvas(packet, pagesize=(width, height))
+        can.setFillColorRGB(1.0, 1.0, 1.0)
+        can.setStrokeColorRGB(1.0, 1.0, 1.0)
+
+        for w in whiteouts:
+            left_ratio = float(w.get('leftRatio', 0.0))
+            top_ratio = float(w.get('topRatio', 0.0))
+            width_ratio = float(w.get('widthRatio', 0.0))
+            height_ratio = float(w.get('heightRatio', 0.0))
+
+            x = left_ratio * width
+            y = (1.0 - top_ratio - height_ratio) * height
+            rect_w = width_ratio * width
+            rect_h = height_ratio * height
+
+            can.rect(x, y, rect_w, rect_h, fill=1, stroke=0)
+
+        can.save()
+        packet.seek(0)
+        overlay_reader = PdfReader(packet)
+        if len(overlay_reader.pages) > 0:
+            page.merge_page(overlay_reader.pages[0])
+
+        return page
+
 
 def merge_pdfs(readers, num_blank_pages=0):
     """Merge PDFs with optional blank pages between files."""

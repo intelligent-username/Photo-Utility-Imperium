@@ -127,7 +127,9 @@ export async function renderCardCanvas(page) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const targetWidth = state.isLargeView ? 340 : 160;
+    const dpr = Math.max(2, window.devicePixelRatio || 1);
+    const baseTargetWidth = state.isLargeView ? 600 : 320;
+    const targetWidth = baseTargetWidth * dpr;
 
     const baseCache = await getPageCanvasCache(page, targetWidth);
     if (!baseCache) return;
@@ -802,14 +804,23 @@ function renderCardLayers(wrap, page) {
         const zIndex = 10 + idx;
 
         if (layer.type === 'whiteout') {
+            const canvas = wrap.querySelector('canvas');
+            const canvasRect = canvas ? canvas.getBoundingClientRect() : wrapRect;
+
+            const canvasOffsetLeft = canvasRect.left - wrapRect.left;
+            const canvasOffsetTop = canvasRect.top - wrapRect.top;
+            const leftPct = ((canvasOffsetLeft + (layer.leftRatio * canvasRect.width)) / (wrapRect.width || 1) * 100).toFixed(2);
+            const topPct = ((canvasOffsetTop + (layer.topRatio * canvasRect.height)) / (wrapRect.height || 1) * 100).toFixed(2);
+            const widthPct = (layer.widthRatio * canvasRect.width / (wrapRect.width || 1) * 100).toFixed(2);
+            const heightPct = (layer.heightRatio * canvasRect.height / (wrapRect.height || 1) * 100).toFixed(2);
+
             const rect = document.createElement('div');
             rect.className = 'whiteout-rect';
-            rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
-            rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
-            rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
-            rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
+            rect.style.left = `${leftPct}%`;
+            rect.style.top = `${topPct}%`;
+            rect.style.width = `${widthPct}%`;
+            rect.style.height = `${heightPct}%`;
             rect.style.zIndex = zIndex;
-            rect.style.backgroundColor = 'transparent';
             rect.title = 'Drag to move, handles to resize, double-click to remove';
 
             addWhiteoutControls(rect, wrap, page, layer);
@@ -1126,14 +1137,23 @@ function startCrop(e, wrap, page) {
 
 
 function startWhiteout(e, wrap, page) {
+    const canvas = wrap.querySelector('canvas') || wrap;
+    const rectBounds = canvas.getBoundingClientRect();
     const wrapRect = wrap.getBoundingClientRect();
-    const startX = e.clientX - wrapRect.left;
-    const startY = e.clientY - wrapRect.top;
+
+    const startX = Math.max(0, Math.min(rectBounds.width, e.clientX - rectBounds.left));
+    const startY = Math.max(0, Math.min(rectBounds.height, e.clientY - rectBounds.top));
 
     const tempRect = document.createElement('div');
     tempRect.className = 'whiteout-rect';
-    tempRect.style.left = `${(startX / wrapRect.width * 100).toFixed(2)}%`;
-    tempRect.style.top = `${(startY / wrapRect.height * 100).toFixed(2)}%`;
+
+    const toWrapLeft = (px) => ((rectBounds.left - wrapRect.left + px) / wrapRect.width * 100).toFixed(2);
+    const toWrapTop = (py) => ((rectBounds.top - wrapRect.top + py) / wrapRect.height * 100).toFixed(2);
+    const toWrapWidth = (pw) => (pw / wrapRect.width * 100).toFixed(2);
+    const toWrapHeight = (ph) => (ph / wrapRect.height * 100).toFixed(2);
+
+    tempRect.style.left = `${toWrapLeft(startX)}%`;
+    tempRect.style.top = `${toWrapTop(startY)}%`;
     tempRect.style.width = '0%';
     tempRect.style.height = '0%';
     wrap.appendChild(tempRect);
@@ -1142,18 +1162,18 @@ function startWhiteout(e, wrap, page) {
 
     const onMove = (me) => {
         moved = true;
-        const curX = me.clientX - wrapRect.left;
-        const curY = me.clientY - wrapRect.top;
+        const curX = Math.max(0, Math.min(rectBounds.width, me.clientX - rectBounds.left));
+        const curY = Math.max(0, Math.min(rectBounds.height, me.clientY - rectBounds.top));
 
-        const left = Math.max(0, Math.min(startX, curX));
-        const top = Math.max(0, Math.min(startY, curY));
-        const right = Math.min(wrapRect.width, Math.max(startX, curX));
-        const bottom = Math.min(wrapRect.height, Math.max(startY, curY));
+        const left = Math.min(startX, curX);
+        const top = Math.min(startY, curY);
+        const wPx = Math.abs(curX - startX);
+        const hPx = Math.abs(curY - startY);
 
-        tempRect.style.left = `${(left / wrapRect.width * 100).toFixed(2)}%`;
-        tempRect.style.top = `${(top / wrapRect.height * 100).toFixed(2)}%`;
-        tempRect.style.width = `${((right - left) / wrapRect.width * 100).toFixed(2)}%`;
-        tempRect.style.height = `${((bottom - top) / wrapRect.height * 100).toFixed(2)}%`;
+        tempRect.style.left = `${toWrapLeft(left)}%`;
+        tempRect.style.top = `${toWrapTop(top)}%`;
+        tempRect.style.width = `${toWrapWidth(wPx)}%`;
+        tempRect.style.height = `${toWrapHeight(hPx)}%`;
     };
 
     const onUp = (me) => {
@@ -1162,26 +1182,23 @@ function startWhiteout(e, wrap, page) {
         tempRect.remove();
 
         if (moved) {
-            const curX = me.clientX - wrapRect.left;
-            const curY = me.clientY - wrapRect.top;
+            const curX = Math.max(0, Math.min(rectBounds.width, me.clientX - rectBounds.left));
+            const curY = Math.max(0, Math.min(rectBounds.height, me.clientY - rectBounds.top));
 
-            const leftPx = Math.max(0, Math.min(startX, curX));
-            const topPx = Math.max(0, Math.min(startY, curY));
-            const rightPx = Math.min(wrapRect.width, Math.max(startX, curX));
-            const bottomPx = Math.min(wrapRect.height, Math.max(startY, curY));
+            const leftPx = Math.min(startX, curX);
+            const topPx = Math.min(startY, curY);
+            const wPx = Math.abs(curX - startX);
+            const hPx = Math.abs(curY - startY);
 
-            const wPx = rightPx - leftPx;
-            const hPx = bottomPx - topPx;
-
-            if (wPx > 10 && hPx > 10) {
+            if (wPx > 5 && hPx > 5) {
                 if (!page.layers) page.layers = [];
                 page.layers.push({
                     type: 'whiteout',
                     id: `wo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                    leftRatio: leftPx / wrapRect.width,
-                    topRatio: topPx / wrapRect.height,
-                    widthRatio: wPx / wrapRect.width,
-                    heightRatio: hPx / wrapRect.height,
+                    leftRatio: leftPx / rectBounds.width,
+                    topRatio: topPx / rectBounds.height,
+                    widthRatio: wPx / rectBounds.width,
+                    heightRatio: hPx / rectBounds.height,
                 });
                 renderCardCanvas(page);
             }
@@ -1207,14 +1224,16 @@ function addWhiteoutControls(rect, wrap, page, layer) {
         e.stopPropagation();
 
         const handle = e.target.classList.contains('whiteout-handle') ? e.target.dataset.handle : null;
+        const canvas = wrap.querySelector('canvas') || wrap;
+        const rectBounds = canvas.getBoundingClientRect();
         const wrapRect = wrap.getBoundingClientRect();
         const startX = e.clientX;
         const startY = e.clientY;
 
-        const initLeftPx = layer.leftRatio * wrapRect.width;
-        const initTopPx = layer.topRatio * wrapRect.height;
-        const initWidthPx = layer.widthRatio * wrapRect.width;
-        const initHeightPx = layer.heightRatio * wrapRect.height;
+        const initLeftPx = layer.leftRatio * rectBounds.width;
+        const initTopPx = layer.topRatio * rectBounds.height;
+        const initWidthPx = layer.widthRatio * rectBounds.width;
+        const initHeightPx = layer.heightRatio * rectBounds.height;
 
         let ticking = false;
 
@@ -1226,10 +1245,10 @@ function addWhiteoutControls(rect, wrap, page, layer) {
 
                     if (!handle) {
                         // Position drag
-                        const newLeft = Math.max(0, Math.min(wrapRect.width - initWidthPx, initLeftPx + dx));
-                        const newTop = Math.max(0, Math.min(wrapRect.height - initHeightPx, initTopPx + dy));
-                        layer.leftRatio = newLeft / wrapRect.width;
-                        layer.topRatio = newTop / wrapRect.height;
+                        const newLeft = Math.max(0, Math.min(rectBounds.width - initWidthPx, initLeftPx + dx));
+                        const newTop = Math.max(0, Math.min(rectBounds.height - initHeightPx, initTopPx + dy));
+                        layer.leftRatio = newLeft / rectBounds.width;
+                        layer.topRatio = newTop / rectBounds.height;
                     } else {
                         // Handle resize drag
                         let newL = initLeftPx;
@@ -1237,8 +1256,8 @@ function addWhiteoutControls(rect, wrap, page, layer) {
                         let newW = initWidthPx;
                         let newH = initHeightPx;
 
-                        if (handle.includes('e')) newW = Math.max(10, Math.min(wrapRect.width - initLeftPx, initWidthPx + dx));
-                        if (handle.includes('s')) newH = Math.max(10, Math.min(wrapRect.height - initTopPx, initHeightPx + dy));
+                        if (handle.includes('e')) newW = Math.max(10, Math.min(rectBounds.width - initLeftPx, initWidthPx + dx));
+                        if (handle.includes('s')) newH = Math.max(10, Math.min(rectBounds.height - initTopPx, initHeightPx + dy));
                         if (handle.includes('w')) {
                             newW = Math.max(10, initWidthPx - dx);
                             newL = initLeftPx + (initWidthPx - newW);
@@ -1248,16 +1267,23 @@ function addWhiteoutControls(rect, wrap, page, layer) {
                             newT = initTopPx + (initHeightPx - newH);
                         }
 
-                        layer.leftRatio = newL / wrapRect.width;
-                        layer.topRatio = newT / wrapRect.height;
-                        layer.widthRatio = newW / wrapRect.width;
-                        layer.heightRatio = newH / wrapRect.height;
+                        layer.leftRatio = newL / rectBounds.width;
+                        layer.topRatio = newT / rectBounds.height;
+                        layer.widthRatio = newW / rectBounds.width;
+                        layer.heightRatio = newH / rectBounds.height;
                     }
 
-                    rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
-                    rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
-                    rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
-                    rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
+                    const canvasOffsetLeft = rectBounds.left - wrapRect.left;
+                    const canvasOffsetTop = rectBounds.top - wrapRect.top;
+                    const leftPct = ((canvasOffsetLeft + (layer.leftRatio * rectBounds.width)) / wrapRect.width * 100).toFixed(2);
+                    const topPct = ((canvasOffsetTop + (layer.topRatio * rectBounds.height)) / wrapRect.height * 100).toFixed(2);
+                    const widthPct = (layer.widthRatio * rectBounds.width / wrapRect.width * 100).toFixed(2);
+                    const heightPct = (layer.heightRatio * rectBounds.height / wrapRect.height * 100).toFixed(2);
+
+                    rect.style.left = `${leftPct}%`;
+                    rect.style.top = `${topPct}%`;
+                    rect.style.width = `${widthPct}%`;
+                    rect.style.height = `${heightPct}%`;
                     ticking = false;
                 });
                 ticking = true;
