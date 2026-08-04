@@ -1,32 +1,70 @@
-{% extends 'template.html' %} {% block title %}PDF Merger{% endblock %} {% block
-bodytag %} data-page="PDF" {% endblock %} {% block content %}
+{% extends 'template.html' %}
+{% block title %}PDF Editor{% endblock %}
+{% block bodytag %} data-page="PDF" {% endblock %}
+{% block content %}
 <div class="row">
-  <!-- Left Side: Upload Area -->
+  <!-- Left Side: Upload & Controls -->
   <div class="col-md-4">
-    <h2 class="tool-title">PDF Merger</h2>
-    {% set upload_text = "Drag & Drop or Click to Upload PDFs" %} {% set
-    upload_accept = "application/pdf" %} {% include
-    'Components/upload_area.html' %}
-    <div class="form-group mt-3">
-      <label for="pages-between">Number of Pages Between PDFs:</label>
-      <input
-        type="number"
-        id="pages-between"
-        class="form-control"
-        placeholder="Enter number of pages"
-        value="0"
-      />
-    </div>
+    <h2 class="tool-title">PDF Editor</h2>
+
+    {% set upload_text = "Drag & Drop or Click to Upload PDFs" %}
+    {% set upload_accept = "application/pdf" %}
+    {% include 'Components/upload_area.html' %}
+
     <div class="d-flex align-items-center mt-3">
-      <button id="merge-btn" class="btn btn-success mr-3">Merge PDFs</button>
-      <button id="reset-btn" class="btn btn-danger">Reset List</button>
+      <button id="merge-btn" class="btn btn-success mr-3">Export PDF</button>
+      <button id="reset-btn" class="btn btn-danger">Reset</button>
     </div>
+
     <ul id="file-list" class="list-group mt-3"></ul>
   </div>
 
-  <!-- Right Side: Merged PDF Preview -->
+  <!-- Right Side: Preview & Tools -->
   <div class="col-md-8">
-    <iframe id="merged-pdf-preview" class="hidden"></iframe>
+    <!-- Toolbar -->
+    <div class="pdf-toolbar" id="pdf-toolbar">
+      <div class="toolbar-group">
+        <button id="annotate-btn" class="pdf-toolbar-btn" title="Click a page to place text">Annotate</button>
+        <button id="crop-btn" class="pdf-toolbar-btn" title="Drag on a page to set crop region">Crop</button>
+        <button id="overlay-btn" class="pdf-toolbar-btn" title="Click source page, then target page to overlay">Overlay</button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <button id="restore-all-btn" class="pdf-toolbar-btn" title="Restore all excluded pages">Restore All</button>
+      </div>
+      <div class="toolbar-group toolbar-group-right">
+        <div id="ann-controls" class="toolbar-subgroup hidden">
+          <span class="toolbar-label">Color</span>
+          <input type="color" id="ann-color" class="toolbar-color" value="#ff0000" />
+          <span class="toolbar-label">Size</span>
+          <input type="number" id="ann-size" class="toolbar-input" value="16" min="8" max="72" />
+        </div>
+        <button id="large-view-btn" class="pdf-toolbar-btn active" title="Toggle page view size">Large View</button>
+      </div>
+    </div>
+
+    <!-- Mode banner / instructions bar -->
+    <div id="pdf-mode-banner" class="pdf-mode-banner hidden"></div>
+
+    <!-- Status bar -->
+    <div id="pdf-status" class="pdf-status-bar"></div>
+
+    <!-- Canvas Page Grid -->
+    <div id="pdf-page-grid" class="pdf-page-grid large-view"></div>
+
+    <!-- Exported PDF Preview -->
+    <div class="pdf-result-area">
+      <iframe id="merged-pdf-preview" class="hidden"></iframe>
+    </div>
   </div>
 </div>
+
+<!-- PDF.js (loaded before our modules via blocking script) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
 {% endblock %}

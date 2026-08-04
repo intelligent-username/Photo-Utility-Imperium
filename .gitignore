@@ -4,4 +4,5 @@ __pycache__/
 *.vscode/
 condaenv.*.requirements.txt
 .venv/
+notes/
 

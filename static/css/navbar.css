@@ -100,10 +100,15 @@
     position: sticky;
     top: 0;
     z-index: 1000;
-    padding: 0.75rem 0;
+    padding: 0.85rem 0;
     background: linear-gradient(180deg, rgba(38, 38, 38, 0.97) 0%, rgba(28, 28, 28, 0.92) 100%);
     backdrop-filter: saturate(150%) blur(10px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-navbar .container {
+    max-width: 90vw;
+    width: 100%;
 }
 
 .navbar-inner {
@@ -116,16 +121,16 @@
 .app-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     color: var(--text);
     text-decoration: none;
     flex-shrink: 0;
 }
 
 .app-brand .brand-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
     background: linear-gradient(135deg, var(--primary), var(--primary-2));
     object-fit: cover;
     padding: 2px;
@@ -133,8 +138,9 @@
 
 .app-brand .brand-text {
     font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: -0.025em;
 }
 
 .app-nav {

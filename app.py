@@ -10,7 +10,8 @@ import os
 import io
 
 from flask import Flask, render_template, request, send_file
-from utils import pil_to_cv2, cv2_to_pil, merge_pdfs
+from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic
+import json
 from PyPDF2 import PdfReader
 
 app = Flask(__name__)
@@ -182,6 +183,27 @@ def process_pdf_merge():
     except Exception as e:
         print(f"Error merging PDFs: {e}")
         return 'Error merging PDFs', 500
+
+@app.route('/process_pdf_edit', methods=['POST'])
+def process_pdf_edit():
+    try:
+        file_keys = sorted([k for k in request.files.keys() if k.startswith('file_')])
+        files = [request.files[k] for k in file_keys]
+        manifest_raw = request.form.get('manifest', '[]')
+        manifest = json.loads(manifest_raw)
+
+        readers = [PdfReader(f.stream) for f in files]
+        edited_writer = process_pdf_edit_logic(readers, manifest)
+
+        output_io = io.BytesIO()
+        edited_writer.write(output_io)
+        output_io.seek(0)
+
+        return send_file(output_io, mimetype='application/pdf', as_attachment=True, download_name='edited.pdf')
+
+    except Exception as e:
+        print(f"Error editing PDF: {e}")
+        return 'Error editing PDF', 500
 
 # Error Handler Routes
 @app.errorhandler(404)
