@@ -24,6 +24,8 @@
     pointer-events: none;
     -webkit-user-drag: none;
     user-select: none;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
 }
 
 .img-comp-overlay {
@@ -152,8 +154,23 @@
 .img-comp-toolbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    flex-wrap: wrap;
+    width: 100%;
+}
+
+.img-comp-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.img-comp-toolbar-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    margin-left: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -112,7 +112,8 @@ def apply_crop_box(page, crop_box):
 
 def apply_whiteouts(page, whiteouts):
     """Draws solid white rectangles over specified regions of a PDF page,
-    permanently erasing/redacting all text and content under each region.
+    permanently nuking/redacting text that is FULLY covered while leaving
+    partially covered text intact and highlightable.
     """
     if not whiteouts:
         return page
@@ -286,8 +287,14 @@ def process_pdf_edit_logic(readers, manifest):
 # -----------------------
 # For image converter
 def pil_to_cv2(pil_image):
+    if pil_image.mode == 'RGBA':
+        return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGBA2BGRA)
+    elif pil_image.mode != 'RGB':
+        pil_image = pil_image.convert('RGB')
     return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
 def cv2_to_pil(cv2_image):
+    if len(cv2_image.shape) == 3 and cv2_image.shape[2] == 4:
+        return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGRA2RGBA))
     return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
 # -----------------------

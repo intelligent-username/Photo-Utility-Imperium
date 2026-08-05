@@ -223,10 +223,14 @@ export function initImageProcessing(options) {
             }
             if (page === 'IC') {
                 const quality = qualitySlider ? qualitySlider.value : 50;
-                sendFileToBackend(file, '/process_compression', { quality: quality }, 'compressed', 'jpg', previewDataUrl, fileIndex);
+                const fileExt = (file.name || '').split('.').pop().toLowerCase();
+                const ext = fileExt || 'jpg';
+                sendFileToBackend(file, '/process_compression', { quality: quality }, 'compressed', ext, previewDataUrl, fileIndex);
             }
             if (page === 'NR') {
-                sendFileToBackend(file, '/process_image_cleaning', {}, 'cleaned', 'png', previewDataUrl, fileIndex);
+                const fileExt = (file.name || '').split('.').pop().toLowerCase();
+                const ext = fileExt || 'png';
+                sendFileToBackend(file, '/process_image_cleaning', {}, 'cleaned', ext, previewDataUrl, fileIndex);
             }
         };
         reader.readAsDataURL(file);
@@ -406,7 +410,9 @@ export function initImageProcessing(options) {
                 if (page === 'FC' && formatSelect) {
                     sendFileToBackend(fileToReProcess, '/process_image_conversion', { output_format: formatSelect.value }, 'converted', formatSelect.value.toLowerCase(), e.target.result, currentSlideIndex);
                 } else if (page === 'IC' && qualitySlider) {
-                    sendFileToBackend(fileToReProcess, '/process_compression', { quality: qualitySlider.value }, 'compressed', 'jpg', e.target.result, currentSlideIndex);
+                    const fileExt = (fileToReProcess.name || '').split('.').pop().toLowerCase();
+                    const ext = fileExt || 'jpg';
+                    sendFileToBackend(fileToReProcess, '/process_compression', { quality: qualitySlider.value }, 'compressed', ext, e.target.result, currentSlideIndex);
                 }
             };
             reader.readAsDataURL(fileToReProcess);

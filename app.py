@@ -92,22 +92,39 @@ def process_compression():
     
     file = request.files['file']
     img = Image.open(file.stream)
-    
-    # Get quality from request, default to 50
-    quality = int(request.form.get('quality', 50))
-    
-    # Ensure correct format: convert non-JPEG images to RGB first to avoid issues with transparency
-    if img.mode in ("RGBA", "P"):  # If image has transparency or is in palette mode
-        img = img.convert("RGB")  # Colour the image
+    orig_format = (img.format or 'JPEG').upper()
+    if orig_format == 'JPG':
+        orig_format = 'JPEG'
     
     compressed_io = io.BytesIO()
     
-    # Compress & save to in-memory buffer
-    img.save(compressed_io, format='JPEG', quality=quality)
-    compressed_io.seek(0)
+    if orig_format == 'PNG':
+        if img.mode not in ("RGB", "RGBA", "P"):
+            img = img.convert("RGBA")
+        img.save(compressed_io, format='PNG', optimize=True)
+        mimetype = 'image/png'
+    elif orig_format == 'WEBP':
+        img.save(compressed_io, format='WEBP', lossless=True, method=6)
+        mimetype = 'image/webp'
+    elif orig_format == 'JPEG':
+        quality = int(request.form.get('quality', 50))
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img.save(compressed_io, format='JPEG', quality=quality)
+        mimetype = 'image/jpeg'
+    else:
+        quality = int(request.form.get('quality', 50))
+        try:
+            img.save(compressed_io, format=orig_format, quality=quality)
+            mimetype = f'image/{orig_format.lower()}'
+        except Exception:
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            img.save(compressed_io, format='JPEG', quality=quality)
+            mimetype = 'image/jpeg'
     
-    # Return compressed image as response
-    return send_file(compressed_io, mimetype='image/jpeg')
+    compressed_io.seek(0)
+    return send_file(compressed_io, mimetype=mimetype)
 
 # Page 3
 @app.route('/process_image_cleaning', methods=['POST'])
@@ -128,10 +145,22 @@ def process_image_cleaning():
     cleaned_pil_img = cv2_to_pil(cleaned_img)
     
     processed_io = io.BytesIO()
-    cleaned_pil_img.save(processed_io, format='PNG')
+
+    # Preserve original image format (Pillow format key for JPEG is 'JPEG')
+    fmt = (img.format or 'PNG').upper()
+    if fmt in ('JPG', 'JPEG'):
+        if cleaned_pil_img.mode in ("RGBA", "P", "LA"):
+            cleaned_pil_img = cleaned_pil_img.convert("RGB")
+        out_format = 'JPEG'
+        mimetype = 'image/jpeg'
+    else:
+        out_format = fmt
+        mimetype = f'image/{fmt.lower()}'
+
+    cleaned_pil_img.save(processed_io, format=out_format)
     processed_io.seek(0)
     
-    return send_file(processed_io, mimetype='image/png')
+    return send_file(processed_io, mimetype=mimetype)
 
 # Page 4
 @app.route('/process_image_conversion', methods=['POST'])

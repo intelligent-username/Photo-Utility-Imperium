@@ -78,9 +78,13 @@ block bodytag %} data-page="IC"{% endblock %} {% block content %}
 
     <!-- Slider toolbar: size info + download + re-compress -->
     <div class="img-comp-toolbar mt-2 hidden" id="slider-toolbar">
-      <span id="original-size" class="file-size-badge hidden"></span>
-      <span id="compressed-size" class="file-size-badge hidden savings"></span>
-      <a id="download-btn" href="" download="compressed.jpg" class="btn btn-primary hidden">Download</a>
+      <div class="img-comp-toolbar-left">
+        <span id="original-size" class="file-size-badge hidden"></span>
+      </div>
+      <div class="img-comp-toolbar-right">
+        <span id="compressed-size" class="file-size-badge hidden savings"></span>
+        <a id="download-btn" href="" download="compressed.jpg" class="btn btn-primary hidden">Download</a>
+      </div>
     </div>
 
     <!-- Hidden data holders (for JS) -->

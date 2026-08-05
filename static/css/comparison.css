@@ -117,6 +117,8 @@
     width: auto;
     height: auto;
     object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
 }
 
 .magnifier-lens {
@@ -128,6 +130,8 @@
     box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2), var(--shadow);
     background-repeat: no-repeat;
     background-color: var(--bg-soft);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
     pointer-events: none;
     opacity: 0;
     transform: translate(-50%, -50%);
