@@ -47,12 +47,20 @@ def apply_text_annotations(page, annotations):
         y_ratio = float(ann.get('yRatio', 0.0))
         color_hex = ann.get('color', '#3b82f6')
         font_size = int(ann.get('fontSize', 16))
+        font_family = ann.get('fontFamily', '')
+        is_bold = bool(ann.get('bold', False))
 
         x = x_ratio * width
         y = (1.0 - y_ratio) * height  # Invert Y for PDF space
 
+        # Map basic font families to built-in reportlab fonts
+        if 'times' in font_family.lower():
+            font_name = "Times-Bold" if is_bold else "Times-Roman"
+        else:
+            font_name = "Helvetica-Bold" if is_bold else "Helvetica"
+
         can.setFillColor(HexColor(color_hex))
-        can.setFont("Helvetica-Bold", font_size)
+        can.setFont(font_name, font_size)
 
         available_width = max(20.0, width - x - 8.0)
 
@@ -66,7 +74,7 @@ def apply_text_annotations(page, annotations):
             current_line = []
             for word in words:
                 candidate = ' '.join(current_line + [word]) if current_line else word
-                if can.stringWidth(candidate, "Helvetica-Bold", font_size) <= available_width or not current_line:
+                if can.stringWidth(candidate, font_name, font_size) <= available_width or not current_line:
                     current_line.append(word)
                 else:
                     wrapped_lines.append(' '.join(current_line))
@@ -118,8 +126,6 @@ def apply_signature_layer(page, layer):
 
             packet = BytesIO()
             can = canvas.Canvas(packet, pagesize=(width, height))
-            can.setFillColorRGB(1.0, 1.0, 1.0)
-            can.rect(x, y, w, h, fill=1, stroke=0)
             can.drawImage(img_reader, x, y, width=w, height=h, mask='auto')
             can.save()
             packet.seek(0)
@@ -136,12 +142,16 @@ def apply_signature_layer(page, layer):
     if text:
         packet = BytesIO()
         can = canvas.Canvas(packet, pagesize=(width, height))
-        can.setFillColorRGB(1.0, 1.0, 1.0)
-        can.rect(x, y, w, h, fill=1, stroke=0)
         color_hex = layer.get('color', '#000000')
-        font_size = max(10, int(h * 0.7))
+        font_family = layer.get('fontFamily', '')
+        is_bold = bool(layer.get('bold', False))
+        font_size = int(layer.get('fontSize', 0)) or max(10, int(h * 0.7))
+        if 'times' in font_family.lower():
+            font_name = "Times-Bold" if is_bold else "Times-Roman"
+        else:
+            font_name = "Helvetica-Bold" if is_bold else "Helvetica"
         can.setFillColor(HexColor(color_hex))
-        can.setFont("Helvetica-Bold", font_size)
+        can.setFont(font_name, font_size)
         can.drawString(x, y + (h * 0.2), text)
         can.save()
         packet.seek(0)

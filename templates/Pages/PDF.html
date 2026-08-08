@@ -101,6 +101,64 @@
               </div>
             </div>
           </div>
+          <!-- Date Stamp Dropdown Menu inside Annotation Bar -->
+          <div class="pdf-dropdown-wrapper" id="date-dropdown-wrapper">
+            <button class="ann-tool-btn" id="ann-tool-date" title="Date stamp">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span>Date</span>
+              <span class="ann-tool-caret" id="ann-tool-date-caret" title="Date stamp settings">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"></path></svg>
+              </span>
+            </button>
+            <div id="date-dropdown-menu" class="pdf-dropdown-menu hidden">
+              <div class="date-preview-box">
+                <span class="preview-tag">PREVIEW</span>
+                <div id="date-preview-text" class="date-preview-text">Aug. 7th, 2026</div>
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-header-title">DATE FORMAT</div>
+              <div class="date-format-options">
+                <button type="button" class="date-format-option active" data-format="words-short">Aug. 7th, 2026</button>
+                <button type="button" class="date-format-option" data-format="words-full">August 7th, 2026</button>
+                <button type="button" class="date-format-option" data-format="numbers-us">08/07/2026</button>
+                <button type="button" class="date-format-option" data-format="numbers-eu">07/08/2026</button>
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-header-title">FONT</div>
+              <div class="date-font-options">
+                <button type="button" class="date-font-option active" data-font="Arial">Arial</button>
+                <button type="button" class="date-font-option" data-font="Times New Roman" data-bold="true">Bold TNR</button>
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="date-props-row">
+                <div class="date-color-group">
+                  <span class="ann-bar-label">Color</span>
+                  <div class="color-palette">
+                    <button class="color-dot active" data-color="#000000" style="background: #000000;" title="Black"></button>
+                    <button class="color-dot" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
+                    <button class="color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+                    <div class="custom-color-wrapper" title="Custom Color">
+                      <input type="color" id="date-color" class="custom-color-input" value="#000000" />
+                      <span class="custom-color-swatch" id="date-color-swatch" style="background: #000000;"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="ann-size-stepper">
+                  <span class="ann-bar-label">Size</span>
+                  <div class="size-pill-control">
+                    <button type="button" class="size-btn" id="date-size-minus" title="Decrease Size">-</button>
+                    <input type="number" id="date-size" class="size-input-field" value="16" min="8" max="72" />
+                    <button type="button" class="size-btn" id="date-size-plus" title="Increase Size">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="ann-bar-right" id="ann-bar-controls">
           <!-- Color Swatch Palette -->

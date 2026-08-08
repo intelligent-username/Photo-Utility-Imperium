@@ -1,4 +1,4 @@
-import { getState, loadFiles, resetState, reRenderCanvases, setAppMode, setViewMode, cycleViewMode, loadSavedSignatures, saveSignatureStamp, removeSignatureStamp } from './pdfCanvas.js';
+import { getState, loadFiles, resetState, reRenderCanvases, setAppMode, setViewMode, cycleViewMode, loadSavedSignatures, saveSignatureStamp, removeSignatureStamp, formatDate } from './pdfCanvas.js';
 
 export function initPdfMerge(options) {
     const { uploadArea, fileInput, showProcessing, hideProcessing } = options;
@@ -107,18 +107,34 @@ export function initPdfMerge(options) {
 
     function selectAnnSubTool(subTool) {
         const signMenu = document.getElementById('sign-dropdown-menu');
+        const dateMenu = document.getElementById('date-dropdown-menu');
         if (subTool === 'text') {
             if (annToolText) annToolText.classList.add('active');
             if (annToolSign) annToolSign.classList.remove('active');
+            const annToolDate = document.getElementById('ann-tool-date');
+            if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.remove('hidden');
             if (signMenu) signMenu.classList.add('hidden');
+            if (dateMenu) dateMenu.classList.add('hidden');
             setAppMode('annotate');
         } else if (subTool === 'sign') {
             if (annToolSign) annToolSign.classList.add('active');
             if (annToolText) annToolText.classList.remove('active');
+            const annToolDate = document.getElementById('ann-tool-date');
+            if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
             if (signMenu) signMenu.classList.toggle('hidden');
+            if (dateMenu) dateMenu.classList.add('hidden');
             setAppMode('signature');
+        } else if (subTool === 'date') {
+            const annToolDate = document.getElementById('ann-tool-date');
+            if (annToolDate) annToolDate.classList.add('active');
+            if (annToolText) annToolText.classList.remove('active');
+            if (annToolSign) annToolSign.classList.remove('active');
+            if (annBarControls) annBarControls.classList.add('hidden');
+            if (dateMenu) dateMenu.classList.add('hidden');
+            if (signMenu) signMenu.classList.add('hidden');
+            setAppMode('date');
         }
     }
 
@@ -136,6 +152,126 @@ export function initPdfMerge(options) {
             selectAnnSubTool('sign');
         });
     }
+
+    const annToolDate = document.getElementById('ann-tool-date');
+    if (annToolDate) {
+        annToolDate.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectAnnSubTool('date');
+        });
+    }
+
+    const annToolDateCaret = document.getElementById('ann-tool-date-caret');
+    if (annToolDateCaret) {
+        annToolDateCaret.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dateMenu = document.getElementById('date-dropdown-menu');
+            const signMenu = document.getElementById('sign-dropdown-menu');
+            if (dateMenu) dateMenu.classList.toggle('hidden');
+            if (signMenu) signMenu.classList.add('hidden');
+        });
+    }
+
+    // ---- Date Stamp Dropdown Logic ----
+    const dateMenu = document.getElementById('date-dropdown-menu');
+    const dateFormatOptions = document.querySelectorAll('.date-format-option');
+    const dateFontOptions = document.querySelectorAll('.date-font-option');
+    const datePreviewText = document.getElementById('date-preview-text');
+    const dateColorInput = document.getElementById('date-color');
+    const dateColorSwatch = document.getElementById('date-color-swatch');
+    const dateColorDots = document.querySelectorAll('#date-dropdown-menu .color-dot');
+    const dateSizeInput = document.getElementById('date-size');
+    const dateSizeMinus = document.getElementById('date-size-minus');
+    const dateSizePlus = document.getElementById('date-size-plus');
+
+    function updateDatePreview() {
+        if (!datePreviewText) return;
+        datePreviewText.textContent = formatDate(state.dateFormat);
+        datePreviewText.style.fontFamily = `"${state.dateFont}", sans-serif`;
+        datePreviewText.style.color = state.dateColor;
+        datePreviewText.style.fontWeight = state.dateBold ? 'bold' : 'normal';
+        datePreviewText.style.fontSize = `${Math.max(10, state.dateSize)}px`;
+    }
+
+    if (dateFormatOptions.length) {
+        dateFormatOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dateFormatOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                state.dateFormat = opt.getAttribute('data-format');
+                updateDatePreview();
+            });
+        });
+    }
+
+    if (dateFontOptions.length) {
+        dateFontOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dateFontOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                state.dateFont = opt.getAttribute('data-font');
+                state.dateBold = opt.getAttribute('data-bold') === 'true';
+                updateDatePreview();
+            });
+        });
+    }
+
+    if (dateColorDots.length) {
+        dateColorDots.forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dateColorDots.forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                const hex = dot.getAttribute('data-color');
+                state.dateColor = hex;
+                if (dateColorInput) dateColorInput.value = hex;
+                if (dateColorSwatch) dateColorSwatch.style.backgroundColor = hex;
+                updateDatePreview();
+            });
+        });
+    }
+
+    if (dateColorInput) {
+        dateColorInput.addEventListener('input', (e) => {
+            e.stopPropagation();
+            const hex = e.target.value;
+            state.dateColor = hex;
+            if (dateColorSwatch) dateColorSwatch.style.backgroundColor = hex;
+            dateColorDots.forEach(d => {
+                d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === hex.toLowerCase());
+            });
+            updateDatePreview();
+        });
+    }
+
+    if (dateSizeInput) {
+        dateSizeInput.addEventListener('input', (e) => { state.dateSize = parseInt(e.target.value, 10) || 16; updateDatePreview(); });
+        dateSizeInput.addEventListener('change', (e) => { state.dateSize = parseInt(e.target.value, 10) || 16; updateDatePreview(); });
+    }
+
+    if (dateSizeMinus && dateSizeInput) {
+        dateSizeMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let val = Math.max(8, (parseInt(dateSizeInput.value, 10) || 16) - 2);
+            dateSizeInput.value = val;
+            state.dateSize = val;
+            updateDatePreview();
+        });
+    }
+
+    if (dateSizePlus && dateSizeInput) {
+        dateSizePlus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let val = Math.min(72, (parseInt(dateSizeInput.value, 10) || 16) + 2);
+            dateSizeInput.value = val;
+            state.dateSize = val;
+            updateDatePreview();
+        });
+    }
+
+    updateDatePreview();
 
     // ---- Signature Dropdown & Modal Logic ----
     loadSavedSignatures();
@@ -209,6 +345,9 @@ export function initPdfMerge(options) {
         if (!e.target.closest('#sign-dropdown-wrapper')) {
             if (signMenu) signMenu.classList.add('hidden');
         }
+        if (!e.target.closest('#date-dropdown-wrapper')) {
+            if (dateMenu) dateMenu.classList.add('hidden');
+        }
     });
 
     function updateLivePreview() {
@@ -270,13 +409,13 @@ export function initPdfMerge(options) {
     if (cancelSigModalBtn) cancelSigModalBtn.addEventListener('click', closeSigModal);
 
     if (saveSigModalBtn) {
-        saveSigModalBtn.addEventListener('click', () => {
+        saveSigModalBtn.addEventListener('click', async () => {
             const text = sigNameInput ? sigNameInput.value.trim() : '';
             if (!text) {
                 alert('Please type your name or initials for your signature.');
                 return;
             }
-            const stamp = saveSignatureStamp(text, currentSigFont, currentSigColor);
+            const stamp = await saveSignatureStamp(text, currentSigFont, currentSigColor);
             state.activeSignature = stamp;
             closeSigModal();
             selectAnnSubTool('sign');

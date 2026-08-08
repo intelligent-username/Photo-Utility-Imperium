@@ -14,6 +14,11 @@ const state = {
     isLargeView: true,
     signatures: [],      // array of saved signature stamp objects
     activeSignature: null, // currently selected signature stamp object
+    dateFont: 'Arial',
+    dateBold: false,
+    dateFormat: 'words-short',
+    dateColor: '#000000',
+    dateSize: 16,
 };
 
 export function getState() { return state; }
@@ -103,6 +108,86 @@ export function setAppMode(modeName) {
     });
 
     document.querySelectorAll('.overlay-source').forEach(el => el.classList.remove('overlay-source'));
+}
+
+// ---- Pre-placement Ghost Preview (signature / date modes) ----
+let ghostEl = null;
+function getGhostEl() {
+    if (!ghostEl) {
+        ghostEl = document.createElement('div');
+        ghostEl.className = 'placement-ghost';
+        ghostEl.style.display = 'none';
+        document.body.appendChild(ghostEl);
+    }
+    return ghostEl;
+}
+
+function hideGhost() {
+    if (ghostEl) ghostEl.style.display = 'none';
+}
+
+function initGhostPreview() {
+    const grid = document.getElementById('pdf-page-grid');
+    if (!grid || grid._ghostInit) return;
+    grid._ghostInit = true;
+
+    grid.addEventListener('mousemove', (e) => {
+        if (state.mode !== 'signature' && state.mode !== 'date') { hideGhost(); return; }
+        const card = e.target.closest('.pdf-page-card');
+        if (!card) { hideGhost(); return; }
+        const wrap = card.querySelector('.page-canvas-wrap');
+        const canvas = wrap ? wrap.querySelector('canvas') : null;
+        if (!wrap || !canvas) { hideGhost(); return; }
+
+        const wrapRect = wrap.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        const cOffsetLeft = canvasRect.left - wrapRect.left;
+        const cOffsetTop = canvasRect.top - wrapRect.top;
+
+        const ghostW = canvasRect.width * 0.35;
+        const ghostH = canvasRect.height * 0.12;
+        let left = e.clientX - ghostW / 2;
+        let top = e.clientY - ghostH / 2;
+        left = Math.max(canvasRect.left, Math.min(canvasRect.right - ghostW, left));
+        top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - ghostH, top));
+
+        const ghost = getGhostEl();
+        ghost.style.display = 'flex';
+        ghost.style.left = `${left}px`;
+        ghost.style.top = `${top}px`;
+        ghost.style.width = `${ghostW}px`;
+        ghost.style.height = `${ghostH}px`;
+
+        ghost.innerHTML = '';
+        if (state.mode === 'signature' && state.activeSignature) {
+            const img = new Image();
+            img.src = state.activeSignature.dataUrl;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+            ghost.appendChild(img);
+        } else if (state.mode === 'date') {
+            const span = document.createElement('span');
+            span.className = 'placement-ghost-text';
+            span.textContent = formatDate(state.dateFormat);
+            span.style.fontFamily = `"${state.dateFont}", sans-serif`;
+            span.style.color = state.dateColor;
+            if (state.dateBold) span.style.fontWeight = 'bold';
+            const cScale = canvasRect.width > 0 ? (canvasRect.width / 612.0) : 0.55;
+            span.style.fontSize = `${Math.max(9, (state.dateSize || 16) * cScale)}px`;
+            ghost.appendChild(span);
+        }
+    });
+
+    grid.addEventListener('mouseleave', hideGhost);
+    grid.addEventListener('click', hideGhost);
+}
+
+// Call after grid exists
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGhostPreview);
+} else {
+    initGhostPreview();
 }
 
 // ---- Canvas Cache & Rendering (Instant 60fps Cached Canvas Engine) ----
@@ -209,37 +294,7 @@ export async function renderCardCanvas(page) {
                     }
                 }
             } else if (layer.type === 'signature') {
-                const sx = (layer.leftRatio || 0) * vpWidth;
-                const sy = (layer.topRatio || 0) * vpHeight;
-                const sw = (layer.widthRatio || 0.3) * vpWidth;
-                const sh = (layer.heightRatio || 0.1) * vpHeight;
-
-                // Draw solid white background box for readability
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(sx, sy, sw, sh);
-
-                if (layer._cachedImg) {
-                    ctx.drawImage(layer._cachedImg, sx, sy, sw, sh);
-                } else if (layer.dataUrl) {
-                    const img = new Image();
-                    img.src = layer.dataUrl;
-                    try {
-                        await new Promise((resolve) => {
-                            img.onload = resolve;
-                            img.onerror = resolve;
-                        });
-                        layer._cachedImg = img;
-                        ctx.drawImage(img, sx, sy, sw, sh);
-                    } catch (e) {}
-                } else {
-                    ctx.save();
-                    ctx.fillStyle = layer.color || '#0b1220';
-                    const fontSz = Math.max(12, Math.round(sh * 0.7));
-                    ctx.font = `600 ${fontSz}px "${layer.fontFamily || 'Dancing Script'}", cursive`;
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(layer.text || 'Signature', sx + 5, sy + (sh / 2));
-                    ctx.restore();
-                }
+                // Signature content is rendered as a DOM element in renderCardLayers.
             }
         }
     }
@@ -452,6 +507,28 @@ function buildCard(page) {
             });
 
             renderCardCanvas(page);
+        } else if (state.mode === 'date') {
+            if (e.target.closest('.signature-rect')) return;
+            e.stopPropagation();
+            const rect = canvas.getBoundingClientRect();
+            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (e.clientX - rect.left) / (rect.width || 1)));
+            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (e.clientY - rect.top) / (rect.height || 1)));
+
+            page.layers.push({
+                type: 'signature',
+                id: `date_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                text: formatDate(state.dateFormat),
+                fontFamily: state.dateFont,
+                color: state.dateColor,
+                bold: state.dateBold,
+                fontSize: state.dateSize,
+                leftRatio: clickLeft,
+                topRatio: clickTop,
+                widthRatio: 0.35,
+                heightRatio: 0.12
+            });
+
+            renderCardCanvas(page);
         }
     });
 
@@ -493,7 +570,7 @@ function getContrastBgColor(hexColor) {
     }
 }
 
-function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null) {
+function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null, options = {}) {
     wrap.querySelectorAll('.ann-edit-box, .ann-input').forEach(b => b.remove());
 
     if (existingMarker) {
@@ -511,8 +588,10 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     input.className = 'ann-input';
     input.rows = 1;
     input.style.maxWidth = '100%';
-    let currentAnnColor = existingAnn ? (existingAnn.color || state.annColor) : state.annColor;
-    let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : state.annSize;
+    let currentAnnColor = existingAnn ? (existingAnn.color || state.annColor) : (options.date ? state.dateColor : state.annColor);
+    let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : (options.date ? state.dateSize : state.annSize);
+    let currentAnnFont = existingAnn ? (existingAnn.fontFamily || 'inherit') : (options.date ? state.dateFont : 'inherit');
+    let currentAnnBold = existingAnn ? (existingAnn.bold || false) : (options.date ? state.dateBold : false);
 
     const applyContrastTheme = (hexColor) => {
         const theme = getContrastBgColor(hexColor);
@@ -575,8 +654,10 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     box.appendChild(controls);
 
     input.placeholder = 'Text...';
-    input.value = existingAnn ? existingAnn.text : '';
+    input.value = existingAnn ? existingAnn.text : (options.date ? formatDate(state.dateFormat) : '');
     input.style.color = currentAnnColor;
+    if (currentAnnFont && currentAnnFont !== 'inherit') input.style.fontFamily = currentAnnFont;
+    if (currentAnnBold) input.style.fontWeight = 'bold';
 
     const scaledFont = Math.max(9, currentAnnSize * canvasScale);
     input.style.fontSize = `${scaledFont}px`;
@@ -598,6 +679,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
                 existingAnn.text = text;
                 existingAnn.color = currentAnnColor;
                 existingAnn.fontSize = currentAnnSize;
+                if (currentAnnFont && currentAnnFont !== 'inherit') existingAnn.fontFamily = currentAnnFont;
+                existingAnn.bold = currentAnnBold;
             }
         } else if (text) {
             const ann = {
@@ -609,6 +692,8 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
                 color: currentAnnColor,
                 fontSize: currentAnnSize,
             };
+            if (currentAnnFont && currentAnnFont !== 'inherit') ann.fontFamily = currentAnnFont;
+            ann.bold = currentAnnBold;
             page.layers.push(ann);
         }
         box.remove();
@@ -897,7 +982,7 @@ function makeOverlayInteractive(ovRect, wrap, page, layer = null) {
 
 // ---- Dynamic Layer Stack Rendering (Whiteouts, Text Annotations, Overlays with Chronological Z-Index) ----
 function renderCardLayers(wrap, page) {
-    wrap.querySelectorAll('.ann-marker, .whiteout-rect, .overlay-rect').forEach(el => el.remove());
+    wrap.querySelectorAll('.ann-marker, .whiteout-rect, .overlay-rect, .signature-rect').forEach(el => el.remove());
     if (!page.layers || page.layers.length === 0) return;
 
     const wrapRect = wrap.getBoundingClientRect();
@@ -961,6 +1046,8 @@ function renderCardLayers(wrap, page) {
 
             const scaledFont = Math.max(9, (layer.fontSize || 16) * canvasScale);
             marker.style.fontSize = `${scaledFont}px`;
+            marker.style.fontFamily = layer.fontFamily || 'inherit';
+            if (layer.fontFamily) marker.style.fontWeight = layer.bold ? 'bold' : 'normal';
             marker.title = 'Click to edit, drag to move';
 
             makeAnnotationInteractive(marker, wrap, page, layer);
@@ -1022,12 +1109,36 @@ function renderCardLayers(wrap, page) {
             rect.style.width = `${widthPct}%`;
             rect.style.height = `${heightPct}%`;
             rect.style.zIndex = zIndex;
-            rect.title = 'Signature: Drag to move, double-click to remove';
+            rect.title = 'Signature: Drag to move';
 
-            addSignatureControls(rect, wrap, page, layer);
+            // Render the signature content once inside the DOM element.
+            if (layer.dataUrl) {
+                const img = new Image();
+                img.src = layer.dataUrl;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.draggable = false;
+                rect.appendChild(img);
+            } else if (layer.text) {
+                const span = document.createElement('span');
+                span.className = 'signature-rect-content';
+                span.textContent = layer.text;
+                span.style.fontFamily = `"${layer.fontFamily || 'Caveat'}", cursive`;
+                span.style.color = layer.color || '#0b1220';
+                if (layer.bold) span.style.fontWeight = 'bold';
+                const cScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
+                span.style.fontSize = `${Math.max(9, (layer.fontSize || 16) * cScale)}px`;
+                rect.appendChild(span);
+            }
 
-            rect.addEventListener('dblclick', (e) => {
-                if (state.mode !== 'signature' && state.mode !== 'select') return;
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'signature-del-btn';
+            delBtn.innerHTML = '&times;';
+            delBtn.title = 'Remove signature';
+            delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+            delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const lIdx = page.layers.indexOf(layer);
                 if (lIdx !== -1) {
@@ -1035,68 +1146,122 @@ function renderCardLayers(wrap, page) {
                     renderCardCanvas(page);
                 }
             });
+            rect.appendChild(delBtn);
+
+            addSignatureControls(rect, wrap, page, layer);
             wrap.appendChild(rect);
         }
     });
 }
 
 function addSignatureControls(rect, wrap, page, layer) {
-    let isDragging = false;
-    let startX = 0, startY = 0;
-    let initialLeftRatio = layer.leftRatio || 0;
-    let initialTopRatio = layer.topRatio || 0;
+    if (rect._isInteractive) return;
+    rect._isInteractive = true;
 
     rect.addEventListener('mousedown', (e) => {
-        if (state.mode !== 'signature' && state.mode !== 'select') return;
+        if (state.mode !== 'signature' && state.mode !== 'select' && state.mode !== 'date' && state.mode !== 'annotate') return;
         e.stopPropagation();
         e.preventDefault();
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
 
         const canvas = wrap.querySelector('canvas');
-        const canvasRect = canvas ? canvas.getBoundingClientRect() : wrap.getBoundingClientRect();
-        initialLeftRatio = layer.leftRatio || 0;
-        initialTopRatio = layer.topRatio || 0;
+        const wrapRect = wrap.getBoundingClientRect();
+        const canvasRect = canvas ? canvas.getBoundingClientRect() : wrapRect;
 
-        const onMouseMove = (moveEv) => {
-            if (!isDragging) return;
-            const dx = moveEv.clientX - startX;
-            const dy = moveEv.clientY - startY;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const initLeftRatio = layer.leftRatio || 0;
+        const initTopRatio = layer.topRatio || 0;
+        let moved = false;
+        let ticking = false;
 
-            let newLeft = initialLeftRatio + (dx / (canvasRect.width || 1));
-            let newTop = initialTopRatio + (dy / (canvasRect.height || 1));
+        const onMove = (me) => {
+            const dx = me.clientX - startX;
+            const dy = me.clientY - startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
 
-            newLeft = Math.max(0, Math.min(1.0 - (layer.widthRatio || 0.3), newLeft));
-            newTop = Math.max(0, Math.min(1.0 - (layer.heightRatio || 0.1), newTop));
+            if (moved && !ticking) {
+                requestAnimationFrame(() => {
+                    let newLeft = initLeftRatio + (dx / (canvasRect.width || 1));
+                    let newTop = initTopRatio + (dy / (canvasRect.height || 1));
+                    newLeft = Math.max(0, Math.min(1.0 - (layer.widthRatio || 0.3), newLeft));
+                    newTop = Math.max(0, Math.min(1.0 - (layer.heightRatio || 0.1), newTop));
 
-            layer.leftRatio = newLeft;
-            layer.topRatio = newTop;
+                    layer.leftRatio = newLeft;
+                    layer.topRatio = newTop;
 
-            renderCardCanvas(page);
+                    const cOffsetLeft = canvasRect.left - wrapRect.left;
+                    const cOffsetTop = canvasRect.top - wrapRect.top;
+                    const leftPct = ((cOffsetLeft + (layer.leftRatio * canvasRect.width)) / (wrapRect.width || 1) * 100).toFixed(2);
+                    const topPct = ((cOffsetTop + (layer.topRatio * canvasRect.height)) / (wrapRect.height || 1) * 100).toFixed(2);
+
+                    rect.style.left = `${leftPct}%`;
+                    rect.style.top = `${topPct}%`;
+                    ticking = false;
+                });
+                ticking = true;
+            }
         };
 
-        const onMouseUp = () => {
-            isDragging = false;
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            if (moved) {
+                renderCardCanvas(page);
+            }
         };
 
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
     });
 }
 
-export function generateSignatureDataUrl(text, fontFamily, color) {
+export function formatDate(format) {
+    const now = new Date();
+    const monthsShort = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+    const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const day = now.getDate();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const ordinal = (n) => {
+        if (n % 10 === 1 && n % 100 !== 11) return `${n}st`;
+        if (n % 10 === 2 && n % 100 !== 12) return `${n}nd`;
+        if (n % 10 === 3 && n % 100 !== 13) return `${n}rd`;
+        return `${n}th`;
+    };
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    switch (format) {
+        case 'words-full':
+            return `${monthsFull[month]} ${ordinal(day)}, ${year}`;
+        case 'numbers-us':
+            return `${pad2(month + 1)}/${pad2(day)}/${year}`;
+        case 'numbers-eu':
+            return `${pad2(day)}/${pad2(month + 1)}/${year}`;
+        case 'words-short':
+        default:
+            return `${monthsShort[month]} ${ordinal(day)}, ${year}`;
+    }
+}
+
+export async function generateSignatureDataUrl(text, fontFamily, color) {
     const offCanvas = document.createElement('canvas');
     offCanvas.width = 600;
     offCanvas.height = 180;
     const ctx = offCanvas.getContext('2d');
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+    const family = fontFamily || 'Caveat';
+    // Only Caveat & Dancing Script are loaded at 600/700; the rest are weight 400.
+    const weight = (family === 'Caveat' || family === 'Dancing Script') ? 600 : 400;
+
+    // Ensure the web font is loaded before drawing to the canvas.
+    try {
+        await document.fonts.load(`${weight} 64px "${family}"`);
+        await document.fonts.ready;
+    } catch (e) {}
+
+    ctx.clearRect(0, 0, offCanvas.width, offCanvas.height);
     ctx.fillStyle = color || '#0b1220';
-    ctx.font = `600 64px "${fontFamily || 'Caveat'}", cursive`;
+    ctx.font = `${weight} 64px "${family}", cursive`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text || 'Signature', 300, 90);
@@ -1104,8 +1269,8 @@ export function generateSignatureDataUrl(text, fontFamily, color) {
     return offCanvas.toDataURL('image/png');
 }
 
-export function saveSignatureStamp(text, fontFamily, color) {
-    const dataUrl = generateSignatureDataUrl(text, fontFamily, color);
+export async function saveSignatureStamp(text, fontFamily, color) {
+    const dataUrl = await generateSignatureDataUrl(text, fontFamily, color);
     const stamp = {
         id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         text: text || 'Signature',
@@ -1138,6 +1303,17 @@ export function loadSavedSignatures() {
         const saved = localStorage.getItem('pui_signatures');
         if (saved) {
             state.signatures = JSON.parse(saved);
+            // Regenerate dataUrls so any baked-in white backgrounds are stripped
+            state.signatures.forEach(s => {
+                if (s.text) {
+                    generateSignatureDataUrl(s.text, s.fontFamily, s.color).then(url => {
+                        s.dataUrl = url;
+                        const active = state.activeSignature;
+                        if (active && active.id === s.id) active.dataUrl = url;
+                        reRenderCanvases();
+                    });
+                }
+            });
         } else {
             state.signatures = [];
         }
