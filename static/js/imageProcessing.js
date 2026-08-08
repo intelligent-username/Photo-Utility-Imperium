@@ -69,6 +69,10 @@ export function initImageProcessing(options) {
         if (originalNameEl) originalNameEl.classList.add('hidden');
         if (convertedNameEl) convertedNameEl.classList.add('hidden');
         if (convertAgainBtn) convertAgainBtn.classList.add('hidden');
+        const resizePdfBtnEl = document.getElementById('resize-pdf-btn');
+        if (resizePdfBtnEl) resizePdfBtnEl.classList.add('hidden');
+        const resizeModalEl = document.getElementById('resize-modal');
+        if (resizeModalEl) resizeModalEl.classList.add('hidden');
         if (slideshowHeader) slideshowHeader.style.display = 'none';
         fileQueue = [];
         processedResults = [];
@@ -179,6 +183,14 @@ export function initImageProcessing(options) {
             }
             if (convertAgainBtn) {
                 convertAgainBtn.classList.remove('hidden');
+            }
+            const resizePdfBtnEl = document.getElementById('resize-pdf-btn');
+            if (resizePdfBtnEl) {
+                if (isOutputPdf) {
+                    resizePdfBtnEl.classList.remove('hidden');
+                } else {
+                    resizePdfBtnEl.classList.add('hidden');
+                }
             }
         }
 
@@ -418,6 +430,74 @@ export function initImageProcessing(options) {
             reader.readAsDataURL(fileToReProcess);
             // Hide button until user changes quality again
             convertAgainBtn.classList.add('hidden');
+        });
+    }
+
+    // Modal dialog logic for resizing PDF page to standard size
+    const resizePdfBtn = document.getElementById('resize-pdf-btn');
+    const resizeModal = document.getElementById('resize-modal');
+    const closeResizeModalBtn = document.getElementById('close-resize-modal-btn');
+    const cancelResizeModalBtn = document.getElementById('cancel-resize-modal-btn');
+    const applyResizeModalBtn = document.getElementById('apply-resize-modal-btn');
+
+    function hideResizeModal() {
+        if (resizeModal) resizeModal.classList.add('hidden');
+    }
+
+    if (resizePdfBtn && resizeModal) {
+        resizePdfBtn.addEventListener('click', function () {
+            resizeModal.classList.remove('hidden');
+        });
+    }
+
+    if (closeResizeModalBtn) {
+        closeResizeModalBtn.addEventListener('click', hideResizeModal);
+    }
+
+    if (cancelResizeModalBtn) {
+        cancelResizeModalBtn.addEventListener('click', hideResizeModal);
+    }
+
+    if (resizeModal) {
+        resizeModal.addEventListener('click', function (e) {
+            if (e.target === resizeModal) hideResizeModal();
+        });
+    }
+
+    const sizeCards = document.querySelectorAll('.size-option-card');
+    sizeCards.forEach(card => {
+        card.addEventListener('click', function () {
+            sizeCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            const radio = card.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+    });
+
+    if (applyResizeModalBtn) {
+        applyResizeModalBtn.addEventListener('click', function () {
+            const selectedRadio = document.querySelector('input[name="pageSizeChoice"]:checked');
+            if (!selectedRadio) return;
+            const chosenSize = selectedRadio.value;
+            hideResizeModal();
+
+            const currentResult = processedResults[currentSlideIndex];
+            const fileToReProcess = currentResult ? currentResult.file : null;
+            if (!fileToReProcess) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                sendFileToBackend(
+                    fileToReProcess,
+                    '/process_image_conversion',
+                    { output_format: 'PDF', page_size: chosenSize },
+                    'resized',
+                    'pdf',
+                    e.target.result,
+                    currentSlideIndex
+                );
+            };
+            reader.readAsDataURL(fileToReProcess);
         });
     }
 }

@@ -373,4 +373,73 @@ def cv2_to_pil(cv2_image):
     if len(cv2_image.shape) == 3 and cv2_image.shape[2] == 4:
         return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGRA2RGBA))
     return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
+
+def convert_to_standard_pdf(file_bytes, page_size_name, is_pdf_input=False):
+    """
+    Converts an image or PDF into a PDF with standard page dimensions (US Letter or EU A4).
+    Content is scaled to fit while preserving aspect ratio and centered on the page.
+    """
+    ps_clean = str(page_size_name).upper()
+    if 'LETTER' in ps_clean or 'US' in ps_clean:
+        base_w, base_h = 612.0, 792.0
+    else:  # EU / A4 default
+        base_w, base_h = 595.28, 841.89
+
+    out_doc = fitz.open()
+
+    if is_pdf_input:
+        src_doc = fitz.open(stream=file_bytes, filetype="pdf")
+        for src_page in src_doc:
+            orig_w = src_page.rect.width
+            orig_h = src_page.rect.height
+
+            is_landscape = orig_w > orig_h
+            if is_landscape:
+                tw, th = max(base_w, base_h), min(base_w, base_h)
+            else:
+                tw, th = min(base_w, base_h), max(base_w, base_h)
+
+            scale_x = tw / orig_w if orig_w > 0 else 1.0
+            scale_y = th / orig_h if orig_h > 0 else 1.0
+            scale = min(scale_x, scale_y)
+
+            scaled_w = orig_w * scale
+            scaled_h = orig_h * scale
+            tx = (tw - scaled_w) / 2.0
+            ty = (th - scaled_h) / 2.0
+
+            out_page = out_doc.new_page(width=tw, height=th)
+            target_rect = fitz.Rect(tx, ty, tx + scaled_w, ty + scaled_h)
+            out_page.show_pdf_page(target_rect, src_doc, src_page.number)
+    else:
+        # Input is an Image
+        img = Image.open(BytesIO(file_bytes))
+        orig_w, orig_h = img.size
+
+        is_landscape = orig_w > orig_h
+        if is_landscape:
+            tw, th = max(base_w, base_h), min(base_w, base_h)
+        else:
+            tw, th = min(base_w, base_h), max(base_w, base_h)
+
+        scale_x = tw / orig_w if orig_w > 0 else 1.0
+        scale_y = th / orig_h if orig_h > 0 else 1.0
+        scale = min(scale_x, scale_y)
+
+        scaled_w = orig_w * scale
+        scaled_h = orig_h * scale
+        tx = (tw - scaled_w) / 2.0
+        ty = (th - scaled_h) / 2.0
+
+        img_temp = BytesIO()
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+        img.save(img_temp, format="PNG")
+        img_bytes = img_temp.getvalue()
+
+        out_page = out_doc.new_page(width=tw, height=th)
+        target_rect = fitz.Rect(tx, ty, tx + scaled_w, ty + scaled_h)
+        out_page.insert_image(target_rect, stream=img_bytes)
+
+    return out_doc.tobytes()
 # -----------------------

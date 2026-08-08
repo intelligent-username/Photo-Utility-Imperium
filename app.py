@@ -10,7 +10,8 @@ import os
 import io
 
 from flask import Flask, render_template, request, send_file
-from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic
+from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic, convert_to_standard_pdf
+import fitz
 import json
 from PyPDF2 import PdfReader
 
@@ -170,21 +171,48 @@ def process_image_conversion():
     
     file = request.files['file']
     output_format = request.form['output_format'].upper()
+    page_size = request.form.get('page_size', '').strip()
     
+    file_bytes = file.read()
+    is_pdf_input = file.content_type == 'application/pdf' or (bool(file.filename) and file.filename.lower().endswith('.pdf'))
+
     try:
-        img = Image.open(file.stream)
-
-        # Convert to RGB if saving as PDF and mode is not RGB
-        if output_format == 'PDF' and img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-
-        processed_io = io.BytesIO()
-        img.save(processed_io, format=output_format)
-        processed_io.seek(0)
-
         if output_format == 'PDF':
-            return send_file(processed_io, mimetype='application/pdf', as_attachment=True, download_name='converted.pdf')
+            if page_size:
+                pdf_data = convert_to_standard_pdf(file_bytes, page_size, is_pdf_input=is_pdf_input)
+            else:
+                if is_pdf_input:
+                    pdf_data = file_bytes
+                else:
+                    img = Image.open(io.BytesIO(file_bytes))
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                    processed_io = io.BytesIO()
+                    img.save(processed_io, format='PDF')
+                    pdf_data = processed_io.getvalue()
+
+            return send_file(
+                io.BytesIO(pdf_data),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='converted.pdf'
+            )
         else:
+            if is_pdf_input:
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                if len(doc) > 0:
+                    pix = doc[0].get_pixmap()
+                    img = Image.open(io.BytesIO(pix.tobytes()))
+                else:
+                    return 'PDF is empty', 400
+            else:
+                img = Image.open(io.BytesIO(file_bytes))
+
+            processed_io = io.BytesIO()
+            if output_format in ('JPEG', 'JPG') and img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            img.save(processed_io, format=output_format)
+            processed_io.seek(0)
             return send_file(processed_io, mimetype=f'image/{output_format.lower()}')
 
     except IOError:
