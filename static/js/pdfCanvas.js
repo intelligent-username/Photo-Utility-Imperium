@@ -10,10 +10,38 @@ const state = {
     annColor: '#ff0000',
     annSize: 16,
     overlaySource: null, // page id selected as overlay source
+    viewMode: 'large',   // 'small' | 'large' | 'full'
     isLargeView: true,
 };
 
 export function getState() { return state; }
+
+const modeOrder = ['large', 'full', 'small'];
+const modeLabels = { small: 'Small View', large: 'Large View', full: 'Full View' };
+
+export function setViewMode(viewMode) {
+    state.viewMode = viewMode;
+    state.isLargeView = (viewMode === 'large');
+
+    const grid = document.getElementById('pdf-page-grid');
+    if (grid) {
+        grid.classList.remove('small-view', 'large-view', 'full-view');
+        grid.classList.add(`${viewMode}-view`);
+    }
+
+    const btn = document.getElementById('view-mode-btn');
+    if (btn) {
+        btn.textContent = modeLabels[viewMode] || 'View Mode';
+    }
+
+    reRenderCanvases();
+}
+
+export function cycleViewMode() {
+    const currIdx = modeOrder.indexOf(state.viewMode);
+    const nextIdx = (currIdx + 1) % modeOrder.length;
+    setViewMode(modeOrder[nextIdx]);
+}
 
 export function createPageObject(config) {
     const layers = config.layers || [];
@@ -128,7 +156,9 @@ export async function renderCardCanvas(page) {
     const ctx = canvas.getContext('2d');
 
     const dpr = Math.max(2, window.devicePixelRatio || 1);
-    const baseTargetWidth = state.isLargeView ? 600 : 320;
+    let baseTargetWidth = 600;
+    if (state.viewMode === 'small') baseTargetWidth = 320;
+    else if (state.viewMode === 'full') baseTargetWidth = 1000;
     const targetWidth = baseTargetWidth * dpr;
 
     const baseCache = await getPageCanvasCache(page, targetWidth);
@@ -454,7 +484,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
     applyContrastTheme(currentAnnColor);
 
     const wrapRect = wrap.getBoundingClientRect();
-    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
+    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
 
     const autoResize = () => {
         input.style.height = 'auto';
@@ -495,7 +525,7 @@ function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMar
         currentAnnSize = parseInt(e.target.value, 10);
         state.annSize = currentAnnSize;
         const wRect = wrap.getBoundingClientRect();
-        const cScale = wRect.width > 0 ? (wRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
+        const cScale = wRect.width > 0 ? (wRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
         input.style.fontSize = `${Math.max(9, currentAnnSize * cScale)}px`;
         autoResize();
         const mainSize = document.getElementById('ann-size');
@@ -833,7 +863,7 @@ function renderCardLayers(wrap, page) {
     if (!page.layers || page.layers.length === 0) return;
 
     const wrapRect = wrap.getBoundingClientRect();
-    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.isLargeView ? 0.55 : 0.26);
+    const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
 
     page.layers.forEach((layer, idx) => {
         const zIndex = 10 + idx;

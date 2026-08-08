@@ -132,10 +132,13 @@
     font-weight: 500;
 }
 
+
+
 /* ---- Page Grid (Fixed 580px height matching upload-area and identical Y-location) ---- */
 .pdf-page-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    align-content: start;
     gap: 14px;
     padding: 14px;
     height: 580px;
@@ -149,11 +152,28 @@
     transition: all var(--transition);
 }
 
+.pdf-page-grid.small-view {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    padding: 14px;
+}
+
 .pdf-page-grid.large-view {
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    height: 580px;
     gap: 20px;
     padding: 20px;
+}
+
+.pdf-page-grid.full-view {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 20px;
+}
+
+.pdf-page-grid.full-view .pdf-page-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .pdf-page-grid:empty::after {
@@ -294,6 +314,7 @@
 
 .page-canvas-wrap canvas {
     display: block;
+    width: 100%;
     max-width: 100%;
     height: auto;
 }

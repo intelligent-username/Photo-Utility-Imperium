@@ -1,4 +1,4 @@
-import { getState, loadFiles, resetState, reRenderCanvases, setAppMode } from './pdfCanvas.js';
+import { getState, loadFiles, resetState, reRenderCanvases, setAppMode, setViewMode, cycleViewMode } from './pdfCanvas.js';
 
 export function initPdfMerge(options) {
     const { uploadArea, fileInput, showProcessing, hideProcessing } = options;
@@ -67,7 +67,10 @@ export function initPdfMerge(options) {
     const overlayBtn = document.getElementById('overlay-btn');
     const whiteoutBtn = document.getElementById('whiteout-btn');
     const restoreBtn = document.getElementById('restore-all-btn');
-    const largeViewBtn = document.getElementById('large-view-btn');
+    const viewModeBtn = document.getElementById('view-mode-btn');
+    if (viewModeBtn) {
+        viewModeBtn.addEventListener('click', () => cycleViewMode());
+    }
 
     const annControls = document.getElementById('ann-controls');
 
@@ -101,14 +104,7 @@ export function initPdfMerge(options) {
     if (overlayBtn) overlayBtn.addEventListener('click', () => toggleMode(overlayBtn, 'overlay'));
     if (whiteoutBtn) whiteoutBtn.addEventListener('click', () => toggleMode(whiteoutBtn, 'whiteout'));
 
-    if (largeViewBtn) {
-        largeViewBtn.addEventListener('click', () => {
-            state.isLargeView = !state.isLargeView;
-            largeViewBtn.classList.toggle('active', state.isLargeView);
-            document.getElementById('pdf-page-grid')?.classList.toggle('large-view', state.isLargeView);
-            reRenderCanvases();
-        });
-    }
+
 
     if (restoreBtn) {
         restoreBtn.addEventListener('click', () => {
