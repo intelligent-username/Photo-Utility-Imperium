@@ -6,12 +6,14 @@
 const state = {
     pages: [],       // { id, fileIdx, pageIdx, fileName, excluded, annotations[], cropBox, overlays[], _pdfPage, isBlank, aspectRatio }
     files: [],       // raw File objects
-    mode: 'select',  // 'select' | 'annotate' | 'crop' | 'overlay'
+    mode: 'select',  // 'select' | 'annotate' | 'crop' | 'overlay' | 'signature'
     annColor: '#ff0000',
     annSize: 16,
     overlaySource: null, // page id selected as overlay source
     viewMode: 'large',   // 'small' | 'large' | 'full'
     isLargeView: true,
+    signatures: [],      // array of saved signature stamp objects
+    activeSignature: null, // currently selected signature stamp object
 };
 
 export function getState() { return state; }
@@ -73,6 +75,11 @@ export function createPageObject(config) {
         configurable: true,
         enumerable: true
     });
+    Object.defineProperty(page, 'signatures', {
+        get: () => page.layers.filter(l => l.type === 'signature'),
+        configurable: true,
+        enumerable: true
+    });
 
     return page;
 }
@@ -84,7 +91,7 @@ export function setAppMode(modeName) {
 
     const grid = document.getElementById('pdf-page-grid');
     if (grid) {
-        grid.classList.remove('grid-mode-crop', 'grid-mode-overlay', 'grid-mode-annotate', 'grid-mode-whiteout');
+        grid.classList.remove('grid-mode-crop', 'grid-mode-overlay', 'grid-mode-annotate', 'grid-mode-whiteout', 'grid-mode-signature');
         if (modeName !== 'select') {
             grid.classList.add(`grid-mode-${modeName}`);
         }
@@ -96,19 +103,6 @@ export function setAppMode(modeName) {
     });
 
     document.querySelectorAll('.overlay-source').forEach(el => el.classList.remove('overlay-source'));
-
-    // Update banner instructions
-    if (modeName === 'select') {
-        updateModeBanner('Select Mode: Drag cards to reorder pages.', 'select');
-    } else if (modeName === 'crop') {
-        updateModeBanner('Crop Mode: Click & drag on any page to crop. Drag handles to resize, double-click box to delete.', 'crop');
-    } else if (modeName === 'overlay') {
-        updateModeBanner('Overlay Mode: Click source page, then target page. Drag purple box to reposition overlay.', 'overlay');
-    } else if (modeName === 'annotate') {
-        updateModeBanner('Annotate Mode: Click anywhere on a page to add text. Drag text to move, click to edit/delete.', 'annotate');
-    } else if (modeName === 'whiteout') {
-        updateModeBanner('Whiteout Mode: Drag on any page to cover content with a white block. Double-click box to delete.', 'whiteout');
-    }
 }
 
 // ---- Canvas Cache & Rendering (Instant 60fps Cached Canvas Engine) ----
@@ -214,6 +208,38 @@ export async function renderCardCanvas(page) {
                         ctx.restore();
                     }
                 }
+            } else if (layer.type === 'signature') {
+                const sx = (layer.leftRatio || 0) * vpWidth;
+                const sy = (layer.topRatio || 0) * vpHeight;
+                const sw = (layer.widthRatio || 0.3) * vpWidth;
+                const sh = (layer.heightRatio || 0.1) * vpHeight;
+
+                // Draw solid white background box for readability
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(sx, sy, sw, sh);
+
+                if (layer._cachedImg) {
+                    ctx.drawImage(layer._cachedImg, sx, sy, sw, sh);
+                } else if (layer.dataUrl) {
+                    const img = new Image();
+                    img.src = layer.dataUrl;
+                    try {
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+                        layer._cachedImg = img;
+                        ctx.drawImage(img, sx, sy, sw, sh);
+                    } catch (e) {}
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = layer.color || '#0b1220';
+                    const fontSz = Math.max(12, Math.round(sh * 0.7));
+                    ctx.font = `600 ${fontSz}px "${layer.fontFamily || 'Dancing Script'}", cursive`;
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(layer.text || 'Signature', sx + 5, sy + (sh / 2));
+                    ctx.restore();
+                }
             }
         }
     }
@@ -264,16 +290,7 @@ function updateStatusBar(msg) {
 }
 
 export function updateModeBanner(msg, type = 'crop') {
-    const banner = document.getElementById('pdf-mode-banner');
-    if (!banner) return;
-    if (!msg) {
-        banner.classList.add('hidden');
-        banner.textContent = '';
-        banner.className = 'pdf-mode-banner hidden';
-        return;
-    }
-    banner.textContent = msg;
-    banner.className = `pdf-mode-banner banner-${type}`;
+    // Mode banner removed per user request.
 }
 
 // ---- Load files & render ----
@@ -414,6 +431,27 @@ function buildCard(page) {
             const xR = (e.clientX - rect.left) / rect.width;
             const yR = (e.clientY - rect.top) / rect.height;
             openAnnotationInput(wrap, page, xR, yR);
+        } else if (state.mode === 'signature' && state.activeSignature) {
+            if (e.target.closest('.signature-rect')) return;
+            e.stopPropagation();
+            const rect = canvas.getBoundingClientRect();
+            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (e.clientX - rect.left) / (rect.width || 1)));
+            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (e.clientY - rect.top) / (rect.height || 1)));
+
+            page.layers.push({
+                type: 'signature',
+                id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                text: state.activeSignature.text,
+                fontFamily: state.activeSignature.fontFamily,
+                color: state.activeSignature.color,
+                dataUrl: state.activeSignature.dataUrl,
+                leftRatio: clickLeft,
+                topRatio: clickTop,
+                widthRatio: 0.35,
+                heightRatio: 0.12
+            });
+
+            renderCardCanvas(page);
         }
     });
 
@@ -965,8 +1003,153 @@ function renderCardLayers(wrap, page) {
             wrap.appendChild(ovRect);
             addOverlayControls(ovRect, wrap, page, layer);
             syncOverlayRectToPercentage(ovRect, page, layer);
+
+        } else if (layer.type === 'signature') {
+            const canvas = wrap.querySelector('canvas');
+            const canvasRect = canvas ? canvas.getBoundingClientRect() : wrapRect;
+
+            const canvasOffsetLeft = canvasRect.left - wrapRect.left;
+            const canvasOffsetTop = canvasRect.top - wrapRect.top;
+            const leftPct = ((canvasOffsetLeft + (layer.leftRatio * canvasRect.width)) / (wrapRect.width || 1) * 100).toFixed(2);
+            const topPct = ((canvasOffsetTop + (layer.topRatio * canvasRect.height)) / (wrapRect.height || 1) * 100).toFixed(2);
+            const widthPct = (layer.widthRatio * canvasRect.width / (wrapRect.width || 1) * 100).toFixed(2);
+            const heightPct = (layer.heightRatio * canvasRect.height / (wrapRect.height || 1) * 100).toFixed(2);
+
+            const rect = document.createElement('div');
+            rect.className = 'signature-rect';
+            rect.style.left = `${leftPct}%`;
+            rect.style.top = `${topPct}%`;
+            rect.style.width = `${widthPct}%`;
+            rect.style.height = `${heightPct}%`;
+            rect.style.zIndex = zIndex;
+            rect.title = 'Signature: Drag to move, double-click to remove';
+
+            addSignatureControls(rect, wrap, page, layer);
+
+            rect.addEventListener('dblclick', (e) => {
+                if (state.mode !== 'signature' && state.mode !== 'select') return;
+                e.stopPropagation();
+                const lIdx = page.layers.indexOf(layer);
+                if (lIdx !== -1) {
+                    page.layers.splice(lIdx, 1);
+                    renderCardCanvas(page);
+                }
+            });
+            wrap.appendChild(rect);
         }
     });
+}
+
+function addSignatureControls(rect, wrap, page, layer) {
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeftRatio = layer.leftRatio || 0;
+    let initialTopRatio = layer.topRatio || 0;
+
+    rect.addEventListener('mousedown', (e) => {
+        if (state.mode !== 'signature' && state.mode !== 'select') return;
+        e.stopPropagation();
+        e.preventDefault();
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const canvas = wrap.querySelector('canvas');
+        const canvasRect = canvas ? canvas.getBoundingClientRect() : wrap.getBoundingClientRect();
+        initialLeftRatio = layer.leftRatio || 0;
+        initialTopRatio = layer.topRatio || 0;
+
+        const onMouseMove = (moveEv) => {
+            if (!isDragging) return;
+            const dx = moveEv.clientX - startX;
+            const dy = moveEv.clientY - startY;
+
+            let newLeft = initialLeftRatio + (dx / (canvasRect.width || 1));
+            let newTop = initialTopRatio + (dy / (canvasRect.height || 1));
+
+            newLeft = Math.max(0, Math.min(1.0 - (layer.widthRatio || 0.3), newLeft));
+            newTop = Math.max(0, Math.min(1.0 - (layer.heightRatio || 0.1), newTop));
+
+            layer.leftRatio = newLeft;
+            layer.topRatio = newTop;
+
+            renderCardCanvas(page);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    });
+}
+
+export function generateSignatureDataUrl(text, fontFamily, color) {
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = 600;
+    offCanvas.height = 180;
+    const ctx = offCanvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+    ctx.fillStyle = color || '#0b1220';
+    ctx.font = `600 64px "${fontFamily || 'Caveat'}", cursive`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text || 'Signature', 300, 90);
+
+    return offCanvas.toDataURL('image/png');
+}
+
+export function saveSignatureStamp(text, fontFamily, color) {
+    const dataUrl = generateSignatureDataUrl(text, fontFamily, color);
+    const stamp = {
+        id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        text: text || 'Signature',
+        fontFamily: fontFamily || 'Caveat',
+        color: color || '#0b1220',
+        dataUrl
+    };
+    state.signatures.push(stamp);
+    try {
+        localStorage.setItem('pui_signatures', JSON.stringify(state.signatures));
+    } catch (e) {}
+    return stamp;
+}
+
+export function removeSignatureStamp(stampId) {
+    const idx = state.signatures.findIndex(s => s.id === stampId);
+    if (idx !== -1) {
+        state.signatures.splice(idx, 1);
+        if (state.activeSignature && state.activeSignature.id === stampId) {
+            state.activeSignature = state.signatures[0] || null;
+        }
+        try {
+            localStorage.setItem('pui_signatures', JSON.stringify(state.signatures));
+        } catch (e) {}
+    }
+}
+
+export function loadSavedSignatures() {
+    try {
+        const saved = localStorage.getItem('pui_signatures');
+        if (saved) {
+            state.signatures = JSON.parse(saved);
+        } else {
+            state.signatures = [];
+        }
+    } catch (e) {
+        state.signatures = [];
+    }
+
+    if (!state.activeSignature && state.signatures.length > 0) {
+        state.activeSignature = state.signatures[0];
+    } else if (state.signatures.length === 0) {
+        state.activeSignature = null;
+    }
 }
 
 function makeAnnotationInteractive(marker, wrap, page, ann) {

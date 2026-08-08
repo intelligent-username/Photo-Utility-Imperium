@@ -87,6 +87,70 @@ def apply_text_annotations(page, annotations):
 
     return page
 
+def apply_signature_layer(page, layer):
+    """Overlays a signature image or text onto a PDF page using reportlab."""
+    if not layer:
+        return page
+
+    data_url = layer.get('dataUrl', '')
+    left_ratio = float(layer.get('leftRatio', 0.0))
+    top_ratio = float(layer.get('topRatio', 0.0))
+    width_ratio = float(layer.get('widthRatio', 0.3))
+    height_ratio = float(layer.get('heightRatio', 0.1))
+
+    width = float(page.mediabox.width)
+    height = float(page.mediabox.height)
+
+    x = left_ratio * width
+    w = width_ratio * width
+    h = height_ratio * height
+    y = (1.0 - top_ratio - height_ratio) * height  # Invert Y for PDF space
+
+    if data_url and ',' in data_url:
+        import base64
+        from reportlab.lib.utils import ImageReader
+
+        try:
+            header, encoded = data_url.split(',', 1)
+            img_data = base64.b64decode(encoded)
+            img_io = BytesIO(img_data)
+            img_reader = ImageReader(img_io)
+
+            packet = BytesIO()
+            can = canvas.Canvas(packet, pagesize=(width, height))
+            can.setFillColorRGB(1.0, 1.0, 1.0)
+            can.rect(x, y, w, h, fill=1, stroke=0)
+            can.drawImage(img_reader, x, y, width=w, height=h, mask='auto')
+            can.save()
+            packet.seek(0)
+
+            overlay_reader = PdfReader(packet)
+            if len(overlay_reader.pages) > 0:
+                page.merge_page(overlay_reader.pages[0])
+            return page
+        except Exception as e:
+            print(f"Error merging signature dataUrl: {e}")
+
+    # Text fallback
+    text = layer.get('text', '')
+    if text:
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=(width, height))
+        can.setFillColorRGB(1.0, 1.0, 1.0)
+        can.rect(x, y, w, h, fill=1, stroke=0)
+        color_hex = layer.get('color', '#000000')
+        font_size = max(10, int(h * 0.7))
+        can.setFillColor(HexColor(color_hex))
+        can.setFont("Helvetica-Bold", font_size)
+        can.drawString(x, y + (h * 0.2), text)
+        can.save()
+        packet.seek(0)
+        overlay_reader = PdfReader(packet)
+        if len(overlay_reader.pages) > 0:
+            page.merge_page(overlay_reader.pages[0])
+
+    return page
+
 def apply_crop_box(page, crop_box):
     """Applies a crop box to a PDF page using PyPDF2."""
     if not crop_box:
@@ -242,6 +306,8 @@ def process_pdf_edit_logic(readers, manifest):
                 page = apply_whiteouts(page, [layer])
             elif l_type == 'annotation':
                 page = apply_text_annotations(page, [layer])
+            elif l_type == 'signature':
+                page = apply_signature_layer(page, layer)
             elif l_type == 'overlay':
                 ov_file_idx = layer.get('fileIndex', 0)
                 ov_page_idx = layer.get('pageIndex', 0)
