@@ -1,0 +1,376 @@
+/* ===========================================
+   PDF Editor — Signature Modal & Layer Overlay
+   =========================================== */
+
+/* Modal Dialog */
+.pdf-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.pdf-modal-backdrop.hidden {
+    display: none !important;
+}
+
+.pdf-modal-dialog {
+    width: 460px;
+    max-width: 92vw;
+    background: var(--panel-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+}
+
+.pdf-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+}
+
+.pdf-modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.pdf-modal-close {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.3rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.pdf-modal-close:hover {
+    color: var(--text);
+}
+
+.pdf-modal-body {
+    padding: 18px;
+}
+
+.sig-text-input {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+}
+
+.sig-font-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.sig-font-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: left;
+}
+
+.sig-font-option:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sig-font-option.active {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.12);
+}
+
+.sig-font-option .font-name {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    margin-bottom: 4px;
+}
+
+.sig-font-preview {
+    font-size: 1.25rem;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.sig-color-palette {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sig-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform var(--transition), border-color var(--transition);
+}
+
+.sig-color-dot.active {
+    border-color: #ffffff;
+    transform: scale(1.15);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.sig-live-preview-box {
+    position: relative;
+    background: #ffffff;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.preview-tag {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #999;
+    letter-spacing: 0.05em;
+}
+
+.sig-live-preview-text {
+    font-size: 2.2rem;
+    line-height: 1;
+    text-align: center;
+    user-select: none;
+}
+
+.pdf-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-soft);
+}
+
+.placement-ghost {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    border: 1.5px dashed var(--primary);
+    background: rgba(255, 255, 255, 0.35);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    opacity: 0.75;
+}
+
+.placement-ghost-text {
+    white-space: nowrap;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-rect {
+    position: absolute;
+    border: 1.5px dashed var(--primary);
+    background: rgba(255, 255, 255, 0.4);
+    pointer-events: auto;
+    cursor: move;
+    z-index: 15;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.signature-rect:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(245, 185, 66, 0.5);
+}
+
+.signature-rect img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-rect-content {
+    font-size: 1.2rem;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-del-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+    display: none;
+}
+
+.signature-rect:hover .signature-del-btn {
+    display: inline-flex;
+}
+
+.signature-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+.grid-mode-signature .pdf-page-card {
+    cursor: crosshair !important;
+}
+
+.grid-mode-signature .pdf-page-card:hover {
+    border-color: var(--primary);
+}
+
+.grid-mode-date .pdf-page-card {
+    cursor: crosshair !important;
+}
+
+.grid-mode-date .pdf-page-card:hover {
+    border-color: var(--primary);
+}
+
+.ann-edit-box {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    z-index: 50;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.ann-box-controls {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 3px 6px;
+    z-index: 51;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+}
+
+.ann-popover-color {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.ann-popover-size {
+    height: 20px;
+    font-size: 0.75rem;
+    background: #2a2a2a;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 0 2px;
+    cursor: pointer;
+}
+
+.ann-edit-box .ann-input {
+    position: static;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    line-height: 1.1;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    resize: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
+    min-width: 2ch;
+}
+
+.ann-box-del-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+    border: 1px solid var(--bg-soft);
+    font-size: 0.65rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.ann-box-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}

@@ -72,11 +72,11 @@
     display: flex;
     align-items: stretch;
     gap: 16px;
+    width: 100%;
 }
 
 .comparison-row.vertical {
     flex-direction: column;
-    min-height: auto;
 }
 
 .comparison-pane {
@@ -89,6 +89,7 @@
 
 .comparison-row.vertical .comparison-pane {
     max-width: 100%;
+    min-width: 0;
 }
 
 .comparison-pane h4 {
@@ -146,11 +147,11 @@
 @media (max-width: 768px) {
     .comparison-row {
         flex-direction: column;
-        min-height: auto;
     }
 
     .comparison-pane {
         max-width: 100%;
+        min-width: 0;
     }
 
     .magnifier-lens {

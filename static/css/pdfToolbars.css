@@ -1,0 +1,294 @@
+/* ===========================================
+   PDF Editor — Toolbars & Sub-banners
+   =========================================== */
+
+/* Unified Top Toolbar */
+.pdf-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 14px;
+    height: 48px;
+    margin: 0;
+    background: var(--bg-soft);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.pdf-toolbar::-webkit-scrollbar {
+    height: 3px;
+}
+.pdf-toolbar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.pdf-toolbar .toolbar-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.pdf-toolbar .toolbar-group-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.pdf-toolbar .toolbar-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.pdf-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+}
+
+.pdf-toolbar-btn:hover {
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.pdf-toolbar-btn.active {
+    background: rgba(245, 185, 66, 0.12);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(245, 185, 66, 0.1);
+}
+
+/* Secondary Annotation Toolbar Sub-Banner */
+.pdf-annotation-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(18, 18, 18, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px;
+    margin: 0;
+    z-index: 20;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pdf-annotation-bar.hidden {
+    display: none !important;
+}
+
+.ann-bar-left,
+.ann-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ann-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.ann-tool-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ann-tool-btn.active {
+    background: rgba(245, 185, 66, 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(245, 185, 66, 0.15);
+}
+
+.ann-tool-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 2px;
+    padding: 2px 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: inherit;
+    transition: background 0.15s ease;
+}
+
+.ann-tool-caret:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ann-bar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+}
+
+.ann-color-picker-group,
+.ann-size-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ann-bar-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Color Palette Dots & Custom Swatch */
+.color-palette {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+}
+
+.color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+    outline: none;
+}
+
+.color-dot:hover {
+    transform: scale(1.25);
+}
+
+.color-dot.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+    transform: scale(1.15);
+}
+
+/* Custom Color Circle Picker */
+.custom-color-wrapper {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    transition: transform var(--transition);
+}
+
+.custom-color-wrapper:hover {
+    transform: scale(1.25);
+}
+
+.custom-color-input {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 40px;
+    height: 40px;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.custom-color-swatch {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #ff0000;
+    pointer-events: none;
+}
+
+/* Font Size Stepper Pill */
+.size-pill-control {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 4px;
+    overflow: hidden;
+}
+
+.size-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+    user-select: none;
+}
+
+.size-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--primary);
+}
+
+.size-input-field {
+    width: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-align: center;
+    font-family: var(--font-sans);
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.size-input-field::-webkit-inner-spin-button,
+.size-input-field::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}

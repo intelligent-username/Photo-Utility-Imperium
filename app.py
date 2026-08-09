@@ -9,8 +9,9 @@ import cv2
 import os
 import io
 
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic, convert_to_standard_pdf
+import base64
 import fitz
 import json
 from PyPDF2 import PdfReader
@@ -185,7 +186,7 @@ def process_image_conversion():
                     pdf_data = file_bytes
                 else:
                     img = Image.open(io.BytesIO(file_bytes))
-                    if img.mode in ("RGBA", "P"):
+                    if img.mode in ("RGBA", "P", "LA"):
                         img = img.convert("RGB")
                     processed_io = io.BytesIO()
                     img.save(processed_io, format='PDF')
@@ -208,12 +209,63 @@ def process_image_conversion():
             else:
                 img = Image.open(io.BytesIO(file_bytes))
 
-            processed_io = io.BytesIO()
-            if output_format in ('JPEG', 'JPG') and img.mode in ('RGBA', 'P'):
+            # Ensure color mode compatibility for output formats (EPS, JPEG, PPM, etc.)
+            if output_format in ('JPEG', 'JPG', 'EPS', 'PPM') and img.mode in ('RGBA', 'P', 'LA'):
                 img = img.convert('RGB')
-            img.save(processed_io, format=output_format)
+            elif output_format == 'EPS' and img.mode not in ('RGB', '1', 'L'):
+                img = img.convert('RGB')
+
+            processed_io = io.BytesIO()
+            if output_format in ('TIFF', 'TIF'):
+                img.save(processed_io, format='TIFF', compression='tiff_lzw')
+            else:
+                img.save(processed_io, format=output_format)
             processed_io.seek(0)
-            return send_file(processed_io, mimetype=f'image/{output_format.lower()}')
+
+            # Generate preview thumbnail for formats browsers cannot natively render
+            preview_b64 = None
+            if output_format in ('EPS', 'TIFF', 'TIF', 'PPM'):
+                try:
+                    p_img = img.copy()
+                    p_img.thumbnail((1200, 1200))
+                    if p_img.mode in ('RGBA', 'P', 'LA'):
+                        p_img = p_img.convert('RGB')
+                    p_io = io.BytesIO()
+                    p_img.save(p_io, format='JPEG', quality=85)
+                    preview_b64 = "data:image/jpeg;base64," + base64.b64encode(p_io.getvalue()).decode('utf-8')
+                except Exception as pe:
+                    print(f"Preview generation warning: {pe}")
+
+            mime_map = {
+                'EPS': 'application/postscript',
+                'TIFF': 'image/tiff',
+                'TIF': 'image/tiff',
+                'PPM': 'image/x-portable-pixmap',
+                'JPEG': 'image/jpeg',
+                'JPG': 'image/jpeg',
+                'PNG': 'image/png',
+                'WEBP': 'image/webp',
+                'GIF': 'image/gif',
+                'BMP': 'image/bmp'
+            }
+            mimetype = mime_map.get(output_format, f'image/{output_format.lower()}')
+
+            if request.form.get('return_json') == 'true' or preview_b64:
+                file_b64 = base64.b64encode(processed_io.getvalue()).decode('utf-8')
+                return jsonify({
+                    'success': True,
+                    'file_b64': file_b64,
+                    'preview_b64': preview_b64,
+                    'mimetype': mimetype,
+                    'filename': f'converted.{output_format.lower()}'
+                })
+
+            return send_file(
+                processed_io,
+                mimetype=mimetype,
+                as_attachment=True,
+                download_name=f'converted.{output_format.lower()}'
+            )
 
     except IOError:
         return 'Error: File format not supported or invalid image', 400

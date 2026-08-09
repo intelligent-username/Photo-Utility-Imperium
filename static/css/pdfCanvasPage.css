@@ -1,0 +1,521 @@
+/* ===========================================
+   PDF Editor — Page Grid, Canvas & Overlays
+   =========================================== */
+
+/* Page Grid */
+.pdf-page-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    align-content: start;
+    gap: 14px;
+    padding: 14px;
+    height: 580px;
+    overflow-y: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    box-sizing: border-box;
+    transition: all var(--transition);
+}
+
+.pdf-page-grid.small-view {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    padding: 14px;
+}
+
+.pdf-page-grid.large-view {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.pdf-page-grid.full-view {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 20px;
+}
+
+.pdf-page-grid.full-view .pdf-page-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.pdf-page-grid:empty::after {
+    content: 'Upload PDFs to see page previews here';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    grid-column: 1 / -1;
+    min-height: 180px;
+    text-align: center;
+}
+
+/* Page Card */
+.pdf-page-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg-soft);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+    cursor: grab;
+    user-select: none;
+    transition: border-color var(--transition), transform var(--transition), opacity 0.2s ease;
+}
+
+.pdf-page-card:hover {
+    border-color: rgba(245, 185, 66, 0.4);
+}
+
+.pdf-page-card:active {
+    cursor: grabbing;
+}
+
+.pdf-page-card.dragging {
+    opacity: 0.35;
+    transform: scale(0.96);
+}
+
+.pdf-page-card.drag-over {
+    border-color: var(--success);
+    background: rgba(74, 222, 128, 0.05);
+}
+
+.pdf-page-card.excluded {
+    opacity: 0.3;
+    border-color: var(--danger);
+}
+
+.pdf-page-card.excluded .page-canvas-wrap {
+    filter: grayscale(0.8);
+}
+
+.page-num {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--text);
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    z-index: 4;
+    pointer-events: none;
+}
+
+.page-source {
+    width: 100%;
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 4px 0;
+    margin-top: 2px;
+}
+
+.page-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 3px;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.pdf-page-card:hover .page-actions {
+    opacity: 1;
+}
+
+.page-action-btn {
+    background: rgba(0, 0, 0, 0.65);
+    border: none;
+    color: #ccc;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+.page-action-btn:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.page-action-btn.restore-btn:hover {
+    background: var(--success);
+}
+
+.page-canvas-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.page-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Crop overlay & Handles */
+.crop-rect {
+    position: absolute;
+    border: 2px dashed var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+    pointer-events: auto;
+    cursor: move;
+    z-index: 10;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+
+.crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--primary);
+    border: 1px solid #0b1220;
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.crop-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.crop-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.crop-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.crop-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.crop-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.crop-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.crop-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.crop-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
+.crop-apply-all-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--primary);
+    color: #0b1220;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    cursor: pointer;
+    z-index: 15;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    opacity: 0.9;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.crop-apply-all-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* Annotation Markers & Badges */
+.ann-marker {
+    position: absolute;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    background: transparent;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px dashed transparent;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pdf-page-grid.grid-mode-annotate .ann-marker:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.ann-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.8);
+    color: #fff;
+    border: none;
+    font-size: 0.65rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 2px;
+    opacity: 0.75;
+    transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.ann-marker:hover .ann-delete-btn {
+    opacity: 1;
+}
+
+.ann-delete-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+/* Overlay Layer Rect */
+.overlay-rect {
+    position: absolute;
+    border: none;
+    background: transparent;
+    pointer-events: none;
+    box-sizing: border-box;
+    border-radius: 2px;
+}
+
+.overlay-rect .overlay-rect-label,
+.overlay-rect .overlay-handle,
+.overlay-rect .overlay-del-btn {
+    display: none;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect {
+    border: 2px solid var(--accent);
+    background: rgba(192, 132, 252, 0.15);
+    pointer-events: auto;
+    cursor: move;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(192, 132, 252, 0.25);
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-rect-label,
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-handle {
+    display: block;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-del-btn {
+    display: inline-flex;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect:hover {
+    border-color: #e9d5ff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 10px rgba(192, 132, 252, 0.5);
+}
+
+.overlay-del-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 20;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+.overlay-rect-label {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.whiteout-rect-interactive {
+    position: absolute;
+    background: #ffffff;
+    pointer-events: auto;
+    z-index: 20;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.whiteout-rect-interactive:hover {
+    border: 1px dashed var(--primary);
+}
+
+.whiteout-rect-interactive .ann-delete-btn {
+    top: -6px;
+    right: -6px;
+    display: none;
+}
+
+.whiteout-rect-interactive:hover .ann-delete-btn {
+    display: inline-flex;
+}
+
+.overlay-handle {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: var(--accent);
+    border: 1px solid #0b1220;
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.overlay-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
+/* Whiteout Rects */
+.whiteout-rect {
+    position: absolute;
+    background: #ffffff;
+    border: none;
+    outline: none;
+    box-sizing: border-box;
+    pointer-events: none;
+    transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-rect {
+    pointer-events: auto;
+    cursor: move;
+    outline: 1px dashed var(--primary);
+    outline-offset: 0px;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-rect:hover {
+    outline: 1px dashed var(--danger);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
+}
+
+.whiteout-handle {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: #ffffff;
+    border: 1px solid var(--primary);
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    display: none;
+}
+
+.pdf-page-grid.grid-mode-whiteout .whiteout-handle {
+    pointer-events: auto;
+    display: block;
+}
+
+.whiteout-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.whiteout-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.whiteout-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.whiteout-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.whiteout-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.whiteout-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.whiteout-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.whiteout-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
+.add-blank-btn {
+    position: absolute;
+    bottom: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #0b1220;
+    font-weight: 700;
+    font-size: 0.8rem;
+    line-height: 1;
+    border: 1.5px solid var(--bg-soft);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    transition: transform var(--transition), background var(--transition);
+    padding: 0;
+}
+
+.add-blank-btn:hover {
+    background: var(--primary-2);
+    transform: scale(1.2);
+}
+
+.pdf-page-card.overlay-source {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.4);
+}
+
+.pdf-page-card.has-overlay {
+    border-color: var(--accent);
+}
+
+.pdf-page-grid.grid-mode-crop .pdf-page-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(245, 185, 66, 0.3);
+}
+
+.pdf-page-grid.grid-mode-overlay .pdf-page-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.3);
+}
+
+.pdf-page-grid.grid-mode-whiteout .pdf-page-card:hover {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.pdf-page-grid.grid-mode-annotate .pdf-page-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}

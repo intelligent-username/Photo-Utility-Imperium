@@ -99,9 +99,13 @@
 #image-preview,
 #result {
   margin-top: 16px;
-  padding: 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
+  height: fit-content;
+  align-self: flex-start;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .preview-header {
@@ -213,5 +217,6 @@ iframe {
   border: none;
   border-radius: var(--radius);
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: block;
 }

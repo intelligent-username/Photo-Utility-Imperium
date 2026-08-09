@@ -75,13 +75,16 @@ block bodytag %} data-page="FC" {% endblock %} {% block content %}
         <iframe id="preview-pdf" class="hidden"></iframe>
       </div>
 
-      <div id="result" class="comparison-pane">
-        <div class="preview-header">
-          <h4>Converted File:</h4>
-          <span id="converted-name" class="file-name-badge hidden"></span>
+      <div class="comparison-pane">
+        <div id="result">
+          <div class="preview-header">
+            <h4>Converted File:</h4>
+            <span id="converted-name" class="file-name-badge hidden"></span>
+          </div>
+          <img id="output" src="" alt="Converted Image" class="img-fluid hidden" />
+          <iframe id="output-pdf" class="hidden"></iframe>
         </div>
-        <img id="output" src="" alt="Converted Image" class="img-fluid hidden" />
-        <iframe id="output-pdf" class="hidden"></iframe>
+
         <a
           id="download-btn"
           href=""

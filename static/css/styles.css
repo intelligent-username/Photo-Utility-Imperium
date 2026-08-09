@@ -17,4 +17,7 @@
 @import url('comparison.css');
 @import url('layout.css');
 @import url('comparison-slider.css');
+@import url('pdfToolbars.css');
+@import url('pdfCanvasPage.css');
+@import url('pdfModals.css');
 @import url('pdfEditor.css');
