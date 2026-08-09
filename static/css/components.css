@@ -114,8 +114,10 @@ h3 {
 }
 
 #download-btn {
-    display: inline-block;
-    margin-top: 16px;
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 14px;
     background: linear-gradient(135deg, var(--success), #34d399);
     color: #041318;
     border: none;

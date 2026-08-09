@@ -105,7 +105,8 @@ export function initImageProcessing(options) {
         const isOutputPdf = result.ext && result.ext.toLowerCase() === 'pdf';
 
         if (isInputPdf && previewPdf) {
-            previewPdf.src = result.preview;
+            const pUrl = result.preview.includes('#') ? result.preview : result.preview + '#view=FitH';
+            previewPdf.src = pUrl;
             previewPdf.classList.remove('hidden');
             if (previewImage) previewImage.classList.add('hidden');
         } else if (previewImage) {
@@ -115,7 +116,8 @@ export function initImageProcessing(options) {
         }
 
         if (isOutputPdf && outputPdf) {
-            outputPdf.src = result.output;
+            const oUrl = result.output.includes('#') ? result.output : result.output + '#view=FitH';
+            outputPdf.src = oUrl;
             outputPdf.classList.remove('hidden');
             if (resultImage) resultImage.classList.add('hidden');
         } else if (resultImage) {
@@ -216,7 +218,7 @@ export function initImageProcessing(options) {
                 const isPdf = file.type === 'application/pdf';
                 const previewPdf = document.getElementById('preview-pdf');
                 if (isPdf && previewPdf) {
-                    previewPdf.src = previewDataUrl;
+                    previewPdf.src = previewDataUrl.includes('#') ? previewDataUrl : previewDataUrl + '#view=FitH';
                     previewPdf.classList.remove('hidden');
                     if (previewImage) previewImage.classList.add('hidden');
                 } else if (previewImage) {

@@ -70,8 +70,8 @@
 
 .comparison-row {
     display: flex;
+    align-items: stretch;
     gap: 16px;
-    min-height: 45vh;
 }
 
 .comparison-row.vertical {
