@@ -221,8 +221,8 @@ export function handleOverlayClick(page, card) {
                 type: 'overlay',
                 id: `ov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 sourceId: srcPage.id,
-                fileIdx: srcPage.fileIdx,
-                pageIdx: srcPage.pageIdx,
+                fileIndex: srcPage.fileIdx,
+                pageIndex: srcPage.pageIdx,
                 cropBox: srcPage.cropBox ? { ...srcPage.cropBox } : null,
                 dxRatio: 0,
                 dyRatio: 0,
@@ -232,6 +232,23 @@ export function handleOverlayClick(page, card) {
             page.layers.push(overlayLayer);
             card.classList.add('has-overlay');
             renderCardCanvas(page);
+
+            // Update overlay badge inline (avoids circular import with pdfCardBuilder)
+            let badge = card.querySelector('.overlay-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'overlay-badge';
+                card.appendChild(badge);
+            }
+            const srcIdx = state.pages.indexOf(srcPage) + 1;
+            badge.innerHTML = `Overlay: P${srcIdx} <button type="button" class="remove-overlay-btn" title="Remove overlay">&times;</button>`;
+            badge.querySelector('.remove-overlay-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeOverlay(page);
+                badge.remove();
+                card.classList.remove('has-overlay');
+            });
+
             updateStatusBar(`Overlay added to Page ${page.pageIdx + 1}`);
         }
         document.querySelectorAll('.overlay-source').forEach(el => el.classList.remove('overlay-source'));

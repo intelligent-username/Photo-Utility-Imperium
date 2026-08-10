@@ -301,8 +301,9 @@ def process_pdf_edit():
         manifest_raw = request.form.get('manifest', '[]')
         manifest = json.loads(manifest_raw)
 
-        readers = [PdfReader(f.stream) for f in files]
-        edited_writer = process_pdf_edit_logic(readers, manifest)
+        file_bytes_list = [f.read() for f in files]
+        readers = [PdfReader(io.BytesIO(b)) for b in file_bytes_list]
+        edited_writer = process_pdf_edit_logic(readers, manifest, file_bytes_list)
 
         output_io = io.BytesIO()
         edited_writer.write(output_io)

@@ -447,9 +447,10 @@ function setupColorSizeControls() {
         restoreBtn.addEventListener('click', () => {
             state.pages.forEach(p => {
                 p.excluded = false;
-                p.whiteouts = [];
+                p.layers = [];
                 p.cropBox = null;
-                p.overlays = [];
+                p._cacheCanvas = null;
+                p._cacheWidth = null;
                 const card = document.getElementById(p.id);
                 if (card) {
                     card.classList.remove('excluded', 'has-overlay', 'overlay-source');

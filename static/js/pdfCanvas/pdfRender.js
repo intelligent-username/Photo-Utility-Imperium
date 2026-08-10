@@ -78,8 +78,7 @@ export async function renderCardCanvas(page) {
                 ctx.fillRect(wx, wy, ww, wh);
             } else if (layer.type === 'overlay') {
                 const ovPageObj = state.pages.find(p => p.id === layer.sourceId) ||
-                                  state.pages.find(p => (p.fileIdx === layer.fileIdx || p.fileIdx === layer.fileIndex) &&
-                                                        (p.pageIdx === layer.pageIdx || p.pageIdx === layer.pageIndex));
+                                  state.pages.find(p => p.fileIdx === layer.fileIndex && p.pageIdx === layer.pageIndex);
                 if (ovPageObj) {
                     const ovCache = await getPageCanvasCache(ovPageObj, vpWidth);
                     if (ovCache) {
@@ -91,11 +90,11 @@ export async function renderCardCanvas(page) {
                         const scaleH = layer.scaleHeightRatio || 1.0;
 
                         if (layer.cropBox) {
-                            const cx = layer.cropBox.leftRatio * vpWidth;
-                            const cy = layer.cropBox.topRatio * vpHeight;
-                            const cw = layer.cropBox.widthRatio * vpWidth;
-                            const ch = layer.cropBox.heightRatio * vpHeight;
-                            ctx.drawImage(ovCache, cx, cy, cw, ch, dx, dy, cw * scaleW, ch * scaleH);
+                            const cx = layer.cropBox.leftRatio * ovCache.width;
+                            const cy = layer.cropBox.topRatio * ovCache.height;
+                            const cw = layer.cropBox.widthRatio * ovCache.width;
+                            const ch = layer.cropBox.heightRatio * ovCache.height;
+                            ctx.drawImage(ovCache, cx, cy, cw, ch, dx, dy, scaleW * vpWidth, scaleH * vpHeight);
                         } else {
                             ctx.drawImage(ovCache, 0, 0, ovCache.width, ovCache.height, dx, dy, vpWidth * scaleW, vpHeight * scaleH);
                         }

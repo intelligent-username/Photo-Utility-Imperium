@@ -1,6 +1,7 @@
 from PyPDF2 import PdfWriter, PdfReader, Transformation
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
+from reportlab.lib.utils import ImageReader
 from io import BytesIO
 import cv2
 from PIL import Image
@@ -269,7 +270,7 @@ def merge_pdfs(readers, num_blank_pages=0):
             add_blank_pages(writer, num_blank_pages)
     return writer
 
-def process_pdf_edit_logic(readers, manifest):
+def process_pdf_edit_logic(readers, manifest, file_bytes_list=None):
     """Process ordered list of pages with sequential layer stack (annotations, crops, overlays, whiteouts)."""
     writer = PdfWriter()
     current_page_size = (612.0, 792.0)  # Default standard Letter size (612x792 pt)
@@ -321,40 +322,51 @@ def process_pdf_edit_logic(readers, manifest):
             elif l_type == 'overlay':
                 ov_file_idx = layer.get('fileIndex', 0)
                 ov_page_idx = layer.get('pageIndex', 0)
-                if ov_file_idx < len(readers) and ov_page_idx < len(readers[ov_file_idx].pages):
-                    overlay_page = readers[ov_file_idx].pages[ov_page_idx]
+                if not (file_bytes_list and ov_file_idx < len(file_bytes_list)):
+                    continue
+                try:
+                    base_w = float(page.mediabox.width)
+                    base_h = float(page.mediabox.height)
+                    dest_x = float(layer.get('dxRatio', 0.0)) * base_w
+                    dest_y = float(layer.get('dyRatio', 0.0)) * base_h   # from top
+                    dest_w = float(layer.get('scaleWidthRatio', 1.0)) * base_w
+                    dest_h = float(layer.get('scaleHeightRatio', 1.0)) * base_h
 
-                    if 'cropBox' in layer and layer['cropBox']:
-                        overlay_page = apply_crop_box(overlay_page, layer['cropBox'])
+                    # 1. Render source page to pixels
+                    src_doc = fitz.open(stream=file_bytes_list[ov_file_idx], filetype="pdf")
+                    pix = src_doc[ov_page_idx].get_pixmap(matrix=fitz.Matrix(2, 2))
+                    src_doc.close()
+                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-                    # Process sub-layers on overlay page recursively
-                    sub_layers = layer.get('layers', [])
-                    for sub in sub_layers:
-                        s_type = sub.get('type')
-                        if s_type == 'whiteout':
-                            overlay_page = apply_whiteouts(overlay_page, [sub])
-                        elif s_type == 'annotation':
-                            overlay_page = apply_text_annotations(overlay_page, [sub])
+                    # 2. Crop (same ratios as frontend canvas drawImage source rect)
+                    cb = layer.get('cropBox')
+                    if cb:
+                        x0 = int(float(cb['leftRatio'])  * img.width)
+                        y0 = int(float(cb['topRatio'])   * img.height)
+                        x1 = x0 + int(float(cb['widthRatio'])  * img.width)
+                        y1 = y0 + int(float(cb['heightRatio']) * img.height)
+                        img = img.crop((x0, y0, x1, y1))
 
-                    dx_ratio = float(layer.get('dxRatio', 0.0))
-                    dy_ratio = float(layer.get('dyRatio', 0.0))
-                    scale_w = float(layer.get('scaleWidthRatio', 1.0))
-                    scale_h = float(layer.get('scaleHeightRatio', 1.0))
+                    # 3. Resize to destination pixel size
+                    dest_w_px = max(1, int(dest_w * 2))
+                    dest_h_px = max(1, int(dest_h * 2))
+                    img = img.resize((dest_w_px, dest_h_px), Image.LANCZOS)
 
-                    base_width = float(page.mediabox.width)
-                    base_height = float(page.mediabox.height)
-                    ov_width = float(overlay_page.mediabox.width)
-                    ov_height = float(overlay_page.mediabox.height)
-
-                    tx = dx_ratio * base_width
-                    ty = base_height - (dy_ratio * base_height) - (scale_h * ov_height)
-
-                    try:
-                        overlay_page.add_transformation(Transformation().scale(scale_w, scale_h).translate(tx, ty))
-                    except Exception as e:
-                        print(f"Overlay transformation failed: {e}")
-
-                    page.merge_page(overlay_page)
+                    # 4. Stamp onto page via reportlab (y flipped: reportlab origin = bottom-left)
+                    png_io = BytesIO()
+                    img.save(png_io, format='PNG')
+                    png_io.seek(0)
+                    rl_y = base_h - dest_y - dest_h
+                    packet = BytesIO()
+                    can = canvas.Canvas(packet, pagesize=(base_w, base_h))
+                    can.drawImage(ImageReader(png_io), dest_x, rl_y, width=dest_w, height=dest_h)
+                    can.save()
+                    packet.seek(0)
+                    stamp = PdfReader(packet)
+                    if stamp.pages:
+                        page.merge_page(stamp.pages[0])
+                except Exception as e:
+                    print(f"Overlay failed: {e}")
 
         writer.add_page(page)
 
