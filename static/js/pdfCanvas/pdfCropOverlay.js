@@ -233,6 +233,18 @@ export function handleOverlayClick(page, card) {
             card.classList.add('has-overlay');
             renderCardCanvas(page);
 
+            // Automatically hide/exclude the source page after overlaying it
+            srcPage.excluded = true;
+            const srcCard = document.getElementById(srcPage.id);
+            if (srcCard) {
+                srcCard.classList.add('excluded');
+                const srcDelBtn = srcCard.querySelector('.page-action-btn');
+                if (srcDelBtn) {
+                    srcDelBtn.title = 'Restore page';
+                    srcDelBtn.classList.add('restore-btn');
+                }
+            }
+
             // Update overlay badge inline (avoids circular import with pdfCardBuilder)
             let badge = card.querySelector('.overlay-badge');
             if (!badge) {

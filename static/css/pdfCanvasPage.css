@@ -130,12 +130,14 @@
     right: 4px;
     display: flex;
     gap: 3px;
-    z-index: 4;
+    z-index: 30;
     opacity: 0;
+    pointer-events: auto;
     transition: opacity 0.15s ease;
 }
 
-.pdf-page-card:hover .page-actions {
+.pdf-page-card:hover .page-actions,
+.pdf-page-card.excluded .page-actions {
     opacity: 1;
 }
 

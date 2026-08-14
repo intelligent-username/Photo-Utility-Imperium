@@ -513,6 +513,8 @@ export function buildCard(page) {
     card.id = page.id;
     card.draggable = (state.mode === 'select');
 
+    if (page.excluded) card.classList.add('excluded');
+
     const num = document.createElement('span');
     num.className = 'page-num';
     num.textContent = indexLabel(page);
@@ -522,9 +524,9 @@ export function buildCard(page) {
     actions.className = 'page-actions';
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'page-action-btn';
+    delBtn.className = 'page-action-btn' + (page.excluded ? ' restore-btn' : '');
     delBtn.innerHTML = '&times;';
-    delBtn.title = 'Exclude page';
+    delBtn.title = page.excluded ? 'Restore page' : 'Exclude page';
     delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         page.excluded = !page.excluded;
@@ -562,7 +564,7 @@ export function buildCard(page) {
 
     card.addEventListener('dragstart', (e) => {
         if (state.mode !== 'select') { e.preventDefault(); return; }
-        if (e.target.closest('.ann-marker, .signature-rect, .crop-rect, .ann-edit-box, .ann-delete-btn, .signature-del-btn')) {
+        if (e.target.closest('.ann-marker, .signature-rect, .crop-rect, .ann-edit-box, .ann-delete-btn, .signature-del-btn, .page-actions, .page-action-btn')) {
             e.preventDefault();
             return;
         }
