@@ -179,14 +179,12 @@
     position: fixed;
     z-index: 60;
     pointer-events: none;
-    border: 1px dashed rgba(245, 185, 66, 0.6);
     background: transparent;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: visible;
-    opacity: 0.85;
 }
 
 .placement-ghost-text {
@@ -198,7 +196,6 @@
 
 .signature-rect {
     position: absolute;
-    border: 1px dashed transparent;
     background: transparent;
     pointer-events: auto;
     cursor: move;
@@ -208,28 +205,44 @@
     align-items: center;
     justify-content: center;
     overflow: visible;
-    transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .signature-rect:active {
     cursor: grabbing;
 }
 
-.signature-rect:hover {
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(0, 0, 0, 0.2);
+.signature-rect.selected {
+    outline: 1.5px dashed var(--primary);
 }
 
-.signature-rect.selected {
-    border-color: var(--primary) !important;
-    border-style: solid !important;
-    box-shadow: 0 0 0 2px var(--primary), 0 0 12px rgba(245, 185, 66, 0.6) !important;
+.signature-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--primary);
+    border: 1px solid #000;
+    border-radius: 2px;
+    z-index: 20;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.15s ease;
 }
+
+.signature-rect:hover .signature-handle,
+.signature-rect.selected .signature-handle {
+    opacity: 1;
+}
+
+.signature-handle.handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.signature-handle.handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.signature-handle.handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.signature-handle.handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
 
 .signature-rect img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: fill;
     pointer-events: none;
     user-select: none;
 }

@@ -6,6 +6,35 @@
 @import url('pdfCanvasPage.css');
 @import url('pdfModals.css');
 
+/* PDF Toolbar Header Area (aligns horizontally with left title) */
+.pdf-toolbar-header-area {
+    margin-top: 10px;
+    margin-bottom: 16px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.pdf-toolbar-header-area .pdf-toolbar {
+    width: 100%;
+    height: 44px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.pdf-toolbar-header-area .pdf-annotation-bar {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* PDF Editor Unified Workspace Window */
 .pdf-editor-workspace {
     background: var(--panel);
@@ -15,7 +44,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-top: 10px;
+    height: 580px;
+    margin-top: 0;
+    box-sizing: border-box;
 }
 
 /* Result preview container */

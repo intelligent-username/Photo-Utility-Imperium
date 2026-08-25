@@ -94,16 +94,22 @@ export function initGhostPreview() {
         const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : 0.55;
 
         if (state.mode === 'signature' && state.activeSignature) {
-            const ghostW = canvasRect.width * 0.35;
-            const ghostH = canvasRect.height * 0.12;
+            const sig = state.activeSignature;
+            const targetH = 22 * canvasScale;
+            const aspect = sig.aspectRatio || (sig.naturalWidth && sig.naturalHeight ? sig.naturalWidth / sig.naturalHeight : 3.0);
+            const ghostW = Math.max(14, targetH * aspect);
+            const ghostH = Math.max(9, targetH);
+
             let left = e.clientX - ghostW / 2;
             let top = e.clientY - ghostH / 2;
             left = Math.max(canvasRect.left, Math.min(canvasRect.right - ghostW, left));
             top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - ghostH, top));
 
-            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (left - canvasRect.left) / (canvasRect.width || 1)));
-            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (top - canvasRect.top) / (canvasRect.height || 1)));
-            lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop };
+            const wRatio = Math.min(0.95, ghostW / (canvasRect.width || 1));
+            const hRatio = Math.min(0.5, ghostH / (canvasRect.height || 1));
+            const clickLeft = Math.max(0, Math.min(1.0 - wRatio, (left - canvasRect.left) / (canvasRect.width || 1)));
+            const clickTop = Math.max(0, Math.min(1.0 - hRatio, (top - canvasRect.top) / (canvasRect.height || 1)));
+            lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop, widthRatio: wRatio, heightRatio: hRatio };
 
             const ghost = getGhostEl();
             ghost.style.left = `${left}px`;
@@ -112,9 +118,9 @@ export function initGhostPreview() {
             ghost.style.height = `${ghostH}px`;
             ghost.style.display = 'flex';
 
-            ghost.innerHTML = state.activeSignature.dataUrl ?
-                `<img src="${state.activeSignature.dataUrl}" style="width:100%;height:100%;object-fit:contain;" />` :
-                `<span class="placement-ghost-text" style="font-family:'${state.activeSignature.fontFamily}',cursive;color:${state.activeSignature.color};">${state.activeSignature.text}</span>`;
+            ghost.innerHTML = sig.dataUrl ?
+                `<img src="${sig.dataUrl}" style="width:100%;height:100%;object-fit:contain;" />` :
+                `<span class="placement-ghost-text" style="font-family:'${sig.fontFamily}',cursive;color:${sig.color};">${sig.text}</span>`;
         } else if (state.mode === 'date') {
             const dateStr = formatDate(state.dateFormat);
             const fontSz = Math.max(9, (state.dateSize || 16) * canvasScale);
@@ -376,41 +382,154 @@ export function renderCardLayers(wrap, page) {
             });
             rect.appendChild(delBtn);
 
-            // Dragging for signature / date stamp rect
+            // Corner resize handles (aspect-ratio locked)
+            ['nw', 'ne', 'sw', 'se'].forEach(pos => {
+                const handle = document.createElement('div');
+                handle.className = `signature-handle handle-${pos}`;
+                handle.dataset.handle = pos;
+                rect.appendChild(handle);
+            });
+
+            // Dragging & Resizing for signature rect
             let isDragging = false;
+            let isResizing = false;
+            let activeHandle = null;
             let startX = 0, startY = 0;
             let initLR = layer.leftRatio, initTR = layer.topRatio;
+            let initWR = layer.widthRatio, initHR = layer.heightRatio;
+            let moved = false;
 
             rect.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('signature-del-btn')) return;
                 e.stopPropagation();
                 selectLayer(page, layer, rect);
                 if (card) card.draggable = false;
-                isDragging = true;
+
+                const handleEl = e.target.closest('.signature-handle');
                 const wRect = wrap.getBoundingClientRect();
                 startX = e.clientX;
                 startY = e.clientY;
                 initLR = layer.leftRatio;
                 initTR = layer.topRatio;
+                initWR = layer.widthRatio;
+                initHR = layer.heightRatio;
+                moved = false;
+
+                const baseAspect = (initWR * (wRect.width || 1)) / (initHR * (wRect.height || 1)) || 3.0;
+
+                if (handleEl) {
+                    isResizing = true;
+                    activeHandle = handleEl.dataset.handle;
+                } else {
+                    isDragging = true;
+                    activeHandle = null;
+                }
 
                 const onMove = (me) => {
-                    if (!isDragging) return;
-                    const dx = (me.clientX - startX) / (wRect.width || 1);
-                    const dy = (me.clientY - startY) / (wRect.height || 1);
-                    layer.leftRatio = Math.max(0, Math.min(1.0 - layer.widthRatio, initLR + dx));
-                    layer.topRatio = Math.max(0, Math.min(1.0 - layer.heightRatio, initTR + dy));
-                    rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
-                    rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
+                    const diffX = me.clientX - startX;
+                    const diffY = me.clientY - startY;
+                    if (Math.abs(diffX) > 2 || Math.abs(diffY) > 2) {
+                        moved = true;
+                    }
+                    if (!moved) return;
+
+                    const dx = diffX / (wRect.width || 1);
+                    const dy = diffY / (wRect.height || 1);
+
+                    if (isDragging) {
+                        layer.leftRatio = Math.max(0, Math.min(1.0 - layer.widthRatio, initLR + dx));
+                        layer.topRatio = Math.max(0, Math.min(1.0 - layer.heightRatio, initTR + dy));
+                        rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
+                        rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
+                    } else if (isResizing) {
+                        let newW = initWR;
+                        let newH = initHR;
+                        let newL = initLR;
+                        let newT = initTR;
+
+                        const pxW = wRect.width || 1;
+                        const pxH = wRect.height || 1;
+
+                        if (activeHandle === 'se') {
+                            const scaleX = (initWR * pxW + diffX) / (initWR * pxW || 1);
+                            const scaleY = (initHR * pxH + diffY) / (initHR * pxH || 1);
+                            const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
+                            newW = Math.max(0.04, Math.min(1.0 - initLR, initWR * scale));
+                            newH = (newW * pxW / baseAspect) / pxH;
+                            if (newT + newH > 1.0) {
+                                newH = 1.0 - newT;
+                                newW = (newH * pxH * baseAspect) / pxW;
+                            }
+                        } else if (activeHandle === 'sw') {
+                            const scaleX = (initWR * pxW - diffX) / (initWR * pxW || 1);
+                            const scaleY = (initHR * pxH + diffY) / (initHR * pxH || 1);
+                            const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
+                            newW = Math.max(0.04, Math.min(initLR + initWR, initWR * scale));
+                            newH = (newW * pxW / baseAspect) / pxH;
+                            newL = initLR + (initWR - newW);
+                            if (newT + newH > 1.0) {
+                                newH = 1.0 - newT;
+                                newW = (newH * pxH * baseAspect) / pxW;
+                                newL = initLR + (initWR - newW);
+                            }
+                        } else if (activeHandle === 'ne') {
+                            const scaleX = (initWR * pxW + diffX) / (initWR * pxW || 1);
+                            const scaleY = (initHR * pxH - diffY) / (initHR * pxH || 1);
+                            const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
+                            newW = Math.max(0.04, Math.min(1.0 - initLR, initWR * scale));
+                            newH = (newW * pxW / baseAspect) / pxH;
+                            newT = initTR + (initHR - newH);
+                            if (newT < 0) {
+                                newT = 0;
+                                newH = initTR + initHR;
+                                newW = (newH * pxH * baseAspect) / pxW;
+                            }
+                        } else if (activeHandle === 'nw') {
+                            const scaleX = (initWR * pxW - diffX) / (initWR * pxW || 1);
+                            const scaleY = (initHR * pxH - diffY) / (initHR * pxH || 1);
+                            const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
+                            newW = Math.max(0.04, Math.min(initLR + initWR, initWR * scale));
+                            newH = (newW * pxW / baseAspect) / pxH;
+                            newL = initLR + (initWR - newW);
+                            newT = initTR + (initHR - newH);
+                            if (newT < 0 || newL < 0) {
+                                if (newT < 0) {
+                                    newT = 0;
+                                    newH = initTR + initHR;
+                                    newW = (newH * pxH * baseAspect) / pxW;
+                                    newL = initLR + (initWR - newW);
+                                }
+                                if (newL < 0) {
+                                    newL = 0;
+                                    newW = initLR + initWR;
+                                    newH = (newW * pxW / baseAspect) / pxH;
+                                    newT = initTR + (initHR - newH);
+                                }
+                            }
+                        }
+
+                        layer.leftRatio = Math.max(0, newL);
+                        layer.topRatio = Math.max(0, newT);
+                        layer.widthRatio = newW;
+                        layer.heightRatio = newH;
+
+                        rect.style.left = `${(layer.leftRatio * 100).toFixed(2)}%`;
+                        rect.style.top = `${(layer.topRatio * 100).toFixed(2)}%`;
+                        rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
+                        rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
+                    }
                 };
 
                 const onUp = () => {
-                    if (!isDragging) return;
                     isDragging = false;
+                    isResizing = false;
                     const state = getState();
                     if (card) card.draggable = (state.mode === 'select');
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('mouseup', onUp);
-                    renderCardCanvas(page);
+                    if (moved) {
+                        renderCardCanvas(page);
+                    }
                 };
 
                 window.addEventListener('mousemove', onMove);
@@ -694,20 +813,33 @@ export function buildCard(page) {
             if (e.target.closest('.signature-rect')) return;
             e.stopPropagation();
             const rect = canvas.getBoundingClientRect();
-            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (e.clientX - rect.left) / (rect.width || 1)));
-            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (e.clientY - rect.top) / (rect.height || 1)));
+            const wrapRect = wrap.getBoundingClientRect();
+            const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : 0.55;
+            const sig = state.activeSignature;
+            const targetH = 22 * canvasScale;
+            const aspect = sig.aspectRatio || (sig.naturalWidth && sig.naturalHeight ? sig.naturalWidth / sig.naturalHeight : 3.0);
+            const sigW = Math.max(14, targetH * aspect);
+            const sigH = Math.max(9, targetH);
+
+            const wRatio = Math.min(0.95, sigW / (rect.width || 1));
+            const hRatio = Math.min(0.5, sigH / (rect.height || 1));
+
+            const clickX = e.clientX - rect.left - sigW / 2;
+            const clickY = e.clientY - rect.top - sigH / 2;
+            const clickLeft = Math.max(0, Math.min(1.0 - wRatio, clickX / (rect.width || 1)));
+            const clickTop = Math.max(0, Math.min(1.0 - hRatio, clickY / (rect.height || 1)));
 
             page.layers.push({
                 type: 'signature',
                 id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                text: state.activeSignature.text,
-                fontFamily: state.activeSignature.fontFamily,
-                color: state.activeSignature.color,
-                dataUrl: state.activeSignature.dataUrl,
+                text: sig.text,
+                fontFamily: sig.fontFamily,
+                color: sig.color,
+                dataUrl: sig.dataUrl,
                 leftRatio: clickLeft,
                 topRatio: clickTop,
-                widthRatio: 0.35,
-                heightRatio: 0.12
+                widthRatio: wRatio,
+                heightRatio: hRatio
             });
 
             renderCardCanvas(page);

@@ -21,25 +21,26 @@
 
   <!-- Right Side: Preview & Tools -->
   <div class="col-md-8">
-    <div class="pdf-editor-workspace">
+    <!-- Top Toolbars Header Area (aligned with PDF Editor Title) -->
+    <div class="pdf-toolbar-header-area">
       <!-- Primary Toolbar -->
       <div class="pdf-toolbar" id="pdf-toolbar">
         <div class="toolbar-group">
-          <button id="annotate-btn" class="pdf-toolbar-btn" title="Click a page to place text">
+          <button id="annotate-btn" class="pdf-toolbar-btn" data-tooltip="`A`&#10;Annotate (Text, Sign, Date)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 20h9"></path>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
             </svg>
             <span>Annotate</span>
           </button>
-          <button id="crop-btn" class="pdf-toolbar-btn" title="Drag on a page to set crop region">
+          <button id="crop-btn" class="pdf-toolbar-btn" data-tooltip="`C`&#10;Crop (Set crop region)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
               <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
             </svg>
             <span>Crop</span>
           </button>
-          <button id="overlay-btn" class="pdf-toolbar-btn" title="Click source page, then target page to overlay">
+          <button id="overlay-btn" class="pdf-toolbar-btn" data-tooltip="`O`&#10;Overlay (Merge pages)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
               <polyline points="2 17 12 22 22 17"></polyline>
@@ -56,7 +57,7 @@
         </div>
         <div class="toolbar-sep"></div>
         <div class="toolbar-group">
-          <button id="restore-all-btn" class="pdf-toolbar-btn" title="Restore all excluded pages">
+          <button id="restore-all-btn" class="pdf-toolbar-btn" data-tooltip="`R` `R` `R`&#10;Reset All (Restore pages)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1 4 1 10 7 10"></polyline>
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
@@ -65,14 +66,14 @@
           </button>
         </div>
         <div class="toolbar-group toolbar-group-right">
-          <button id="view-mode-btn" class="pdf-toolbar-btn active" title="Cycle view mode (Large / Full / Small)">Large View</button>
+          <button id="view-mode-btn" class="pdf-toolbar-btn active" data-tooltip="`V`&#10;Cycle view mode (Large / Full / Small)">Large View</button>
         </div>
       </div>
 
       <!-- DocHub-style Secondary Annotation Toolbar Sub-Banner -->
       <div id="pdf-annotation-bar" class="pdf-annotation-bar hidden">
         <div class="ann-bar-left">
-          <button class="ann-tool-btn active" id="ann-tool-cursor" data-tooltip="`Esc` `C`&#10;Cursor mode (Select &amp; Move)">
+          <button class="ann-tool-btn active" id="ann-tool-cursor" data-tooltip="`Esc`&#10;Cursor mode (Select &amp; Move)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
               <path d="M13 13l6 6"></path>
@@ -196,7 +197,10 @@
 
       <!-- Status bar -->
       <div id="pdf-status" class="pdf-status-bar"></div>
+    </div>
 
+    <!-- PDF Page Grid Preview Workspace (directly matches Upload Area) -->
+    <div class="pdf-editor-workspace">
       <!-- Canvas Page Grid -->
       <div id="pdf-page-grid" class="pdf-page-grid large-view"></div>
     </div>

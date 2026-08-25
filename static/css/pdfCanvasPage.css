@@ -9,7 +9,9 @@
     align-content: start;
     gap: 14px;
     padding: 14px;
-    height: 580px;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
     overflow-y: auto;
     background: transparent;
     border: none;

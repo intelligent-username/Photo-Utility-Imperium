@@ -106,6 +106,9 @@ export function setupToolbarControls() {
     if (annToolCursor) annToolCursor.addEventListener('click', () => selectAnnSubTool('cursor'));
     if (annToolText) annToolText.addEventListener('click', () => selectAnnSubTool('text'));
 
+    let rPressCount = 0;
+    let lastRPressTime = 0;
+
     document.addEventListener('keydown', (e) => {
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
         if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement.isContentEditable) {
@@ -113,6 +116,27 @@ export function setupToolbarControls() {
         }
 
         const key = e.key.toLowerCase();
+        if (key === 'r') {
+            const now = Date.now();
+            if (now - lastRPressTime < 800) {
+                rPressCount++;
+            } else {
+                rPressCount = 1;
+            }
+            lastRPressTime = now;
+
+            if (rPressCount >= 3) {
+                rPressCount = 0;
+                deselectAllLayers();
+                commitActivePlacement();
+                const restoreBtn = document.getElementById('restore-all-btn');
+                if (restoreBtn) restoreBtn.click();
+            }
+            return;
+        } else {
+            rPressCount = 0;
+        }
+
         if (key === 'delete' || key === 'backspace') {
             if (deleteSelectedLayer()) {
                 e.preventDefault();
@@ -126,18 +150,27 @@ export function setupToolbarControls() {
             } else {
                 clearModes();
             }
+        } else if (key === 'a') {
+            deselectAllLayers();
+            commitActivePlacement();
+            toggleMode(annotateBtn, 'annotate');
         } else if (key === 'c') {
             deselectAllLayers();
             commitActivePlacement();
-            if (annBar) annBar.classList.remove('hidden');
-            if (annotateBtn) {
-                if (cropBtn) cropBtn.classList.remove('active');
-                if (overlayBtn) overlayBtn.classList.remove('active');
-                if (whiteoutBtn) whiteoutBtn.classList.remove('active');
-                annotateBtn.classList.add('active');
-            }
-            selectAnnSubTool('cursor');
+            toggleMode(cropBtn, 'crop');
+        } else if (key === 'o') {
+            deselectAllLayers();
+            commitActivePlacement();
+            toggleMode(overlayBtn, 'overlay');
+        } else if (key === 'w') {
+            deselectAllLayers();
+            commitActivePlacement();
+            toggleMode(whiteoutBtn, 'whiteout');
+        } else if (key === 'v') {
+            const viewModeBtn = document.getElementById('view-mode-btn');
+            if (viewModeBtn) viewModeBtn.click();
         } else if (key === 't') {
+            deselectAllLayers();
             if (annBar) annBar.classList.remove('hidden');
             if (annotateBtn) {
                 if (cropBtn) cropBtn.classList.remove('active');
@@ -147,6 +180,7 @@ export function setupToolbarControls() {
             }
             selectAnnSubTool('text');
         } else if (key === 's') {
+            deselectAllLayers();
             if (annBar) annBar.classList.remove('hidden');
             if (annotateBtn) {
                 if (cropBtn) cropBtn.classList.remove('active');
@@ -156,6 +190,7 @@ export function setupToolbarControls() {
             }
             selectAnnSubTool('sign');
         } else if (key === 'd') {
+            deselectAllLayers();
             if (annBar) annBar.classList.remove('hidden');
             if (annotateBtn) {
                 if (cropBtn) cropBtn.classList.remove('active');
@@ -164,8 +199,6 @@ export function setupToolbarControls() {
                 annotateBtn.classList.add('active');
             }
             selectAnnSubTool('date');
-        } else if (key === 'w') {
-            toggleMode(whiteoutBtn, 'whiteout');
         }
     });
     if (annToolSign) {
