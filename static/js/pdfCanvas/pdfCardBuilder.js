@@ -79,49 +79,15 @@ export function initGhostPreview() {
 }
 
 export function commitActivePlacement() {
-    const state = getState();
-
-    // 1. If text edit box is active, trigger commit to finalize text annotation
+    // 1. If text edit box is active, trigger commit to finalize text annotation where it is
     const activeBox = document.querySelector('.ann-edit-box');
     if (activeBox && typeof activeBox._commit === 'function') {
         activeBox._commit();
     }
 
-    // 2. If signature / date stamp ghost preview is active, place stamp at last ghost placement
-    if ((state.mode === 'signature' || state.mode === 'date') && lastGhostPlacement && lastGhostPlacement.page) {
-        const { page, leftRatio, topRatio } = lastGhostPlacement;
-        if (state.mode === 'signature' && state.activeSignature) {
-            page.layers.push({
-                type: 'signature',
-                id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                text: state.activeSignature.text,
-                fontFamily: state.activeSignature.fontFamily,
-                color: state.activeSignature.color,
-                dataUrl: state.activeSignature.dataUrl,
-                leftRatio,
-                topRatio,
-                widthRatio: 0.35,
-                heightRatio: 0.12
-            });
-        } else if (state.mode === 'date') {
-            page.layers.push({
-                type: 'signature',
-                id: `date_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                text: formatDate(state.dateFormat),
-                fontFamily: state.dateFont,
-                color: state.dateColor,
-                bold: state.dateBold,
-                fontSize: state.dateSize,
-                leftRatio,
-                topRatio,
-                widthRatio: 0.35,
-                heightRatio: 0.12
-            });
-        }
-        hideGhost();
-        lastGhostPlacement = null;
-        renderCardCanvas(page);
-    }
+    // 2. In signature / date stamp mode, simply dismiss the ghost preview without placing a stamp
+    hideGhost();
+    lastGhostPlacement = null;
 }
 
 export function indexLabel(page) {

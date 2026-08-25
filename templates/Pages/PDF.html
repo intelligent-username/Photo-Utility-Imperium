@@ -47,7 +47,7 @@
             </svg>
             <span>Overlay</span>
           </button>
-          <button id="whiteout-btn" class="pdf-toolbar-btn" title="Drag on a page to cover content with solid white block">
+          <button id="whiteout-btn" class="pdf-toolbar-btn" data-tooltip="`W`&#10;Whiteout (Cover content)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             </svg>
@@ -72,14 +72,14 @@
       <!-- DocHub-style Secondary Annotation Toolbar Sub-Banner -->
       <div id="pdf-annotation-bar" class="pdf-annotation-bar hidden">
         <div class="ann-bar-left">
-          <button class="ann-tool-btn active" id="ann-tool-cursor" title="Cursor Mode (Select & Move)">
+          <button class="ann-tool-btn active" id="ann-tool-cursor" data-tooltip="`Esc` `C`&#10;Cursor mode (Select &amp; Move)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
               <path d="M13 13l6 6"></path>
             </svg>
             <span>Cursor</span>
           </button>
-          <button class="ann-tool-btn" id="ann-tool-text" title="Text Annotation">
+          <button class="ann-tool-btn" id="ann-tool-text" data-tooltip="`T`&#10;Text Annotation">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="4 7 4 4 20 4 20 7"></polyline>
               <line x1="9" y1="20" x2="15" y2="20"></line>
@@ -89,7 +89,7 @@
           </button>
           <!-- Sign Dropdown Menu inside Annotation Bar -->
           <div class="pdf-dropdown-wrapper" id="sign-dropdown-wrapper">
-            <button class="ann-tool-btn" id="ann-tool-sign" title="Signatures & stamps">
+            <button class="ann-tool-btn" id="ann-tool-sign" data-tooltip="`S`&#10;Signatures &amp; stamps">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
               </svg>
@@ -110,7 +110,7 @@
           </div>
           <!-- Date Stamp Dropdown Menu inside Annotation Bar -->
           <div class="pdf-dropdown-wrapper" id="date-dropdown-wrapper">
-            <button class="ann-tool-btn" id="ann-tool-date" title="Date stamp">
+            <button class="ann-tool-btn" id="ann-tool-date" data-tooltip="`D`&#10;Date stamp">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
