@@ -4,6 +4,7 @@
 
 import { getState } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
+import { snapshotPageLayers } from './pdfHistory.js';
 
 export function getContrastBgColor(hexColor) {
     let r = 0, g = 0, b = 0;
@@ -173,6 +174,9 @@ export function loadSavedSignatures() {
 
 export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null, options = {}) {
     const state = getState();
+    const isFormField = !!options.isFormField;
+    const sortedFields = options.sortedFields || null;
+    const fieldIndex = options.fieldIndex !== undefined ? options.fieldIndex : -1;
     wrap.querySelectorAll('.ann-edit-box, .ann-input').forEach(b => b.remove());
 
     if (existingMarker) {
@@ -180,7 +184,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     }
 
     const box = document.createElement('div');
-    box.className = 'ann-edit-box';
+    box.className = 'ann-edit-box' + (isFormField ? ' is-form-field' : '');
     const leftPct = (xR * 100).toFixed(1);
     box.style.left = `${leftPct}%`;
     box.style.top = `${(yR * 100).toFixed(1)}%`;
@@ -190,12 +194,13 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     input.className = 'ann-input';
     input.rows = 1;
     input.style.maxWidth = '100%';
-    let currentAnnColor = existingAnn ? (existingAnn.color || state.annColor) : (options.date ? state.dateColor : state.annColor);
-    let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : (options.date ? state.dateSize : state.annSize);
+    let currentAnnColor = existingAnn ? (existingAnn.color || (options.color || state.annColor)) : (options.color ? options.color : (options.date ? state.dateColor : state.annColor));
+    let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : (options.fontSize ? options.fontSize : (options.date ? state.dateSize : state.annSize));
     let currentAnnFont = existingAnn ? (existingAnn.fontFamily || 'inherit') : (options.date ? state.dateFont : 'inherit');
     let currentAnnBold = existingAnn ? (existingAnn.bold || false) : (options.date ? state.dateBold : false);
 
     const applyContrastTheme = (hexColor) => {
+        if (isFormField) return;
         const theme = getContrastBgColor(hexColor);
         box.style.background = theme.bg;
         box.style.borderColor = theme.border;
@@ -251,12 +256,14 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     });
 
-    controls.appendChild(colorPicker);
-    controls.appendChild(sizeSelect);
-    box.appendChild(controls);
+    if (!isFormField) {
+        controls.appendChild(colorPicker);
+        controls.appendChild(sizeSelect);
+        box.appendChild(controls);
+    }
 
-    input.placeholder = 'Text...';
-    input.value = existingAnn ? existingAnn.text : (options.date ? formatDate(state.dateFormat) : '');
+    input.placeholder = isFormField ? '' : 'Text...';
+    input.value = existingAnn ? existingAnn.text : (options.initialText !== undefined ? options.initialText : (options.date ? formatDate(state.dateFormat) : ''));
     input.style.color = currentAnnColor;
     if (currentAnnFont && currentAnnFont !== 'inherit') input.style.fontFamily = currentAnnFont;
     if (currentAnnBold) input.style.fontWeight = 'bold';
@@ -272,6 +279,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (committed) return;
         committed = true;
 
+        snapshotPageLayers(page);
         const text = input.value.trim();
         if (existingAnn) {
             if (!text) {
@@ -283,6 +291,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
                 existingAnn.fontSize = currentAnnSize;
                 if (currentAnnFont && currentAnnFont !== 'inherit') existingAnn.fontFamily = currentAnnFont;
                 existingAnn.bold = currentAnnBold;
+                if (isFormField) existingAnn.isFormField = true;
             }
         } else if (text) {
             const ann = {
@@ -296,13 +305,14 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             };
             if (currentAnnFont && currentAnnFont !== 'inherit') ann.fontFamily = currentAnnFont;
             ann.bold = currentAnnBold;
+            if (isFormField) ann.isFormField = true;
             page.layers.push(ann);
         }
         box.remove();
         renderCardCanvas(page);
     };
 
-    if (existingAnn) {
+    if (existingAnn && !isFormField) {
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'ann-box-del-btn';
@@ -352,14 +362,47 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     };
 
+    const navigateToField = (nextIndex) => {
+        if (!sortedFields || nextIndex < 0 || nextIndex >= sortedFields.length) return;
+        document.removeEventListener('pointerdown', onDocClick);
+        commit();
+        const nextField = sortedFields[nextIndex];
+        const nextExisting = page.layers.find(l =>
+            l.type === 'annotation' &&
+            Math.abs(l.xRatio - nextField.leftRatio) < 0.03 &&
+            Math.abs(l.yRatio - nextField.topRatio) < 0.03
+        );
+        if (nextExisting) {
+            openAnnotationInput(wrap, page, nextExisting.xRatio, nextExisting.yRatio, nextExisting, null, {
+                isFormField: true, fieldIndex: nextIndex, sortedFields
+            });
+        } else {
+            openAnnotationInput(wrap, page, nextField.leftRatio, nextField.topRatio, null, null, {
+                fontSize: nextField.inferredFontSize || 14,
+                color: '#000000',
+                isFormField: true,
+                fieldIndex: nextIndex,
+                sortedFields,
+                initialText: nextField.fieldValue || ''
+            });
+        }
+    };
+
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.removeEventListener('pointerdown', onDocClick);
             commit();
-        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '.' || e.key === '>')) {
+        } else if (e.key === 'Tab' && isFormField) {
+            e.preventDefault();
+            navigateToField(e.shiftKey ? fieldIndex - 1 : fieldIndex + 1);
+        } else if (e.key === 'Enter' && isFormField && !e.shiftKey) {
+            e.preventDefault();
+            document.removeEventListener('pointerdown', onDocClick);
+            commit();
+        } else if (!isFormField && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '.' || e.key === '>')) {
             e.preventDefault();
             setFontSize(currentAnnSize + 2);
-        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === ',' || e.key === '<')) {
+        } else if (!isFormField && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === ',' || e.key === '<')) {
             e.preventDefault();
             setFontSize(currentAnnSize - 2);
         }

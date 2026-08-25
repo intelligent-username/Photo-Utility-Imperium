@@ -4,6 +4,7 @@
 
 import { getState, updateStatusBar, updateModeBanner } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
+import { snapshotPageCrop, snapshotAllCrops, snapshotPageLayers, snapshotPageExcluded } from './pdfHistory.js';
 
 export function syncRectToPercentage(rect, page) {
     if (!page || !page.cropBox) return;
@@ -17,6 +18,7 @@ export function applyCropToAll(sourcePage) {
     if (!sourcePage.cropBox) return;
     const state = getState();
     const cropCopy = { ...sourcePage.cropBox };
+    snapshotAllCrops();
     state.pages.forEach(p => {
         p.cropBox = { ...cropCopy };
         renderCardCanvas(p);
@@ -49,6 +51,7 @@ export function addCropControls(rect, wrap, page) {
         const state = getState();
         if (state.mode !== 'crop') return;
         e.stopPropagation();
+        snapshotPageCrop(page);
         page.cropBox = null;
         rect.remove();
     });
@@ -65,6 +68,7 @@ export function makeCropInteractive(rect, wrap, page) {
         if (state.mode !== 'crop') return;
         if (e.target.classList.contains('crop-apply-all-btn')) return;
         e.stopPropagation();
+        snapshotPageCrop(page);  // snapshot before drag/resize
         const wrapRect = wrap.getBoundingClientRect();
         const handle = e.target.closest('.crop-handle')?.dataset.handle;
 
@@ -183,10 +187,12 @@ export function startCrop(e, wrap, page) {
 
         if (wPx < 15 || hPx < 15) {
             rect.remove();
+            snapshotPageCrop(page);
             page.cropBox = null;
             return;
         }
 
+        snapshotPageCrop(page);
         page.cropBox = {
             leftRatio: lPx / wrapW,
             topRatio: tPx / wrapH,
@@ -229,6 +235,8 @@ export function handleOverlayClick(page, card) {
                 scaleWidthRatio: srcPage.cropBox ? srcPage.cropBox.widthRatio : 1.0,
                 scaleHeightRatio: srcPage.cropBox ? srcPage.cropBox.heightRatio : 1.0,
             };
+            snapshotPageLayers(page);
+            snapshotPageExcluded(srcPage);
             page.layers.push(overlayLayer);
             card.classList.add('has-overlay');
             renderCardCanvas(page);
@@ -271,6 +279,7 @@ export function handleOverlayClick(page, card) {
 export function removeOverlay(targetPage) {
     const idx = targetPage.layers.findIndex(l => l.type === 'overlay');
     if (idx !== -1) {
+        snapshotPageLayers(targetPage);
         targetPage.layers.splice(idx, 1);
         renderCardCanvas(targetPage);
     }

@@ -12,7 +12,8 @@ import {
     renderCardCanvas,
     commitActivePlacement,
     deleteSelectedLayer,
-    deselectAllLayers
+    deselectAllLayers,
+    performUndo
 } from './pdfCanvas.js';
 
 export function setupToolbarControls() {
@@ -116,6 +117,11 @@ export function setupToolbarControls() {
         }
 
         const key = e.key.toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && key === 'z') {
+            e.preventDefault();
+            performUndo();
+            return;
+        }
         if (key === 'r') {
             const now = Date.now();
             if (now - lastRPressTime < 800) {

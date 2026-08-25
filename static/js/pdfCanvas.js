@@ -45,6 +45,8 @@ import {
     deselectAllLayers
 } from './pdfCanvas/pdfCardBuilder.js';
 
+import { performUndo as performUndoCore } from './pdfCanvas/pdfHistory.js';
+
 export {
     getState,
     createPageObject,
@@ -98,4 +100,8 @@ export function applyCropToAll(sourcePage) {
 
 export function removeOverlay(targetPage) {
     return removeOverlayCore(targetPage);
+}
+
+export function performUndo() {
+    return performUndoCore(syncGrid);
 }

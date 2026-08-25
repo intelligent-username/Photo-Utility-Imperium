@@ -6,6 +6,7 @@ import { getState, createPageObject } from './pdfState.js';
 import { openAnnotationInput, startWhiteout, formatDate } from './pdfAnnotations.js';
 import { startCrop, handleOverlayClick, removeOverlay } from './pdfCropOverlay.js';
 import { renderCardCanvas } from './pdfRender.js';
+import { snapshotPageLayers, snapshotPageExcluded, snapshotPagesOrder } from './pdfHistory.js';
 
 let ghostEl = null;
 export let lastGhostPlacement = null;
@@ -49,6 +50,7 @@ export function deleteSelectedLayer() {
     const { page, layer } = selectedLayerInfo;
     const idx = page.layers.indexOf(layer);
     if (idx !== -1) {
+        snapshotPageLayers(page);
         page.layers.splice(idx, 1);
         deselectAllLayers();
         renderCardCanvas(page);
@@ -196,6 +198,7 @@ export function insertBlankAfter(targetPage) {
         isBlank: true,
         aspectRatio: targetPage.aspectRatio || (792 / 612),
     });
+    snapshotPagesOrder();
     if (idx >= 0) {
         state.pages.splice(idx + 1, 0, newPage);
     } else {
@@ -217,7 +220,52 @@ export function syncGrid() {
 }
 
 export function renderCardLayers(wrap, page) {
-    wrap.querySelectorAll('.ann-marker, .overlay-rect, .signature-rect, .whiteout-rect-interactive').forEach(el => el.remove());
+    wrap.querySelectorAll('.ann-marker, .overlay-rect, .signature-rect, .whiteout-rect-interactive, .pdf-form-field').forEach(el => el.remove());
+
+    // Render interactive PDF form field detection boxes
+    if (page.formFields && page.formFields.length > 0) {
+        // Sort fields top-to-bottom, left-to-right for Tab navigation
+        const sortedFields = [...page.formFields].sort((a, b) => {
+            const rowDiff = a.topRatio - b.topRatio;
+            return Math.abs(rowDiff) > 0.01 ? rowDiff : a.leftRatio - b.leftRatio;
+        });
+
+        sortedFields.forEach((field, fieldIndex) => {
+            const fieldEl = document.createElement('div');
+            fieldEl.className = 'pdf-form-field';
+            fieldEl.style.left = `${(field.leftRatio * 100).toFixed(2)}%`;
+            fieldEl.style.top = `${(field.topRatio * 100).toFixed(2)}%`;
+            fieldEl.style.width = `${(field.widthRatio * 100).toFixed(2)}%`;
+            fieldEl.style.height = `${(field.heightRatio * 100).toFixed(2)}%`;
+            fieldEl.title = field.fieldName ? `Form Field: ${field.fieldName}` : 'Form Field (Click to write)';
+
+            fieldEl.addEventListener('click', (e) => {
+                const st = getState();
+                // In annotate mode, let the click pass through to place a text annotation
+                if (st.mode === 'annotate') return;
+                e.stopPropagation();
+                // If an annotation already exists at this field, open it for editing
+                const existing = page.layers.find(l => l.type === 'annotation' && Math.abs(l.xRatio - field.leftRatio) < 0.03 && Math.abs(l.yRatio - field.topRatio) < 0.03);
+                if (existing) {
+                    openAnnotationInput(wrap, page, existing.xRatio, existing.yRatio, existing, null, {
+                        isFormField: true, fieldIndex, sortedFields
+                    });
+                } else {
+                    const inferredSize = field.inferredFontSize || 14;
+                    openAnnotationInput(wrap, page, field.leftRatio, field.topRatio, null, null, {
+                        fontSize: inferredSize,
+                        color: '#000000',
+                        isFormField: true,
+                        fieldIndex,
+                        sortedFields,
+                        initialText: field.fieldValue || ''
+                    });
+                }
+            });
+
+            wrap.appendChild(fieldEl);
+        });
+    }
 
     if (!page.layers || page.layers.length === 0) return;
     const wrapRect = wrap.getBoundingClientRect();
@@ -229,6 +277,7 @@ export function renderCardLayers(wrap, page) {
         if (layer.type === 'annotation') {
             const marker = document.createElement('div');
             marker.className = 'ann-marker';
+            if (layer.isFormField) marker.classList.add('is-form-field');
             marker.style.left = `${(layer.xRatio * 100).toFixed(1)}%`;
             marker.style.top = `${(layer.yRatio * 100).toFixed(1)}%`;
 
@@ -240,18 +289,23 @@ export function renderCardLayers(wrap, page) {
 
             marker.textContent = layer.text;
 
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'ann-delete-btn';
-            delBtn.innerHTML = '&times;';
-            delBtn.title = 'Delete annotation';
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = page.layers.indexOf(layer);
-                if (idx !== -1) page.layers.splice(idx, 1);
-                renderCardCanvas(page);
-            });
-            marker.appendChild(delBtn);
+            if (!layer.isFormField) {
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'ann-delete-btn';
+                delBtn.innerHTML = '&times;';
+                delBtn.title = 'Delete annotation';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = page.layers.indexOf(layer);
+                    if (idx !== -1) {
+                        snapshotPageLayers(page);
+                        page.layers.splice(idx, 1);
+                    }
+                    renderCardCanvas(page);
+                });
+                marker.appendChild(delBtn);
+            }
 
             if (selectedLayerInfo && selectedLayerInfo.layer === layer) {
                 marker.classList.add('selected');
@@ -292,6 +346,7 @@ export function renderCardLayers(wrap, page) {
                 if (card) card.draggable = false;
                 isDragging = true;
                 moved = false;
+                snapshotPageLayers(page);  // snapshot before drag
                 const wRect = wrap.getBoundingClientRect();
                 startX = e.clientX;
                 startY = e.clientY;
@@ -323,6 +378,8 @@ export function renderCardLayers(wrap, page) {
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('mouseup', onUp);
                     if (moved) {
+                        // snapshot was taken at mousedown with initXR/initYR — restore via snapshotting the pre-drag state
+                        // We snapshot at mousedown instead; here we just render
                         renderCardCanvas(page);
                     }
                 };
@@ -377,7 +434,10 @@ export function renderCardLayers(wrap, page) {
             delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = page.layers.indexOf(layer);
-                if (idx !== -1) page.layers.splice(idx, 1);
+                if (idx !== -1) {
+                    snapshotPageLayers(page);
+                    page.layers.splice(idx, 1);
+                }
                 renderCardCanvas(page);
             });
             rect.appendChild(delBtn);
@@ -404,6 +464,7 @@ export function renderCardLayers(wrap, page) {
                 e.stopPropagation();
                 selectLayer(page, layer, rect);
                 if (card) card.draggable = false;
+                snapshotPageLayers(page);  // snapshot before drag/resize
 
                 const handleEl = e.target.closest('.signature-handle');
                 const wRect = wrap.getBoundingClientRect();
@@ -566,7 +627,10 @@ export function renderCardLayers(wrap, page) {
             delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = page.layers.indexOf(layer);
-                if (idx !== -1) page.layers.splice(idx, 1);
+                if (idx !== -1) {
+                    snapshotPageLayers(page);
+                    page.layers.splice(idx, 1);
+                }
                 renderCardCanvas(page);
                 // Remove badge
                 if (card) {
@@ -593,6 +657,7 @@ export function renderCardLayers(wrap, page) {
                 const handle = e.target.closest('.overlay-handle')?.dataset.handle;
                 e.stopPropagation();
                 if (card) card.draggable = false;
+                snapshotPageLayers(page);  // snapshot before overlay drag/resize
 
                 const wRect = wrap.getBoundingClientRect();
                 const startX = e.clientX, startY = e.clientY;
@@ -725,6 +790,7 @@ export function buildCard(page) {
     delBtn.title = page.excluded ? 'Restore page' : 'Exclude page';
     delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        snapshotPageExcluded(page);
         page.excluded = !page.excluded;
         card.classList.toggle('excluded', page.excluded);
         delBtn.title = page.excluded ? 'Restore page' : 'Exclude page';
@@ -786,6 +852,7 @@ export function buildCard(page) {
         const fromIdx = state.pages.findIndex(p => p.id === fromId);
         const toIdx = state.pages.findIndex(p => p.id === page.id);
         if (fromIdx < 0 || toIdx < 0) return;
+        snapshotPagesOrder();
         const [moved] = state.pages.splice(fromIdx, 1);
         state.pages.splice(toIdx, 0, moved);
         syncGrid();
@@ -829,6 +896,7 @@ export function buildCard(page) {
             const clickLeft = Math.max(0, Math.min(1.0 - wRatio, clickX / (rect.width || 1)));
             const clickTop = Math.max(0, Math.min(1.0 - hRatio, clickY / (rect.height || 1)));
 
+            snapshotPageLayers(page);
             page.layers.push({
                 type: 'signature',
                 id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -862,6 +930,7 @@ export function buildCard(page) {
                 bold: state.dateBold
             };
 
+            snapshotPageLayers(page);
             page.layers.push(ann);
             renderCardCanvas(page);
         }

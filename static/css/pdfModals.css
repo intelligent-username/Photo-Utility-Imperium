@@ -316,6 +316,13 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
 }
 
+.ann-edit-box.is-form-field {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
 .ann-box-controls {
     position: absolute;
     bottom: calc(100% + 5px);

@@ -146,11 +146,53 @@ export async function loadFiles(fileList) {
 
             for (let p = 0; p < pdf.numPages; p++) {
                 const pdfPage = await pdf.getPage(p + 1);
+                let formFields = [];
+                try {
+                    const annots = await pdfPage.getAnnotations({ intent: 'display' });
+                    const vp = pdfPage.getViewport({ scale: 1.0 });
+                    formFields = (annots || []).filter(a => a.subtype === 'Widget' || a.fieldType || a.fieldName).map(a => {
+                        // PDF rect: [x1, y1, x2, y2] from bottom-left
+                        const [x1, y1, x2, y2] = a.rect || [0, 0, 0, 0];
+                        const left = Math.min(x1, x2);
+                        const right = Math.max(x1, x2);
+                        const bottom = Math.min(y1, y2);
+                        const top = Math.max(y1, y2);
+
+                        const width = right - left;
+                        const height = top - bottom;
+
+                        // Invert Y to top-left ratios
+                        const leftRatio = Math.max(0, left / vp.width);
+                        const topRatio = Math.max(0, (vp.height - top) / vp.height);
+                        const widthRatio = Math.min(1.0, width / vp.width);
+                        const heightRatio = Math.min(1.0, height / vp.height);
+
+                        // Infer sensible font size from field height
+                        const inferredFontSize = Math.max(10, Math.min(36, Math.round(height * 0.70)));
+
+                        return {
+                            id: a.id || `fld_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                            fieldName: a.fieldName || a.alternativeText || '',
+                            fieldType: a.fieldType || 'Tx',
+                            fieldValue: a.fieldValue || '',
+                            readOnly: a.readOnly || false,
+                            leftRatio,
+                            topRatio,
+                            widthRatio,
+                            heightRatio,
+                            inferredFontSize
+                        };
+                    });
+                } catch (annotErr) {
+                    console.warn('Could not extract PDF annotations:', annotErr);
+                }
+
                 const page = createPageObject({
                     fileIdx,
                     pageIdx: p,
                     fileName: file.name,
                     _pdfPage: pdfPage,
+                    formFields
                 });
                 state.pages.push(page);
                 const card = buildCard(page);

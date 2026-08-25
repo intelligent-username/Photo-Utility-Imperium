@@ -18,6 +18,7 @@ const state = {
     dateFormat: 'words-short',
     dateColor: '#000000',
     dateSize: 16,
+    undoStack: [],   // { type, pageId?, snapshot } — max MAX_UNDO entries
 };
 
 export function getState() { return state; }
@@ -63,6 +64,7 @@ export function createPageObject(config) {
         isBlank: config.isBlank || false,
         aspectRatio: config.aspectRatio,
         _pdfPage: config._pdfPage || null,
+        formFields: config.formFields || [],
         layers,
     };
 
@@ -115,6 +117,7 @@ export function resetState() {
     state.mode = 'select';
     state.overlaySource = null;
     state.activeSignature = null;
+    state.undoStack = [];
     const grid = document.getElementById('pdf-page-grid');
     if (grid) grid.innerHTML = '';
     updateStatusBar('');
