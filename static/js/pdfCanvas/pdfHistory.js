@@ -1,5 +1,5 @@
 // ===========================================
-//  pdfHistory.js — In-memory undo stack
+//  pdfHistory.js — In-memory undo / redo stacks
 // ===========================================
 
 import { getState } from './pdfState.js';
@@ -7,76 +7,52 @@ import { renderCardCanvas } from './pdfRender.js';
 
 export const MAX_UNDO = 50;
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 function cloneLayers(layers) {
     return layers.map(l => ({ ...l }));
 }
 
-function pushEntry(entry) {
+/**
+ * Take a "forward" snapshot of the current state for the given entry type.
+ * Used by performUndo to save what it's about to overwrite onto the redoStack,
+ * and by performRedo to save what it's about to overwrite back onto the undoStack.
+ */
+function currentSnapshot(state, entry) {
+    if (entry.type === 'page_layers') {
+        const page = state.pages.find(p => p.id === entry.pageId);
+        return page ? { ...entry, snapshot: cloneLayers(page.layers) } : null;
+    }
+    if (entry.type === 'page_crop') {
+        const page = state.pages.find(p => p.id === entry.pageId);
+        return page ? { ...entry, snapshot: page.cropBox ? { ...page.cropBox } : null } : null;
+    }
+    if (entry.type === 'all_crops') {
+        return { ...entry, snapshot: state.pages.map(p => ({ id: p.id, cropBox: p.cropBox ? { ...p.cropBox } : null })) };
+    }
+    if (entry.type === 'pages_order') {
+        return { ...entry, snapshot: state.pages.map(p => ({ id: p.id, excluded: p.excluded })) };
+    }
+    if (entry.type === 'page_excluded') {
+        const page = state.pages.find(p => p.id === entry.pageId);
+        return page ? { ...entry, snapshot: page.excluded } : null;
+    }
+    return null;
+}
+
+function pushUndo(entry) {
     const state = getState();
+    // Any new action clears the redo stack
+    state.redoStack = [];
     state.undoStack.push(entry);
     if (state.undoStack.length > MAX_UNDO) {
         state.undoStack.shift();
     }
 }
 
-/** Call BEFORE mutating page.layers */
-export function snapshotPageLayers(page) {
-    pushEntry({
-        type: 'page_layers',
-        pageId: page.id,
-        snapshot: cloneLayers(page.layers),
-    });
-}
+// ─── Apply an entry's snapshot to state ──────────────────────────────────────
 
-/** Call BEFORE mutating page.cropBox */
-export function snapshotPageCrop(page) {
-    pushEntry({
-        type: 'page_crop',
-        pageId: page.id,
-        snapshot: page.cropBox ? { ...page.cropBox } : null,
-    });
-}
-
-/** Call BEFORE calling applyCropToAll */
-export function snapshotAllCrops() {
-    const state = getState();
-    pushEntry({
-        type: 'all_crops',
-        snapshot: state.pages.map(p => ({ id: p.id, cropBox: p.cropBox ? { ...p.cropBox } : null })),
-    });
-}
-
-/** Call BEFORE mutating pages order (reorder, insert blank, etc.) */
-export function snapshotPagesOrder() {
-    const state = getState();
-    pushEntry({
-        type: 'pages_order',
-        snapshot: state.pages.map(p => ({
-            id: p.id,
-            excluded: p.excluded,
-        })),
-    });
-}
-
-/** Call BEFORE toggling page.excluded */
-export function snapshotPageExcluded(page) {
-    pushEntry({
-        type: 'page_excluded',
-        pageId: page.id,
-        snapshot: page.excluded,
-    });
-}
-
-/**
- * Pop and restore the top undo entry.
- * @param {Function} syncGridCb — syncGrid() from pdfCardBuilder (passed to avoid circular import)
- */
-export function performUndo(syncGridCb) {
-    const state = getState();
-    if (state.undoStack.length === 0) return;
-
-    const entry = state.undoStack.pop();
-
+function applyEntry(state, entry, syncGridCb) {
     if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         if (!page) return;
@@ -123,4 +99,75 @@ export function performUndo(syncGridCb) {
             }
         }
     }
+}
+
+// ─── Snapshot APIs ──────────────────────────────────────────────────────────
+
+/** Call BEFORE mutating page.layers */
+export function snapshotPageLayers(page) {
+    pushUndo({ type: 'page_layers', pageId: page.id, snapshot: cloneLayers(page.layers) });
+}
+
+/** Call BEFORE mutating page.cropBox */
+export function snapshotPageCrop(page) {
+    pushUndo({ type: 'page_crop', pageId: page.id, snapshot: page.cropBox ? { ...page.cropBox } : null });
+}
+
+/** Call BEFORE calling applyCropToAll */
+export function snapshotAllCrops() {
+    const state = getState();
+    pushUndo({
+        type: 'all_crops',
+        snapshot: state.pages.map(p => ({ id: p.id, cropBox: p.cropBox ? { ...p.cropBox } : null })),
+    });
+}
+
+/** Call BEFORE mutating pages order (reorder, insert blank, etc.) */
+export function snapshotPagesOrder() {
+    const state = getState();
+    pushUndo({
+        type: 'pages_order',
+        snapshot: state.pages.map(p => ({ id: p.id, excluded: p.excluded })),
+    });
+}
+
+/** Call BEFORE toggling page.excluded */
+export function snapshotPageExcluded(page) {
+    pushUndo({ type: 'page_excluded', pageId: page.id, snapshot: page.excluded });
+}
+
+// ─── Undo / Redo ────────────────────────────────────────────────────────────
+
+/** Ctrl+Z: undo last action */
+export function performUndo(syncGridCb) {
+    const state = getState();
+    if (state.undoStack.length === 0) return;
+
+    const entry = state.undoStack.pop();
+
+    // Save current state to redoStack so we can redo
+    const forward = currentSnapshot(state, entry);
+    if (forward) {
+        state.redoStack.push(forward);
+        if (state.redoStack.length > MAX_UNDO) state.redoStack.shift();
+    }
+
+    applyEntry(state, entry, syncGridCb);
+}
+
+/** Ctrl+Y: redo last undone action */
+export function performRedo(syncGridCb) {
+    const state = getState();
+    if (state.redoStack.length === 0) return;
+
+    const entry = state.redoStack.pop();
+
+    // Save current state back to undoStack (without clearing redoStack this time)
+    const backward = currentSnapshot(state, entry);
+    if (backward) {
+        state.undoStack.push(backward);
+        if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+    }
+
+    applyEntry(state, entry, syncGridCb);
 }

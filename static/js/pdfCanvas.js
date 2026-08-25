@@ -45,7 +45,7 @@ import {
     deselectAllLayers
 } from './pdfCanvas/pdfCardBuilder.js';
 
-import { performUndo as performUndoCore } from './pdfCanvas/pdfHistory.js';
+import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
 
 export {
     getState,
@@ -104,4 +104,8 @@ export function removeOverlay(targetPage) {
 
 export function performUndo() {
     return performUndoCore(syncGrid);
+}
+
+export function performRedo() {
+    return performRedoCore(syncGrid);
 }

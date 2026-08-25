@@ -13,7 +13,8 @@ import {
     commitActivePlacement,
     deleteSelectedLayer,
     deselectAllLayers,
-    performUndo
+    performUndo,
+    performRedo
 } from './pdfCanvas.js';
 
 export function setupToolbarControls() {
@@ -120,6 +121,11 @@ export function setupToolbarControls() {
         if ((e.ctrlKey || e.metaKey) && key === 'z') {
             e.preventDefault();
             performUndo();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && key === 'y') {
+            e.preventDefault();
+            performRedo();
             return;
         }
         if (key === 'r') {

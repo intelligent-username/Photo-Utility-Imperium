@@ -247,7 +247,15 @@ export function renderCardLayers(wrap, page) {
                 // If an annotation already exists at this field, open it for editing
                 const existing = page.layers.find(l => l.type === 'annotation' && Math.abs(l.xRatio - field.leftRatio) < 0.03 && Math.abs(l.yRatio - field.topRatio) < 0.03);
                 if (existing) {
-                    openAnnotationInput(wrap, page, existing.xRatio, existing.yRatio, existing, null, {
+                    // Find the DOM marker for this annotation so it can be hidden during editing
+                    const existingMarker = wrap.querySelector(`.ann-marker.is-form-field`) &&
+                        [...wrap.querySelectorAll('.ann-marker')].find(el => {
+                            const elLeft = parseFloat(el.style.left);
+                            const elTop = parseFloat(el.style.top);
+                            return Math.abs(elLeft - existing.xRatio * 100) < 2 &&
+                                   Math.abs(elTop - existing.yRatio * 100) < 2;
+                        }) || null;
+                    openAnnotationInput(wrap, page, existing.xRatio, existing.yRatio, existing, existingMarker, {
                         isFormField: true, fieldIndex, sortedFields
                     });
                 } else {

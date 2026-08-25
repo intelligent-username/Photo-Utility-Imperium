@@ -19,6 +19,7 @@ const state = {
     dateColor: '#000000',
     dateSize: 16,
     undoStack: [],   // { type, pageId?, snapshot } — max MAX_UNDO entries
+    redoStack: [],   // mirror of undoStack for Ctrl+Y redo
 };
 
 export function getState() { return state; }
@@ -118,6 +119,7 @@ export function resetState() {
     state.overlaySource = null;
     state.activeSignature = null;
     state.undoStack = [];
+    state.redoStack = [];
     const grid = document.getElementById('pdf-page-grid');
     if (grid) grid.innerHTML = '';
     updateStatusBar('');

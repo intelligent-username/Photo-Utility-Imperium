@@ -280,9 +280,12 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         committed = true;
 
         snapshotPageLayers(page);
-        const text = input.value.trim();
+        // Form fields preserve spacing (leading/trailing spaces are intentional positioning).
+        // Regular annotations trim whitespace.
+        const text = isFormField ? input.value : input.value.trim();
+        const isEmpty = isFormField ? (text.length === 0) : !text;
         if (existingAnn) {
-            if (!text) {
+            if (isEmpty) {
                 const idx = page.layers.indexOf(existingAnn);
                 if (idx !== -1) page.layers.splice(idx, 1);
             } else {
@@ -293,7 +296,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
                 existingAnn.bold = currentAnnBold;
                 if (isFormField) existingAnn.isFormField = true;
             }
-        } else if (text) {
+        } else if (!isEmpty) {
             const ann = {
                 type: 'annotation',
                 id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
