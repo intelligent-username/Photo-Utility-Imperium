@@ -172,11 +172,151 @@ export function loadSavedSignatures() {
     return state.signatures;
 }
 
+export function getFormFieldMetrics(field, page) {
+    const pdfPageHeight = 612 * ((page && page.aspectRatio) || (792 / 612));
+    const fieldHeightPt = (field.heightRatio || 0.03) * pdfPageHeight;
+
+    // Dynamically infer font size from field height in PDF points
+    const calculatedFontSize = Math.max(8, Math.min(48, Math.round(fieldHeightPt * 0.70)));
+    const fontSize = field.inferredFontSize || calculatedFontSize;
+
+    // Vertical centering offset inside the field box
+    const fontHeightRatio = (fontSize * 1.15) / pdfPageHeight;
+    const topOffsetRatio = Math.max(0, ((field.heightRatio || 0.03) - fontHeightRatio) / 2);
+
+    // Horizontal inset from the left border
+    const leftInsetRatio = Math.min(0.005, (field.widthRatio || 0.1) * 0.04);
+
+    return {
+        fontSize,
+        xRatio: field.leftRatio + leftInsetRatio,
+        yRatio: field.topRatio + topOffsetRatio
+    };
+}
+
+export function getSortedFormFields(page) {
+    if (!page || !page.formFields || page.formFields.length === 0) return [];
+
+    const fields = [...page.formFields];
+    if (fields.length === 1) return fields;
+
+    // 1. Sort all fields by topRatio first, then leftRatio
+    fields.sort((a, b) => (a.topRatio - b.topRatio) || (a.leftRatio - b.leftRatio));
+
+    // 2. Cluster fields into distinct horizontal rows
+    const rows = [];
+
+    fields.forEach(field => {
+        const fLeft = field.leftRatio;
+        const fWidth = field.widthRatio || 0.05;
+        const fRight = fLeft + fWidth;
+        const fTop = field.topRatio;
+        const fHeight = field.heightRatio || 0.03;
+        const fBottom = fTop + fHeight;
+        const fCenterY = fTop + fHeight / 2;
+
+        let matchedRow = null;
+
+        for (const row of rows) {
+            // Rule A: Two fields in the same row CANNOT horizontally overlap significantly
+            let hasHorizOverlap = false;
+            for (const existing of row.fields) {
+                const eLeft = existing.leftRatio;
+                const eWidth = existing.widthRatio || 0.05;
+                const eRight = eLeft + eWidth;
+                const horizOverlap = Math.max(0, Math.min(fRight, eRight) - Math.max(fLeft, eLeft));
+                const minW = Math.min(fWidth, eWidth);
+
+                if (horizOverlap > minW * 0.25) {
+                    hasHorizOverlap = true;
+                    break;
+                }
+            }
+            if (hasHorizOverlap) continue; // Stacked fields belong in different rows
+
+            // Rule B: Field must vertically align with this row
+            const rowHeight = row.bottom - row.top;
+            const vertOverlap = Math.max(0, Math.min(fBottom, row.bottom) - Math.max(fTop, row.top));
+            const minH = Math.min(fHeight, rowHeight);
+            const centerDiff = Math.abs(fCenterY - row.center);
+            const vertThreshold = Math.max(0.008, minH * 0.5);
+
+            if (vertOverlap >= minH * 0.35 || centerDiff <= vertThreshold) {
+                matchedRow = row;
+                break;
+            }
+        }
+
+        if (matchedRow) {
+            matchedRow.fields.push(field);
+            matchedRow.top = Math.min(matchedRow.top, fTop);
+            matchedRow.bottom = Math.max(matchedRow.bottom, fBottom);
+            matchedRow.center = (matchedRow.top + matchedRow.bottom) / 2;
+        } else {
+            rows.push({
+                top: fTop,
+                bottom: fBottom,
+                center: fCenterY,
+                fields: [field]
+            });
+        }
+    });
+
+    // 3. Sort rows top to bottom by vertical center
+    rows.sort((a, b) => (a.center - b.center) || (a.top - b.top));
+
+    // 4. Within each row, sort fields strictly left to right
+    const sorted = [];
+    rows.forEach(row => {
+        row.fields.sort((a, b) => (a.leftRatio - b.leftRatio) || (a.topRatio - b.topRatio));
+        sorted.push(...row.fields);
+    });
+
+    return sorted;
+}
+
+export function findAnnotationForField(page, field) {
+    if (!page || !page.layers || !field) return null;
+
+    // 1. Exact match by field ID
+    if (field.id) {
+        const byId = page.layers.find(l => l.type === 'annotation' && l.fieldId === field.id);
+        if (byId) return byId;
+    }
+
+    // 2. Strict bounding box containment (for unlinked annotations)
+    const fLeft = field.leftRatio;
+    const fTop = field.topRatio;
+    const fRight = fLeft + (field.widthRatio || 0.05);
+    const fBottom = fTop + (field.heightRatio || 0.03);
+
+    const inside = page.layers.filter(l =>
+        l.type === 'annotation' &&
+        !l.fieldId &&
+        l.xRatio >= fLeft - 0.005 &&
+        l.xRatio <= fRight + 0.005 &&
+        l.yRatio >= fTop - 0.005 &&
+        l.yRatio <= fBottom + 0.005
+    );
+
+    if (inside.length > 0) {
+        inside.sort((a, b) => {
+            const da = Math.hypot(a.xRatio - fLeft, a.yRatio - fTop);
+            const db = Math.hypot(b.xRatio - fLeft, b.yRatio - fTop);
+            return da - db;
+        });
+        const matched = inside[0];
+        matched.fieldId = field.id;
+        matched.isFormField = true;
+        return matched;
+    }
+
+    return null;
+}
+
 export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null, options = {}) {
     const state = getState();
     const isFormField = !!options.isFormField;
-    const sortedFields = options.sortedFields || null;
-    const fieldIndex = options.fieldIndex !== undefined ? options.fieldIndex : -1;
     wrap.querySelectorAll('.ann-edit-box, .ann-input').forEach(b => b.remove());
 
     if (existingMarker) {
@@ -192,6 +332,9 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
 
     const input = document.createElement('textarea');
     input.className = 'ann-input';
+    input.id = options.fieldId ? `form-field-input-${options.fieldId}` : `ann-input-${Date.now()}`;
+    input.name = options.fieldId || 'annotation-text';
+    input.autocomplete = 'off';
     input.rows = 1;
     input.style.maxWidth = '100%';
     let currentAnnColor = existingAnn ? (existingAnn.color || (options.color || state.annColor)) : (options.color ? options.color : (options.date ? state.dateColor : state.annColor));
@@ -223,6 +366,8 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
 
     const colorPicker = document.createElement('input');
     colorPicker.type = 'color';
+    colorPicker.id = 'ann-popover-color';
+    colorPicker.name = 'ann-popover-color';
     colorPicker.className = 'ann-popover-color';
     colorPicker.value = currentAnnColor;
     colorPicker.title = 'Font Color';
@@ -236,6 +381,8 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     });
 
     const sizeSelect = document.createElement('select');
+    sizeSelect.id = 'ann-popover-size';
+    sizeSelect.name = 'ann-popover-size';
     sizeSelect.className = 'ann-popover-size';
     sizeSelect.title = 'Font Size';
     [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64].forEach(sz => {
@@ -248,9 +395,8 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     sizeSelect.addEventListener('change', (e) => {
         currentAnnSize = parseInt(e.target.value, 10);
         state.annSize = currentAnnSize;
-        const wRect = wrap.getBoundingClientRect();
-        const cScale = wRect.width > 0 ? (wRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
-        input.style.fontSize = `${Math.max(9, currentAnnSize * cScale)}px`;
+        const fontSz = Math.max(9, currentAnnSize * canvasScale);
+        input.style.fontSize = `${fontSz}px`;
         autoResize();
         const mainSize = document.getElementById('ann-size');
         if (mainSize) mainSize.value = currentAnnSize;
@@ -262,16 +408,19 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         box.appendChild(controls);
     }
 
+    input.value = existingAnn ? existingAnn.text : (options.initialText || '');
     input.placeholder = isFormField ? '' : 'Text...';
-    input.value = existingAnn ? existingAnn.text : (options.initialText !== undefined ? options.initialText : (options.date ? formatDate(state.dateFormat) : ''));
     input.style.color = currentAnnColor;
     if (currentAnnFont && currentAnnFont !== 'inherit') input.style.fontFamily = currentAnnFont;
     if (currentAnnBold) input.style.fontWeight = 'bold';
 
-    const scaledFont = Math.max(9, currentAnnSize * canvasScale);
-    input.style.fontSize = `${scaledFont}px`;
-    input.addEventListener('input', autoResize);
+    const fontSz = Math.max(9, currentAnnSize * canvasScale);
+    input.style.fontSize = `${fontSz}px`;
+
     box.appendChild(input);
+    wrap.appendChild(box);
+    autoResize();
+    input.focus();
 
     let committed = false;
 
@@ -294,7 +443,10 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
                 existingAnn.fontSize = currentAnnSize;
                 if (currentAnnFont && currentAnnFont !== 'inherit') existingAnn.fontFamily = currentAnnFont;
                 existingAnn.bold = currentAnnBold;
-                if (isFormField) existingAnn.isFormField = true;
+                if (isFormField) {
+                    existingAnn.isFormField = true;
+                    if (options.fieldId) existingAnn.fieldId = options.fieldId;
+                }
             }
         } else if (!isEmpty) {
             const ann = {
@@ -308,7 +460,10 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             };
             if (currentAnnFont && currentAnnFont !== 'inherit') ann.fontFamily = currentAnnFont;
             ann.bold = currentAnnBold;
-            if (isFormField) ann.isFormField = true;
+            if (isFormField) {
+                ann.isFormField = true;
+                if (options.fieldId) ann.fieldId = options.fieldId;
+            }
             page.layers.push(ann);
         }
         box.remove();
@@ -321,10 +476,8 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         delBtn.className = 'ann-box-del-btn';
         delBtn.innerHTML = '&times;';
         delBtn.title = 'Delete annotation';
-        delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
         delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            committed = true;
             const idx = page.layers.indexOf(existingAnn);
             if (idx !== -1) page.layers.splice(idx, 1);
             box.remove();
@@ -333,15 +486,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         box.appendChild(delBtn);
     }
 
-    box.addEventListener('mousedown', (e) => e.stopPropagation());
-    box.addEventListener('click', (e) => e.stopPropagation());
-
-    wrap.appendChild(box);
-    setTimeout(autoResize, 0);
-    input.focus();
-    input.select();
-
-    box._commit = commit;
+    input.addEventListener('input', autoResize);
 
     const onDocClick = (e) => {
         if (!box.contains(e.target)) {
@@ -351,7 +496,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     };
     setTimeout(() => {
         document.addEventListener('pointerdown', onDocClick);
-    }, 50);
+    }, 100);
 
     const setFontSize = (newSize) => {
         currentAnnSize = Math.max(8, Math.min(72, newSize));
@@ -365,27 +510,57 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     };
 
-    const navigateToField = (nextIndex) => {
-        if (!sortedFields || nextIndex < 0 || nextIndex >= sortedFields.length) return;
+    const navigateToField = (direction) => {
+        const currentSorted = getSortedFormFields(page);
+        if (currentSorted.length <= 1) return;
+
+        let currentIdx = -1;
+        if (options.fieldId) {
+            currentIdx = currentSorted.findIndex(f => f.id === options.fieldId);
+        }
+        if (currentIdx === -1) {
+            let bestDist = Infinity;
+            currentSorted.forEach((f, idx) => {
+                const dx = f.leftRatio - xR;
+                const dy = f.topRatio - yR;
+                const dist = dx * dx + dy * dy;
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    currentIdx = idx;
+                }
+            });
+        }
+        if (currentIdx === -1) currentIdx = 0;
+
+        const nextIndex = (currentIdx + direction + currentSorted.length) % currentSorted.length;
+        const nextField = currentSorted[nextIndex];
+        if (!nextField) return;
+
         document.removeEventListener('pointerdown', onDocClick);
         commit();
-        const nextField = sortedFields[nextIndex];
-        const nextExisting = page.layers.find(l =>
-            l.type === 'annotation' &&
-            Math.abs(l.xRatio - nextField.leftRatio) < 0.03 &&
-            Math.abs(l.yRatio - nextField.topRatio) < 0.03
-        );
+
+        const metrics = getFormFieldMetrics(nextField, page);
+        const nextExisting = findAnnotationForField(page, nextField);
+
         if (nextExisting) {
-            openAnnotationInput(wrap, page, nextExisting.xRatio, nextExisting.yRatio, nextExisting, null, {
-                isFormField: true, fieldIndex: nextIndex, sortedFields
+            const nextMarker = [...wrap.querySelectorAll('.ann-marker')].find(el => {
+                const elLeft = parseFloat(el.style.left);
+                const elTop = parseFloat(el.style.top);
+                return Math.abs(elLeft - nextExisting.xRatio * 100) < 2 &&
+                       Math.abs(elTop - nextExisting.yRatio * 100) < 2;
+            }) || null;
+            openAnnotationInput(wrap, page, nextExisting.xRatio, nextExisting.yRatio, nextExisting, nextMarker, {
+                isFormField: true,
+                fieldId: nextField.id,
+                fieldIndex: nextIndex
             });
         } else {
-            openAnnotationInput(wrap, page, nextField.leftRatio, nextField.topRatio, null, null, {
-                fontSize: nextField.inferredFontSize || 14,
+            openAnnotationInput(wrap, page, metrics.xRatio, metrics.yRatio, null, null, {
+                fontSize: metrics.fontSize,
                 color: '#000000',
                 isFormField: true,
+                fieldId: nextField.id,
                 fieldIndex: nextIndex,
-                sortedFields,
                 initialText: nextField.fieldValue || ''
             });
         }
@@ -397,7 +572,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             commit();
         } else if (e.key === 'Tab' && isFormField) {
             e.preventDefault();
-            navigateToField(e.shiftKey ? fieldIndex - 1 : fieldIndex + 1);
+            navigateToField(e.shiftKey ? -1 : 1);
         } else if (e.key === 'Enter' && isFormField && !e.shiftKey) {
             e.preventDefault();
             document.removeEventListener('pointerdown', onDocClick);
@@ -411,6 +586,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         }
     });
 }
+
 
 export function startWhiteout(e, wrap, page) {
     const state = getState();

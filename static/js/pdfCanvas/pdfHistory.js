@@ -10,7 +10,11 @@ export const MAX_UNDO = 50;
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function cloneLayers(layers) {
-    return layers.map(l => ({ ...l }));
+    return (layers || []).map(l => ({ ...l }));
+}
+
+function cloneFormFields(fields) {
+    return (fields || []).map(f => ({ ...f }));
 }
 
 /**
@@ -22,6 +26,26 @@ function currentSnapshot(state, entry) {
     if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         return page ? { ...entry, snapshot: cloneLayers(page.layers) } : null;
+    }
+    if (entry.type === 'page_form_fields') {
+        const page = state.pages.find(p => p.id === entry.pageId);
+        return page ? {
+            ...entry,
+            snapshot: {
+                formFields: cloneFormFields(page.formFields),
+                layers: cloneLayers(page.layers)
+            }
+        } : null;
+    }
+    if (entry.type === 'all_form_fields') {
+        return {
+            ...entry,
+            snapshot: state.pages.map(p => ({
+                id: p.id,
+                formFields: cloneFormFields(p.formFields),
+                layers: cloneLayers(p.layers)
+            }))
+        };
     }
     if (entry.type === 'page_crop') {
         const page = state.pages.find(p => p.id === entry.pageId);
@@ -56,20 +80,37 @@ function applyEntry(state, entry, syncGridCb) {
     if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         if (!page) return;
-        page.layers = entry.snapshot;
+        page.layers = cloneLayers(entry.snapshot);
         renderCardCanvas(page);
+
+    } else if (entry.type === 'page_form_fields') {
+        const page = state.pages.find(p => p.id === entry.pageId);
+        if (!page) return;
+        page.formFields = cloneFormFields(entry.snapshot.formFields);
+        page.layers = cloneLayers(entry.snapshot.layers);
+        renderCardCanvas(page);
+
+    } else if (entry.type === 'all_form_fields') {
+        entry.snapshot.forEach(({ id, formFields, layers }) => {
+            const page = state.pages.find(p => p.id === id);
+            if (page) {
+                page.formFields = cloneFormFields(formFields);
+                page.layers = cloneLayers(layers);
+                renderCardCanvas(page);
+            }
+        });
 
     } else if (entry.type === 'page_crop') {
         const page = state.pages.find(p => p.id === entry.pageId);
         if (!page) return;
-        page.cropBox = entry.snapshot;
+        page.cropBox = entry.snapshot ? { ...entry.snapshot } : null;
         renderCardCanvas(page);
 
     } else if (entry.type === 'all_crops') {
         entry.snapshot.forEach(({ id, cropBox }) => {
             const page = state.pages.find(p => p.id === id);
             if (page) {
-                page.cropBox = cropBox;
+                page.cropBox = cropBox ? { ...cropBox } : null;
                 renderCardCanvas(page);
             }
         });
@@ -106,6 +147,31 @@ function applyEntry(state, entry, syncGridCb) {
 /** Call BEFORE mutating page.layers */
 export function snapshotPageLayers(page) {
     pushUndo({ type: 'page_layers', pageId: page.id, snapshot: cloneLayers(page.layers) });
+}
+
+/** Call BEFORE mutating page.formFields (or both formFields + layers) */
+export function snapshotPageFormFields(page) {
+    pushUndo({
+        type: 'page_form_fields',
+        pageId: page.id,
+        snapshot: {
+            formFields: cloneFormFields(page.formFields),
+            layers: cloneLayers(page.layers)
+        }
+    });
+}
+
+/** Call BEFORE deleting all form fields across all pages */
+export function snapshotAllFormFields() {
+    const state = getState();
+    pushUndo({
+        type: 'all_form_fields',
+        snapshot: state.pages.map(p => ({
+            id: p.id,
+            formFields: cloneFormFields(p.formFields),
+            layers: cloneLayers(p.layers)
+        }))
+    });
 }
 
 /** Call BEFORE mutating page.cropBox */

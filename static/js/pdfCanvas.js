@@ -25,7 +25,10 @@ import {
     generateSignatureDataUrl,
     saveSignatureStamp,
     removeSignatureStamp,
-    loadSavedSignatures
+    loadSavedSignatures,
+    getFormFieldMetrics,
+    getSortedFormFields,
+    findAnnotationForField
 } from './pdfCanvas/pdfAnnotations.js';
 
 import {
@@ -59,6 +62,9 @@ export {
     saveSignatureStamp,
     removeSignatureStamp,
     loadSavedSignatures,
+    getFormFieldMetrics,
+    getSortedFormFields,
+    findAnnotationForField,
     buildCard,
     syncGrid,
     addCropControls,

@@ -142,7 +142,11 @@ export async function loadFiles(fileList) {
 
         try {
             const buf = await file.arrayBuffer();
-            const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+            const pdf = await window.pdfjsLib.getDocument({
+                data: buf,
+                verbosity: 0,
+                stopAtErrors: false
+            }).promise;
 
             for (let p = 0; p < pdf.numPages; p++) {
                 const pdfPage = await pdf.getPage(p + 1);
