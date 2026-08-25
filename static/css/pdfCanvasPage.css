@@ -176,6 +176,7 @@
     background: #fff;
     border-radius: 4px;
     overflow: hidden;
+    cursor: default;
 }
 
 .page-canvas-wrap canvas {
@@ -183,6 +184,7 @@
     width: 100%;
     max-width: 100%;
     height: auto;
+    cursor: default;
 }
 
 /* Crop overlay & Handles */
@@ -256,12 +258,23 @@
     overflow-wrap: break-word;
     word-break: break-word;
     box-sizing: border-box;
-    cursor: pointer;
+    cursor: move;
     user-select: none;
     transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.pdf-page-grid.grid-mode-annotate .ann-marker:hover {
+.ann-marker:active {
+    cursor: grabbing;
+}
+
+.ann-marker.selected {
+    border-color: var(--primary) !important;
+    background: rgba(245, 185, 66, 0.15) !important;
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+.pdf-page-grid.grid-mode-annotate .ann-marker:hover,
+.ann-marker:hover {
     border-color: rgba(255, 255, 255, 0.4);
     background: rgba(0, 0, 0, 0.35);
 }

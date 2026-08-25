@@ -50,18 +50,34 @@ export function formatDate(format) {
 
 export async function generateSignatureDataUrl(text, fontFamily, color) {
     const canvas = document.createElement('canvas');
-    canvas.width = 600;
-    canvas.height = 200;
+    canvas.width = 1200;
+    canvas.height = 400;
     const ctx = canvas.getContext('2d');
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = `64px "${fontFamily}", cursive, sans-serif`;
     ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, 50, 50);
 
-    return canvas.toDataURL('image/png');
+    const metrics = ctx.measureText(text);
+    const textWidth = Math.ceil(metrics.width);
+    const textHeight = Math.ceil(
+        (metrics.actualBoundingBoxDescent || 50) + (metrics.actualBoundingBoxAscent || 20) + 10
+    );
+
+    // Create trimmed canvas tightly bounding the signature
+    const trimCanvas = document.createElement('canvas');
+    trimCanvas.width = Math.max(10, textWidth + 10);
+    trimCanvas.height = Math.max(10, Math.min(250, textHeight + 20));
+    const trimCtx = trimCanvas.getContext('2d');
+
+    trimCtx.font = `64px "${fontFamily}", cursive, sans-serif`;
+    trimCtx.fillStyle = color;
+    trimCtx.textBaseline = 'middle';
+    trimCtx.fillText(text, 5, trimCanvas.height / 2);
+
+    return trimCanvas.toDataURL('image/png');
 }
 
 export async function saveSignatureStamp(text, fontFamily, color) {

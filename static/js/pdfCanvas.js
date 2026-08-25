@@ -39,7 +39,10 @@ import {
     buildCard,
     syncGrid,
     renderCardLayers,
-    commitActivePlacement
+    commitActivePlacement,
+    deleteSelectedLayer,
+    selectLayer,
+    deselectAllLayers
 } from './pdfCanvas/pdfCardBuilder.js';
 
 export {
@@ -59,7 +62,10 @@ export {
     addCropControls,
     syncRectToPercentage,
     renderCardLayers,
-    commitActivePlacement
+    commitActivePlacement,
+    deleteSelectedLayer,
+    selectLayer,
+    deselectAllLayers
 };
 
 export function renderCardCanvas(page) {

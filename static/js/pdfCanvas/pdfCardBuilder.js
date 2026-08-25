@@ -9,6 +9,35 @@ import { renderCardCanvas } from './pdfRender.js';
 
 let ghostEl = null;
 export let lastGhostPlacement = null;
+export let selectedLayerInfo = null; // { page, layer, el }
+
+export function selectLayer(page, layer, el) {
+    deselectAllLayers();
+    selectedLayerInfo = { page, layer, el };
+    if (el) el.classList.add('selected');
+}
+
+export function deselectAllLayers() {
+    if (selectedLayerInfo && selectedLayerInfo.el) {
+        selectedLayerInfo.el.classList.remove('selected');
+    }
+    document.querySelectorAll('.ann-marker.selected, .signature-rect.selected').forEach(el => el.classList.remove('selected'));
+    selectedLayerInfo = null;
+}
+
+export function deleteSelectedLayer() {
+    if (!selectedLayerInfo || !selectedLayerInfo.page || !selectedLayerInfo.layer) return false;
+    const { page, layer } = selectedLayerInfo;
+    const idx = page.layers.indexOf(layer);
+    if (idx !== -1) {
+        page.layers.splice(idx, 1);
+        deselectAllLayers();
+        renderCardCanvas(page);
+        return true;
+    }
+    deselectAllLayers();
+    return false;
+}
 
 function getGhostEl() {
     if (!ghostEl) {
@@ -42,33 +71,49 @@ export function initGhostPreview() {
         if (!page) return;
 
         const canvasRect = canvas.getBoundingClientRect();
-        const ghostW = canvasRect.width * 0.35;
-        const ghostH = canvasRect.height * 0.12;
-        let left = e.clientX - ghostW / 2;
-        let top = e.clientY - ghostH / 2;
-
-        left = Math.max(canvasRect.left, Math.min(canvasRect.right - ghostW, left));
-        top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - ghostH, top));
-
-        const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (left - canvasRect.left) / (canvasRect.width || 1)));
-        const clickTop = Math.max(0, Math.min(1.0 - 0.12, (top - canvasRect.top) / (canvasRect.height || 1)));
-
-        lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop };
-
-        const ghost = getGhostEl();
-        ghost.style.left = `${left}px`;
-        ghost.style.top = `${top}px`;
-        ghost.style.width = `${ghostW}px`;
-        ghost.style.height = `${ghostH}px`;
-        ghost.style.display = 'flex';
+        const wrapRect = wrap.getBoundingClientRect();
+        const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : 0.55;
 
         if (state.mode === 'signature' && state.activeSignature) {
+            const ghostW = canvasRect.width * 0.35;
+            const ghostH = canvasRect.height * 0.12;
+            let left = e.clientX - ghostW / 2;
+            let top = e.clientY - ghostH / 2;
+            left = Math.max(canvasRect.left, Math.min(canvasRect.right - ghostW, left));
+            top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - ghostH, top));
+
+            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (left - canvasRect.left) / (canvasRect.width || 1)));
+            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (top - canvasRect.top) / (canvasRect.height || 1)));
+            lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop };
+
+            const ghost = getGhostEl();
+            ghost.style.left = `${left}px`;
+            ghost.style.top = `${top}px`;
+            ghost.style.width = `${ghostW}px`;
+            ghost.style.height = `${ghostH}px`;
+            ghost.style.display = 'flex';
+
             ghost.innerHTML = state.activeSignature.dataUrl ?
                 `<img src="${state.activeSignature.dataUrl}" style="width:100%;height:100%;object-fit:contain;" />` :
                 `<span class="placement-ghost-text" style="font-family:'${state.activeSignature.fontFamily}',cursive;color:${state.activeSignature.color};">${state.activeSignature.text}</span>`;
         } else if (state.mode === 'date') {
             const dateStr = formatDate(state.dateFormat);
-            ghost.innerHTML = `<span class="placement-ghost-text" style="font-family:'${state.dateFont}',sans-serif;color:${state.dateColor};font-weight:${state.dateBold ? 'bold' : 'normal'};">${dateStr}</span>`;
+            const fontSz = Math.max(9, (state.dateSize || 16) * canvasScale);
+            let left = e.clientX;
+            let top = e.clientY;
+
+            const clickLeft = Math.max(0, Math.min(0.95, (left - canvasRect.left) / (canvasRect.width || 1)));
+            const clickTop = Math.max(0, Math.min(0.95, (top - canvasRect.top) / (canvasRect.height || 1)));
+            lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop };
+
+            const ghost = getGhostEl();
+            ghost.style.left = `${left}px`;
+            ghost.style.top = `${top}px`;
+            ghost.style.width = 'auto';
+            ghost.style.height = 'auto';
+            ghost.style.display = 'block';
+
+            ghost.innerHTML = `<span class="placement-ghost-text" style="font-family:'${state.dateFont}',sans-serif;color:${state.dateColor};font-weight:${state.dateBold ? 'bold' : 'normal'};font-size:${fontSz}px;">${dateStr}</span>`;
         }
     });
 
@@ -183,6 +228,30 @@ export function renderCardLayers(wrap, page) {
             });
             marker.appendChild(delBtn);
 
+            if (selectedLayerInfo && selectedLayerInfo.layer === layer) {
+                marker.classList.add('selected');
+                selectedLayerInfo.el = marker;
+            }
+
+            let lastTapTime = 0;
+
+            marker.addEventListener('click', (e) => {
+                const st = getState();
+                const now = Date.now();
+                if (now - lastTapTime < 350) {
+                    e.stopPropagation();
+                    openAnnotationInput(wrap, page, layer.xRatio, layer.yRatio, layer, marker);
+                    lastTapTime = 0;
+                    return;
+                }
+                lastTapTime = now;
+
+                if (st.mode === 'select' || st.mode === 'annotate') {
+                    e.stopPropagation();
+                    selectLayer(page, layer, marker);
+                }
+            });
+
             marker.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 openAnnotationInput(wrap, page, layer.xRatio, layer.yRatio, layer, marker);
@@ -196,6 +265,7 @@ export function renderCardLayers(wrap, page) {
             marker.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('ann-delete-btn')) return;
                 e.stopPropagation();
+                selectLayer(page, layer, marker);
                 if (card) card.draggable = false;
                 isDragging = true;
                 const wRect = wrap.getBoundingClientRect();
@@ -237,6 +307,19 @@ export function renderCardLayers(wrap, page) {
             rect.style.width = `${(layer.widthRatio * 100).toFixed(2)}%`;
             rect.style.height = `${(layer.heightRatio * 100).toFixed(2)}%`;
 
+            if (selectedLayerInfo && selectedLayerInfo.layer === layer) {
+                rect.classList.add('selected');
+                selectedLayerInfo.el = rect;
+            }
+
+            rect.addEventListener('click', (e) => {
+                const st = getState();
+                if (st.mode === 'select' || st.mode === 'annotate' || st.mode === 'signature' || st.mode === 'date') {
+                    e.stopPropagation();
+                    selectLayer(page, layer, rect);
+                }
+            });
+
             if (layer.dataUrl) {
                 const img = document.createElement('img');
                 img.src = layer.dataUrl;
@@ -274,6 +357,7 @@ export function renderCardLayers(wrap, page) {
             rect.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('signature-del-btn')) return;
                 e.stopPropagation();
+                selectLayer(page, layer, rect);
                 if (card) card.draggable = false;
                 isDragging = true;
                 const wRect = wrap.getBoundingClientRect();
@@ -569,6 +653,9 @@ export function buildCard(page) {
     });
 
     wrap.addEventListener('click', (e) => {
+        if (!e.target.closest('.ann-marker, .signature-rect, .overlay-rect, .whiteout-rect-interactive')) {
+            deselectAllLayers();
+        }
         if (state.mode === 'annotate') {
             if (e.target.closest('.ann-marker') || e.target.closest('.ann-edit-box') || e.target.closest('.ann-input')) return;
             e.stopPropagation();
@@ -598,26 +685,25 @@ export function buildCard(page) {
 
             renderCardCanvas(page);
         } else if (state.mode === 'date') {
-            if (e.target.closest('.signature-rect')) return;
+            if (e.target.closest('.ann-marker, .signature-rect')) return;
             e.stopPropagation();
             const rect = canvas.getBoundingClientRect();
-            const clickLeft = Math.max(0, Math.min(1.0 - 0.35, (e.clientX - rect.left) / (rect.width || 1)));
-            const clickTop = Math.max(0, Math.min(1.0 - 0.12, (e.clientY - rect.top) / (rect.height || 1)));
+            const xR = (e.clientX - rect.left) / rect.width;
+            const yR = (e.clientY - rect.top) / rect.height;
 
-            page.layers.push({
-                type: 'signature',
-                id: `date_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            const ann = {
+                type: 'annotation',
+                id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 text: formatDate(state.dateFormat),
-                fontFamily: state.dateFont,
+                xRatio: Math.max(0, Math.min(0.95, xR)),
+                yRatio: Math.max(0, Math.min(0.95, yR)),
                 color: state.dateColor,
-                bold: state.dateBold,
                 fontSize: state.dateSize,
-                leftRatio: clickLeft,
-                topRatio: clickTop,
-                widthRatio: 0.35,
-                heightRatio: 0.12
-            });
+                fontFamily: state.dateFont,
+                bold: state.dateBold
+            };
 
+            page.layers.push(ann);
             renderCardCanvas(page);
         }
     });

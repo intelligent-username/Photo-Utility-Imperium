@@ -10,7 +10,9 @@ import {
     saveSignatureStamp,
     removeSignatureStamp,
     renderCardCanvas,
-    commitActivePlacement
+    commitActivePlacement,
+    deleteSelectedLayer,
+    deselectAllLayers
 } from './pdfCanvas.js';
 
 export function setupToolbarControls() {
@@ -111,7 +113,13 @@ export function setupToolbarControls() {
         }
 
         const key = e.key.toLowerCase();
-        if (key === 'escape') {
+        if (key === 'delete' || key === 'backspace') {
+            if (deleteSelectedLayer()) {
+                e.preventDefault();
+                return;
+            }
+        } else if (key === 'escape') {
+            deselectAllLayers();
             if (annBar && !annBar.classList.contains('hidden')) {
                 commitActivePlacement();
                 selectAnnSubTool('cursor');
@@ -119,6 +127,7 @@ export function setupToolbarControls() {
                 clearModes();
             }
         } else if (key === 'c') {
+            deselectAllLayers();
             commitActivePlacement();
             if (annBar) annBar.classList.remove('hidden');
             if (annotateBtn) {
