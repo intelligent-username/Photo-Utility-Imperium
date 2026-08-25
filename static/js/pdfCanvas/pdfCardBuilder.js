@@ -15,6 +15,25 @@ export function selectLayer(page, layer, el) {
     deselectAllLayers();
     selectedLayerInfo = { page, layer, el };
     if (el) el.classList.add('selected');
+
+    if (layer && layer.type === 'annotation') {
+        const state = getState();
+        if (layer.fontSize) {
+            state.annSize = layer.fontSize;
+            const sizeInput = document.getElementById('ann-size');
+            if (sizeInput) sizeInput.value = layer.fontSize;
+        }
+        if (layer.color) {
+            state.annColor = layer.color;
+            const colorInput = document.getElementById('ann-color');
+            const customSwatch = document.getElementById('custom-color-swatch');
+            if (colorInput) colorInput.value = layer.color;
+            if (customSwatch) customSwatch.style.backgroundColor = layer.color;
+            document.querySelectorAll('.color-palette .color-dot').forEach(d => {
+                d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === layer.color.toLowerCase());
+            });
+        }
+    }
 }
 
 export function deselectAllLayers() {
@@ -235,39 +254,38 @@ export function renderCardLayers(wrap, page) {
 
             let lastTapTime = 0;
 
-            marker.addEventListener('click', (e) => {
-                const st = getState();
-                const now = Date.now();
-                if (now - lastTapTime < 350) {
-                    e.stopPropagation();
-                    openAnnotationInput(wrap, page, layer.xRatio, layer.yRatio, layer, marker);
-                    lastTapTime = 0;
-                    return;
-                }
-                lastTapTime = now;
-
-                if (st.mode === 'select' || st.mode === 'annotate') {
-                    e.stopPropagation();
-                    selectLayer(page, layer, marker);
-                }
-            });
+            const triggerEdit = () => {
+                openAnnotationInput(wrap, page, layer.xRatio, layer.yRatio, layer, marker);
+            };
 
             marker.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                openAnnotationInput(wrap, page, layer.xRatio, layer.yRatio, layer, marker);
+                e.preventDefault();
+                triggerEdit();
             });
 
-            // Dragging for text annotation marker
+            // Dragging & tap detection for text annotation marker
             let isDragging = false;
             let startX = 0, startY = 0;
             let initXR = layer.xRatio, initYR = layer.yRatio;
+            let moved = false;
 
             marker.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('ann-delete-btn')) return;
                 e.stopPropagation();
+
+                const now = Date.now();
+                if (now - lastTapTime < 350) {
+                    lastTapTime = 0;
+                    triggerEdit();
+                    return;
+                }
+                lastTapTime = now;
+
                 selectLayer(page, layer, marker);
                 if (card) card.draggable = false;
                 isDragging = true;
+                moved = false;
                 const wRect = wrap.getBoundingClientRect();
                 startX = e.clientX;
                 startY = e.clientY;
@@ -276,8 +294,15 @@ export function renderCardLayers(wrap, page) {
 
                 const onMove = (me) => {
                     if (!isDragging) return;
-                    const dx = (me.clientX - startX) / (wRect.width || 1);
-                    const dy = (me.clientY - startY) / (wRect.height || 1);
+                    const diffX = me.clientX - startX;
+                    const diffY = me.clientY - startY;
+                    if (Math.abs(diffX) > 3 || Math.abs(diffY) > 3) {
+                        moved = true;
+                    }
+                    if (!moved) return;
+
+                    const dx = diffX / (wRect.width || 1);
+                    const dy = diffY / (wRect.height || 1);
                     layer.xRatio = Math.max(0, Math.min(0.95, initXR + dx));
                     layer.yRatio = Math.max(0, Math.min(0.95, initYR + dy));
                     marker.style.left = `${(layer.xRatio * 100).toFixed(1)}%`;
@@ -291,7 +316,9 @@ export function renderCardLayers(wrap, page) {
                     if (card) card.draggable = (state.mode === 'select');
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('mouseup', onUp);
-                    renderCardCanvas(page);
+                    if (moved) {
+                        renderCardCanvas(page);
+                    }
                 };
 
                 window.addEventListener('mousemove', onMove);

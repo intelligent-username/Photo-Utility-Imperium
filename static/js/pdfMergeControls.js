@@ -561,6 +561,11 @@ function setupColorSizeControls() {
                 state.annColor = hex;
                 if (colorInput) colorInput.value = hex;
                 if (customSwatch) customSwatch.style.backgroundColor = hex;
+
+                if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
+                    selectedLayerInfo.layer.color = hex;
+                    renderCardCanvas(selectedLayerInfo.page);
+                }
             });
         });
     }
@@ -573,19 +578,32 @@ function setupColorSizeControls() {
             colorDots.forEach(d => {
                 d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === hex.toLowerCase());
             });
+
+            if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
+                selectedLayerInfo.layer.color = hex;
+                renderCardCanvas(selectedLayerInfo.page);
+            }
         });
     }
 
+    const applySizeChange = (newSize) => {
+        state.annSize = newSize;
+        if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
+            selectedLayerInfo.layer.fontSize = newSize;
+            renderCardCanvas(selectedLayerInfo.page);
+        }
+    };
+
     if (sizeInput) {
-        sizeInput.addEventListener('input', (e) => { state.annSize = parseInt(e.target.value, 10) || 16; });
-        sizeInput.addEventListener('change', (e) => { state.annSize = parseInt(e.target.value, 10) || 16; });
+        sizeInput.addEventListener('input', (e) => { applySizeChange(parseInt(e.target.value, 10) || 16); });
+        sizeInput.addEventListener('change', (e) => { applySizeChange(parseInt(e.target.value, 10) || 16); });
     }
 
     if (sizeMinus && sizeInput) {
         sizeMinus.addEventListener('click', () => {
             let val = Math.max(8, (parseInt(sizeInput.value, 10) || 16) - 2);
             sizeInput.value = val;
-            state.annSize = val;
+            applySizeChange(val);
             sizeInput.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
@@ -594,7 +612,7 @@ function setupColorSizeControls() {
         sizePlus.addEventListener('click', () => {
             let val = Math.min(72, (parseInt(sizeInput.value, 10) || 16) + 2);
             sizeInput.value = val;
-            state.annSize = val;
+            applySizeChange(val);
             sizeInput.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }

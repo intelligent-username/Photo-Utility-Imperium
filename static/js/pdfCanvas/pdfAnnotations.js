@@ -295,10 +295,28 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         document.addEventListener('pointerdown', onDocClick);
     }, 50);
 
+    const setFontSize = (newSize) => {
+        currentAnnSize = Math.max(8, Math.min(72, newSize));
+        state.annSize = currentAnnSize;
+        const wRect = wrap.getBoundingClientRect();
+        const cScale = wRect.width > 0 ? (wRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
+        input.style.fontSize = `${Math.max(9, currentAnnSize * cScale)}px`;
+        autoResize();
+        if (sizeSelect) sizeSelect.value = currentAnnSize;
+        const mainSize = document.getElementById('ann-size');
+        if (mainSize) mainSize.value = currentAnnSize;
+    };
+
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.removeEventListener('pointerdown', onDocClick);
             commit();
+        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '.' || e.key === '>')) {
+            e.preventDefault();
+            setFontSize(currentAnnSize + 2);
+        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === ',' || e.key === '<')) {
+            e.preventDefault();
+            setFontSize(currentAnnSize - 2);
         }
     });
 }
