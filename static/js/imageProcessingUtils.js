@@ -84,7 +84,7 @@ export function displaySlide(index, options, state) {
 
     if (isInputPdf && previewPdf) {
         const raw = result.preview.split('#')[0];
-        previewPdf.src = raw + '#navpanes=0&view=FitH';
+        previewPdf.src = raw + '#navpanes=0&view=Fit';
         previewPdf.classList.remove('hidden');
         if (previewImage) previewImage.classList.add('hidden');
     } else if (previewImage) {
@@ -95,7 +95,10 @@ export function displaySlide(index, options, state) {
 
     if (isOutputPdf && outputPdf) {
         const raw = result.output.split('#')[0];
-        outputPdf.src = raw + '#navpanes=0&view=FitH';
+        outputPdf.src = 'about:blank';
+        requestAnimationFrame(() => {
+            setTimeout(() => { outputPdf.src = raw + '#navpanes=0&view=Fit&v=' + Date.now(); }, 20);
+        });
         outputPdf.classList.remove('hidden');
         if (resultImage) resultImage.classList.add('hidden');
     } else if (resultImage) {

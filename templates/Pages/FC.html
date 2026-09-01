@@ -96,7 +96,7 @@ block bodytag %} data-page="FC" {% endblock %} {% block content %}
           id="resize-pdf-btn"
           class="btn btn-secondary mt-2 hidden"
           type="button"
-          >Convert page to standard size</button
+          >Standardize size</button
         >
       </div>
     </div>
@@ -107,25 +107,25 @@ block bodytag %} data-page="FC" {% endblock %} {% block content %}
 <div id="resize-modal" class="pdf-modal-backdrop hidden">
   <div class="pdf-modal-dialog">
     <div class="pdf-modal-header">
-      <h3>Convert Page to Standard Size</h3>
+      <h3>Standardize Size</h3>
       <button id="close-resize-modal-btn" class="pdf-modal-close" type="button">&times;</button>
     </div>
     <div class="pdf-modal-body">
       <p class="mb-2" style="font-size: 0.9rem; color: var(--muted);">
-        Select standard page size to convert & rescale your document:
+        Select standard page size to standardize your PDF dimensions:
       </p>
       <div class="size-options-grid">
-        <label class="size-option-card active" for="size-us-letter">
+        <label class="size-option-card active" for="size-us-letter" data-size="US Letter">
           <input type="radio" name="pageSizeChoice" id="size-us-letter" value="US Letter" checked />
           <div class="size-option-details">
             <span class="size-option-name">US Letter</span>
             <span class="size-option-dims">8.5 × 11.0 in (612 × 792 pt)</span>
           </div>
         </label>
-        <label class="size-option-card" for="size-eu-a4">
-          <input type="radio" name="pageSizeChoice" id="size-eu-a4" value="EU (A4)" />
+        <label class="size-option-card" for="size-eu-a4" data-size="International (A4)">
+          <input type="radio" name="pageSizeChoice" id="size-eu-a4" value="International (A4)" />
           <div class="size-option-details">
-            <span class="size-option-name">EU Standard (A4)</span>
+            <span class="size-option-name">International (A4)</span>
             <span class="size-option-dims">210 × 297 mm (595 × 842 pt)</span>
           </div>
         </label>
@@ -133,7 +133,7 @@ block bodytag %} data-page="FC" {% endblock %} {% block content %}
     </div>
     <div class="pdf-modal-footer">
       <button id="cancel-resize-modal-btn" class="btn btn-secondary" type="button">Cancel</button>
-      <button id="apply-resize-modal-btn" class="btn btn-primary" type="button">Apply & Resize</button>
+      <button id="apply-resize-modal-btn" class="btn btn-primary" type="button">Standardize</button>
     </div>
   </div>
 </div>

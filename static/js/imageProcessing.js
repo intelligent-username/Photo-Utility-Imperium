@@ -71,6 +71,8 @@ export function initImageProcessing(options) {
                 }
 
                 const objectURL = URL.createObjectURL(blob);
+                const prev = state.processedResults[fileIndex];
+                if (prev && prev.output && prev.output.startsWith('blob:')) URL.revokeObjectURL(prev.output);
                 state.processedResults[fileIndex] = {
                     preview: previewDataUrl,
                     output: objectURL,
@@ -161,34 +163,63 @@ export function initImageProcessing(options) {
         processNextFile();
     }
 
-    // Modal PDF Resizing
+    // Modal PDF Standardizing
     const resizePdfBtnEl = document.getElementById('resize-pdf-btn');
     const resizeModalEl = document.getElementById('resize-modal');
-    const cancelResizeBtn = document.getElementById('cancel-resize-btn');
+    const closeResizeModalBtn = document.getElementById('close-resize-modal-btn');
+    const cancelResizeModalBtn = document.getElementById('cancel-resize-modal-btn');
+    const applyResizeModalBtn = document.getElementById('apply-resize-modal-btn');
     const optionCards = document.querySelectorAll('.size-option-card');
 
     if (resizePdfBtnEl && resizeModalEl) {
         resizePdfBtnEl.addEventListener('click', () => resizeModalEl.classList.remove('hidden'));
     }
-    if (cancelResizeBtn && resizeModalEl) {
-        cancelResizeBtn.addEventListener('click', () => resizeModalEl.classList.add('hidden'));
+    if (closeResizeModalBtn && resizeModalEl) {
+        closeResizeModalBtn.addEventListener('click', () => resizeModalEl.classList.add('hidden'));
     }
+    if (cancelResizeModalBtn && resizeModalEl) {
+        cancelResizeModalBtn.addEventListener('click', () => resizeModalEl.classList.add('hidden'));
+    }
+    if (resizeModalEl) {
+        resizeModalEl.addEventListener('click', (e) => {
+            if (e.target === resizeModalEl) resizeModalEl.classList.add('hidden');
+        });
+    }
+
     if (optionCards.length) {
         optionCards.forEach(card => {
             card.addEventListener('click', () => {
-                const chosenSize = card.getAttribute('data-size');
-                if (resizeModalEl) resizeModalEl.classList.add('hidden');
-
-                const currentResult = state.processedResults[state.currentSlideIndex];
-                const fileToReProcess = currentResult ? currentResult.file : null;
-                if (!fileToReProcess) return;
-
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    sendFileToBackend(fileToReProcess, '/process_image_conversion', { output_format: 'PDF', page_size: chosenSize }, 'standard_pdf', 'pdf', e.target.result, state.currentSlideIndex);
-                };
-                reader.readAsDataURL(fileToReProcess);
+                optionCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                const radio = card.querySelector('input[type="radio"]');
+                if (radio) radio.checked = true;
             });
+        });
+    }
+
+    if (applyResizeModalBtn) {
+        applyResizeModalBtn.addEventListener('click', () => {
+            const selectedRadio = document.querySelector('input[name="pageSizeChoice"]:checked');
+            const chosenSize = selectedRadio ? selectedRadio.value : 'US Letter';
+            if (resizeModalEl) resizeModalEl.classList.add('hidden');
+
+            const currentResult = state.processedResults[state.currentSlideIndex];
+            const fileToReProcess = currentResult ? currentResult.file : null;
+            if (!fileToReProcess) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                sendFileToBackend(
+                    fileToReProcess,
+                    '/process_image_conversion',
+                    { output_format: 'PDF', page_size: chosenSize },
+                    'standardized',
+                    'pdf',
+                    e.target.result,
+                    state.currentSlideIndex
+                );
+            };
+            reader.readAsDataURL(fileToReProcess);
         });
     }
 

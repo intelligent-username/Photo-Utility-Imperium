@@ -386,72 +386,134 @@ def cv2_to_pil(cv2_image):
         return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGRA2RGBA))
     return Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
 
-def convert_to_standard_pdf(file_bytes, page_size_name, is_pdf_input=False):
-    """
-    Converts an image or PDF into a PDF with standard page dimensions (US Letter or EU A4).
-    Content is scaled to fit while preserving aspect ratio and centered on the page.
-    """
-    ps_clean = str(page_size_name).upper()
-    if 'LETTER' in ps_clean or 'US' in ps_clean:
-        base_w, base_h = 612.0, 792.0
-    else:  # EU / A4 default
-        base_w, base_h = 595.28, 841.89
+LETTER = (612.0, 792.0)
+A4 = (595.0, 842.0)
 
-    out_doc = fitz.open()
-
-    if is_pdf_input:
-        src_doc = fitz.open(stream=file_bytes, filetype="pdf")
-        for src_page in src_doc:
-            orig_w = src_page.rect.width
-            orig_h = src_page.rect.height
-
-            is_landscape = orig_w > orig_h
-            if is_landscape:
-                tw, th = max(base_w, base_h), min(base_w, base_h)
-            else:
-                tw, th = min(base_w, base_h), max(base_w, base_h)
-
-            scale_x = tw / orig_w if orig_w > 0 else 1.0
-            scale_y = th / orig_h if orig_h > 0 else 1.0
-            scale = min(scale_x, scale_y)
-
-            scaled_w = orig_w * scale
-            scaled_h = orig_h * scale
-            tx = (tw - scaled_w) / 2.0
-            ty = (th - scaled_h) / 2.0
-
-            out_page = out_doc.new_page(width=tw, height=th)
-            target_rect = fitz.Rect(tx, ty, tx + scaled_w, ty + scaled_h)
-            out_page.show_pdf_page(target_rect, src_doc, src_page.number)
-    else:
-        # Input is an Image
-        img = Image.open(BytesIO(file_bytes))
-        orig_w, orig_h = img.size
-
-        is_landscape = orig_w > orig_h
-        if is_landscape:
-            tw, th = max(base_w, base_h), min(base_w, base_h)
+def create_standard_blank_pdf(page_size_name, file_bytes=None, is_pdf_input=False):
+    """Return a blank Letter/A4 page with a rectangle of the original PDF size drawn centered."""
+    try:
+        name = str(page_size_name or "").upper()
+        is_letter = "LETTER" in name or "US" in name
+        w, h = LETTER if is_letter else A4
+        # get original dimensions
+        sw, sh = None, None
+        if file_bytes:
+            try:
+                if is_pdf_input:
+                    doc = fitz.open(stream=file_bytes, filetype="pdf")
+                    if len(doc) > 0:
+                        sw = float(doc[0].rect.width)
+                        sh = float(doc[0].rect.height)
+                    doc.close()
+                else:
+                    img = Image.open(BytesIO(file_bytes))
+                    sw, sh = float(img.size[0]), float(img.size[1])
+                    try:
+                        img.close()
+                    except:
+                        pass
+            except Exception as e:
+                print(f"rect size detection failed: {e}")
+                import traceback
+                traceback.print_exc()
+        print(f"create_standard_blank_pdf: page {w}x{h}, rect {sw}x{sh} is_pdf={is_pdf_input}")
+        if sw and sh:
+            scale = min(w / sw, h / sh) if sw and sh else 1.0
+            rw, rh = sw * scale, sh * scale
+            x = (w - rw) / 2.0
+            y = (h - rh) / 2.0
+            print(f"maxed rect {sw}x{sh} -> {rw}x{rh} scale {scale} at {x},{y}")
         else:
-            tw, th = min(base_w, base_h), max(base_w, base_h)
+            scale = 1.0
+            rw, rh = 200, 200
+            x, y = (w - rw) / 2.0, (h - rh) / 2.0
+            print("no sw/sh, using fallback 200x200")
 
-        scale_x = tw / orig_w if orig_w > 0 else 1.0
-        scale_y = th / orig_h if orig_h > 0 else 1.0
-        scale = min(scale_x, scale_y)
-
-        scaled_w = orig_w * scale
-        scaled_h = orig_h * scale
-        tx = (tw - scaled_w) / 2.0
-        ty = (th - scaled_h) / 2.0
-
-        img_temp = BytesIO()
-        if img.mode not in ("RGB", "RGBA"):
-            img = img.convert("RGB")
-        img.save(img_temp, format="PNG")
-        img_bytes = img_temp.getvalue()
-
-        out_page = out_doc.new_page(width=tw, height=th)
-        target_rect = fitz.Rect(tx, ty, tx + scaled_w, ty + scaled_h)
-        out_page.insert_image(target_rect, stream=img_bytes)
-
-    return out_doc.tobytes()
+        # branch: PDF -> fitz vector embed, Image -> reportlab embed
+        if is_pdf_input and file_bytes:
+            # draw generated PDF page in place of rectangle - maxed
+            try:
+                src = fitz.open(stream=file_bytes, filetype="pdf")
+                out = fitz.open()
+                page = out.new_page(width=w, height=h)
+                page.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=(1, 1, 1), width=0)
+                # show first page scaled to maxed rect
+                page.show_pdf_page(fitz.Rect(x, y, x+rw, y+rh), src, pno=0, clip=src[0].rect, keep_proportion=False, overlay=True)
+                print(f"embedded PDF page {sw}x{sh} -> rect {rw}x{rh}")
+                data = out.tobytes(garbage=3, deflate=True)
+                src.close()
+                out.close()
+                if data.startswith(b"%PDF"):
+                    return data
+                raise ValueError("PDF embed produced invalid PDF")
+            except Exception as e:
+                print(f"PDF embed failed, falling back to rect: {e}")
+                import traceback
+                traceback.print_exc()
+                # fall through to reportlab rect
+        if file_bytes and not is_pdf_input:
+            # draw generated PDF (from image) in place of rectangle - maxed image
+            packet = BytesIO()
+            can = canvas.Canvas(packet, pagesize=(w, h))
+            can.setFillColorRGB(1, 1, 1)
+            can.rect(0, 0, w, h, fill=1, stroke=0)
+            try:
+                can.drawImage(ImageReader(BytesIO(file_bytes)), x, y, width=rw, height=rh, preserveAspectRatio=False, mask='auto')
+                print(f"embedded image {sw}x{sh} -> rect {rw}x{rh}")
+            except Exception as e:
+                print(f"image embed failed: {e}")
+                import traceback
+                traceback.print_exc()
+                can.setFillColorRGB(1, 1, 0)
+                can.setStrokeColorRGB(1, 0, 0)
+                can.setLineWidth(4)
+                can.rect(x, y, rw, rh, fill=1, stroke=1)
+            can.showPage()
+            can.save()
+            packet.seek(0)
+            data = packet.getvalue()
+            if data.startswith(b"%PDF"):
+                return data
+            raise ValueError("Image embed produced invalid PDF")
+        # fallback: yellow rect (should not reach here)
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=(w, h))
+        can.setFillColorRGB(1, 1, 1)
+        can.rect(0, 0, w, h, fill=1, stroke=0)
+        can.setStrokeColorRGB(1, 0, 0)
+        can.setFillColorRGB(1, 1, 0)
+        can.setLineWidth(4)
+        can.rect(x, y, rw, rh, fill=1, stroke=1)
+        can.showPage()
+        can.save()
+        packet.seek(0)
+        data = packet.getvalue()
+        if not data.startswith(b"%PDF"):
+            raise ValueError("Generated data is not PDF")
+        return data
+    except Exception as e:
+        import traceback
+        print(f"create_standard_blank_pdf failed for '{page_size_name}': {e}")
+        traceback.print_exc()
+        try:
+            import fitz
+            name2 = str(page_size_name or "").upper()
+            is_letter2 = "LETTER" in name2 or "US" in name2
+            w2, h2 = LETTER if is_letter2 else A4
+            doc = fitz.open()
+            page = doc.new_page(width=w2, height=h2)
+            page.draw_rect(fitz.Rect(0, 0, w2, h2), color=None, fill=(1, 1, 1))
+            if 'sw' in locals() and sw and sh:
+                scale2 = min(w2 / sw, h2 / sh) if sw and sh else 1.0
+                rw2, rh2 = sw * scale2, sh * scale2
+                x2 = (w2 - rw2) / 2.0
+                y2 = (h2 - rh2) / 2.0
+                page.draw_rect(fitz.Rect(x2, y2, x2+rw2, y2+rh2), color=(1,0,0), fill=(1,1,0), width=4)
+            data2 = doc.tobytes()
+            doc.close()
+            return data2
+        except Exception as e2:
+            print(f"fallback also failed: {e2}")
+            traceback.print_exc()
+            raise
 # -----------------------

@@ -10,7 +10,7 @@ import os
 import io
 
 from flask import Flask, render_template, request, send_file, jsonify
-from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic, convert_to_standard_pdf
+from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic, create_standard_blank_pdf
 import base64
 import fitz
 import json
@@ -175,22 +175,24 @@ def process_image_conversion():
     page_size = request.form.get('page_size', '').strip()
     
     file_bytes = file.read()
-    is_pdf_input = file.content_type == 'application/pdf' or (bool(file.filename) and file.filename.lower().endswith('.pdf'))
+    is_pdf_input = file_bytes.startswith(b'%PDF') or file.content_type == 'application/pdf' or (bool(file.filename) and file.filename.lower().endswith('.pdf'))
 
     try:
         if output_format == 'PDF':
             if page_size:
-                pdf_data = convert_to_standard_pdf(file_bytes, page_size, is_pdf_input=is_pdf_input)
+                # Standardize: blank page with rectangle of original size
+                print(f"Standardize requested: page_size='{page_size}' output_format={output_format}")
+                pdf_data = create_standard_blank_pdf(page_size, file_bytes, is_pdf_input)
+                print(f"Standardize generated {len(pdf_data)} bytes")
+            elif is_pdf_input:
+                pdf_data = file_bytes
             else:
-                if is_pdf_input:
-                    pdf_data = file_bytes
-                else:
-                    img = Image.open(io.BytesIO(file_bytes))
-                    if img.mode in ("RGBA", "P", "LA"):
-                        img = img.convert("RGB")
-                    processed_io = io.BytesIO()
-                    img.save(processed_io, format='PDF')
-                    pdf_data = processed_io.getvalue()
+                img = Image.open(io.BytesIO(file_bytes))
+                if img.mode in ("RGBA", "P", "LA"):
+                    img = img.convert("RGB")
+                processed_io = io.BytesIO()
+                img.save(processed_io, format='PDF')
+                pdf_data = processed_io.getvalue()
 
             return send_file(
                 io.BytesIO(pdf_data),
@@ -267,11 +269,16 @@ def process_image_conversion():
                 download_name=f'converted.{output_format.lower()}'
             )
 
-    except IOError:
+    except IOError as e:
+        import traceback
+        print(f"IOError processing image conversion: {e}")
+        traceback.print_exc()
         return 'Error: File format not supported or invalid image', 400
     except Exception as e:
+        import traceback
         print(f"Error processing image conversion: {e}")
-        return 'Error processing image', 500
+        traceback.print_exc()
+        return f'Error processing image: {e}', 500
 
 # Page 5
 @app.route('/process_pdf_merge', methods=['POST'])
