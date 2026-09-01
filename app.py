@@ -322,6 +322,39 @@ def process_pdf_edit():
         print(f"Error editing PDF: {e}")
         return 'Error editing PDF', 500
 
+@app.route('/process_pdf_standardize', methods=['POST'])
+def process_pdf_standardize():
+    try:
+        page_size = request.form.get('page_size', '').strip()
+        if not page_size:
+            return 'page_size required', 400
+        # collect files: file_0, file_1, ... or single file
+        file_keys = sorted([k for k in request.files.keys() if k.startswith('file')])
+        files = [request.files[k] for k in file_keys] if file_keys else []
+        if not files:
+            return 'No files', 400
+        print(f"Standardize PDF: {len(files)} files page_size='{page_size}'")
+        final_doc = fitz.open()
+        for f in files:
+            fb = f.read()
+            if not fb:
+                continue
+            std_bytes = create_standard_blank_pdf(page_size, fb, is_pdf_input=True)
+            tmp = fitz.open(stream=std_bytes, filetype="pdf")
+            final_doc.insert_pdf(tmp)
+            tmp.close()
+        if len(final_doc) == 0:
+            return 'No pages generated', 500
+        out_bytes = final_doc.tobytes(garbage=3, deflate=True)
+        final_doc.close()
+        print(f"Standardize PDF generated {len(out_bytes)} bytes pages={len(final_doc) if 'final_doc' in locals() else '?'}")
+        return send_file(io.BytesIO(out_bytes), mimetype='application/pdf', as_attachment=True, download_name='standardized.pdf')
+    except Exception as e:
+        import traceback
+        print(f"Error standardizing PDF: {e}")
+        traceback.print_exc()
+        return f'Error standardizing PDF: {e}', 500
+
 # Error Handler Routes
 @app.errorhandler(404)
 def not_found_error(error):

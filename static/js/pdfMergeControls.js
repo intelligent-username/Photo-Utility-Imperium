@@ -216,6 +216,23 @@ export function setupToolbarControls() {
             updateStatusBar('No form fields to delete');
             return;
         }
+        const hasAnyText = pages.some(p => p.formFields && p.formFields.some(f => {
+            const ann = p.layers.find(l => l.type === 'annotation' && l.fieldId === f.id);
+            return (ann && ann.text && ann.text.trim().length > 0) || (f.fieldValue && String(f.fieldValue).trim().length > 0);
+        }));
+        if (!hasAnyText) {
+            import('./pdfCanvas/pdfHistory.js').then(({ snapshotAllFormFields }) => {
+                snapshotAllFormFields();
+                pages.forEach(p => {
+                    if (!p.formFields || p.formFields.length === 0) return;
+                    p.layers = p.layers.filter(l => !(l.type === 'annotation' && l.isFormField));
+                    p.formFields = [];
+                    import('./pdfCanvas/pdfRender.js').then(({ renderCardCanvas }) => renderCardCanvas(p)).catch(() => {});
+                });
+                updateStatusBar('All form fields deleted');
+            }).catch(() => {});
+            return;
+        }
         showFieldDeleteDialog((spareText) => {
             import('./pdfCanvas/pdfHistory.js').then(({ snapshotAllFormFields }) => {
                 snapshotAllFormFields();
@@ -730,6 +747,9 @@ function setupColorSizeControls() {
                 p.excluded = false;
                 p.layers = [];
                 p.cropBox = null;
+                // reset standardized tracing (maxed rectangle)
+                if (p.standardized) delete p.standardized;
+                if (p.aspectRatio && p._pdfPage) delete p.aspectRatio;
                 p._cacheCanvas = null;
                 p._cacheWidth = null;
                 const card = document.getElementById(p.id);

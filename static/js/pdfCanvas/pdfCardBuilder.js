@@ -335,14 +335,27 @@ export function renderCardLayers(wrap, page) {
 
                 if (st.mode === 'field-form-delete') {
                     e.stopPropagation();
-                    showFieldDeleteDialog((spareText) => {
-                        const existing = findAnnotationForField(page, field);
+                    const existing = findAnnotationForField(page, field);
+                    const hasText = (existing && existing.text && existing.text.trim().length > 0) || (field.fieldValue && String(field.fieldValue).trim().length > 0);
+                    if (!hasText) {
                         snapshotPageFormFields(page);
-                        if (!spareText && existing) {
+                        if (existing) {
                             const idx = page.layers.indexOf(existing);
                             if (idx !== -1) page.layers.splice(idx, 1);
-                        } else if (spareText && existing) {
-                            delete existing.isFormField;
+                        }
+                        const fi = page.formFields.indexOf(field);
+                        if (fi !== -1) page.formFields.splice(fi, 1);
+                        renderCardCanvas(page);
+                        return;
+                    }
+                    showFieldDeleteDialog((spareText) => {
+                        const existing2 = findAnnotationForField(page, field);
+                        snapshotPageFormFields(page);
+                        if (!spareText && existing2) {
+                            const idx = page.layers.indexOf(existing2);
+                            if (idx !== -1) page.layers.splice(idx, 1);
+                        } else if (spareText && existing2) {
+                            delete existing2.isFormField;
                         }
                         const fi = page.formFields.indexOf(field);
                         if (fi !== -1) page.formFields.splice(fi, 1);

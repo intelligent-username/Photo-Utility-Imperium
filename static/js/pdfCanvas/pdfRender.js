@@ -6,12 +6,65 @@ import { getState, createPageObject } from './pdfState.js';
 import { buildCard, renderCardLayers } from './pdfCardBuilder.js';
 import { addCropControls, syncRectToPercentage } from './pdfCropOverlay.js';
 
+// ——— Clean architecture: separate drawers, original page drawer untouched ———
+function drawYellowMaxedRect(ctx, page, vpWidth, vpHeight) {
+    const tw = page.standardized.tw, th = page.standardized.th;
+    const sw = page.standardized.sw, sh = page.standardized.sh;
+    const scale = Math.min(tw / sw, th / sh);
+    const rw = sw * scale, rh = sh * scale;
+    const x = (tw - rw) / 2, y = (th - rh) / 2;
+    const sx = vpWidth / tw, sy = vpHeight / th;
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.85)';
+    ctx.strokeStyle = 'rgba(255, 0, 0, 1)';
+    ctx.lineWidth = Math.max(2, 4 * (vpWidth / 600));
+    ctx.fillRect(x * sx, y * sy, rw * sx, rh * sy);
+    ctx.strokeRect(x * sx, y * sy, rw * sx, rh * sy);
+}
+
+async function drawOriginalMaxed(ctx, page, vpWidth, vpHeight) {
+    // draws the ORIGINAL pdf page scaled with contain inside the blank standardized page
+    if (!page._pdfPage) return;
+    const tw = page.standardized.tw, th = page.standardized.th;
+    const sw = page.standardized.sw, sh = page.standardized.sh;
+    const scale = Math.min(tw / sw, th / sh);
+    const rw = sw * scale, rh = sh * scale;
+    const x = (tw - rw) / 2, y = (th - rh) / 2;
+    const sx = vpWidth / tw, sy = vpHeight / th;
+    const rW = rw * sx, rH = rh * sy;
+    const rx = x * sx, ry = y * sy;
+    // render original page at exact rW size
+    const origVp = page._pdfPage.getViewport({ scale: 1 });
+    const renderScale = rW / origVp.width;
+    const vp = page._pdfPage.getViewport({ scale: renderScale });
+    const tmp = document.createElement('canvas');
+    tmp.width = Math.round(rW);
+    tmp.height = Math.round(rH);
+    // handle high DPR: render at higher res then downscale via drawImage
+    const tmpCtx = tmp.getContext('2d');
+    // Use pdf.js render
+    const task = page._pdfPage.render({ canvasContext: tmpCtx, viewport: vp });
+    try { await task.promise; } catch (e) {}
+    ctx.drawImage(tmp, rx, ry, rW, rH);
+}
+
 export async function getPageCanvasCache(page, targetWidth) {
-    if (!page._pdfPage && !page.isBlank) return null;
+    if (!page._pdfPage && !page.isBlank && !page.standardized) return null;
 
     if (!page._cacheCanvas || page._cacheWidth !== targetWidth) {
         const offCanvas = document.createElement('canvas');
-        if (page.isBlank) {
+        // standardized: BLANK white page at tw×th, no original image
+        if (page.standardized && page.standardized.tw && page.standardized.th) {
+            const tw = page.standardized.tw, th = page.standardized.th;
+            offCanvas.width = targetWidth;
+            offCanvas.height = Math.round(targetWidth * (th / tw));
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.fillStyle = '#ffffff';
+            offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+            offCtx.strokeStyle = '#e5e7eb';
+            offCtx.lineWidth = 2;
+            offCtx.strokeRect(1, 1, offCanvas.width-2, offCanvas.height-2);
+            console.log(`getPageCanvasCache standardized ${tw}x${th} -> ${offCanvas.width}x${offCanvas.height} for ${page.id}`);
+        } else if (page.isBlank) {
             const ar = page.aspectRatio || (792 / 612);
             offCanvas.width = targetWidth;
             offCanvas.height = Math.round(targetWidth * ar);
@@ -66,6 +119,11 @@ export async function renderCardCanvas(page) {
 
     ctx.clearRect(0, 0, vpWidth, vpHeight);
     ctx.drawImage(baseCache, 0, 0);
+    if (page.standardized && page.standardized.sw && page.standardized.sh) {
+        // use original drawer, yellow drawer kept separate for architecture
+        await drawOriginalMaxed(ctx, page, vpWidth, vpHeight);
+        // to debug yellow, call drawYellowMaxedRect(ctx, page, vpWidth, vpHeight) instead
+    }
 
     if (page.layers && page.layers.length > 0) {
         for (const layer of page.layers) {

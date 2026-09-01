@@ -23,6 +23,9 @@ function cloneFormFields(fields) {
  * and by performRedo to save what it's about to overwrite back onto the undoStack.
  */
 function currentSnapshot(state, entry) {
+    if (entry.type === 'standardize') {
+        return { ...entry, snapshot: state.pages.map(p => ({ id: p.id, standardized: p.standardized ? { ...p.standardized } : null, aspectRatio: p.aspectRatio, _cacheCanvas: null, _cacheWidth: null })) };
+    }
     if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         return page ? { ...entry, snapshot: cloneLayers(page.layers) } : null;
@@ -77,7 +80,29 @@ function pushUndo(entry) {
 // ─── Apply an entry's snapshot to state ──────────────────────────────────────
 
 function applyEntry(state, entry, syncGridCb) {
-    if (entry.type === 'page_layers') {
+    if (entry.type === 'standardize') {
+        entry.snapshot.forEach(({ id, standardized, aspectRatio }) => {
+            const page = state.pages.find(p => p.id === id);
+            if (page) {
+                if (standardized) page.standardized = { ...standardized };
+                else delete page.standardized;
+                if (aspectRatio !== undefined) {
+                    if (aspectRatio === null || aspectRatio === undefined) delete page.aspectRatio;
+                    else page.aspectRatio = aspectRatio;
+                }
+                page._cacheCanvas = null;
+                page._cacheWidth = null;
+                const card = document.getElementById(page.id);
+                if (card) renderCardCanvas(page);
+                else renderCardCanvas(page);
+            }
+        });
+        if (typeof syncGridCb === 'function') syncGridCb();
+        else {
+            // fallback re-render all
+            state.pages.forEach(p => renderCardCanvas(p));
+        }
+    } else if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         if (!page) return;
         page.layers = cloneLayers(entry.snapshot);
@@ -200,6 +225,15 @@ export function snapshotPagesOrder() {
 /** Call BEFORE toggling page.excluded */
 export function snapshotPageExcluded(page) {
     pushUndo({ type: 'page_excluded', pageId: page.id, snapshot: page.excluded });
+}
+
+/** Call BEFORE standardizing sizes (adds maxed rect) */
+export function snapshotStandardize() {
+    const state = getState();
+    pushUndo({
+        type: 'standardize',
+        snapshot: state.pages.map(p => ({ id: p.id, standardized: p.standardized ? { ...p.standardized } : null, aspectRatio: p.aspectRatio })),
+    });
 }
 
 // ─── Undo / Redo ────────────────────────────────────────────────────────────
