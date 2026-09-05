@@ -388,17 +388,25 @@ export function setupToolbarControls() {
             selectAnnSubTool('date');
         });
     }
+    let dateDropdownControls = null;
     if (annToolDateCaret) {
         annToolDateCaret.addEventListener('click', (e) => {
             e.stopPropagation();
             const dateMenu = document.getElementById('date-dropdown-menu');
             const signMenu = document.getElementById('sign-dropdown-menu');
-            if (dateMenu) dateMenu.classList.toggle('hidden');
+            if (dateMenu) {
+                const opening = dateMenu.classList.contains('hidden');
+                dateMenu.classList.toggle('hidden');
+                if (opening && dateDropdownControls) {
+                    dateDropdownControls.updateDateFormatButtons();
+                    dateDropdownControls.updateDatePreview();
+                }
+            }
             if (signMenu) signMenu.classList.add('hidden');
         });
     }
 
-    setupDateDropdown(selectAnnSubTool);
+    dateDropdownControls = setupDateDropdown(selectAnnSubTool);
     setupSignatureModal(selectAnnSubTool);
     setupColorSizeControls();
     setupRichTooltips();
@@ -488,6 +496,17 @@ function setupDateDropdown(selectAnnSubTool) {
     const dateSizeMinus = document.getElementById('date-size-minus');
     const dateSizePlus = document.getElementById('date-size-plus');
 
+    function updateDateFormatButtons() {
+        if (dateFormatOptions.length) {
+            dateFormatOptions.forEach(opt => {
+                const fmt = opt.getAttribute('data-format');
+                if (fmt) {
+                    opt.textContent = formatDate(fmt);
+                }
+            });
+        }
+    }
+
     function updateDatePreview() {
         if (!datePreviewText) return;
         datePreviewText.textContent = formatDate(state.dateFormat);
@@ -496,6 +515,9 @@ function setupDateDropdown(selectAnnSubTool) {
         datePreviewText.style.fontWeight = state.dateBold ? 'bold' : 'normal';
         datePreviewText.style.fontSize = `${Math.max(10, state.dateSize)}px`;
     }
+
+    updateDateFormatButtons();
+    updateDatePreview();
 
     if (dateFormatOptions.length) {
         dateFormatOptions.forEach(opt => {
@@ -576,6 +598,7 @@ function setupDateDropdown(selectAnnSubTool) {
     }
 
     updateDatePreview();
+    return { updateDateFormatButtons, updateDatePreview };
 }
 
 function setupSignatureModal(selectAnnSubTool) {

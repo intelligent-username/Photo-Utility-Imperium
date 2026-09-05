@@ -472,18 +472,42 @@
     border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.whiteout-rect-interactive:hover {
+.whiteout-rect-interactive:hover,
+.whiteout-rect-interactive.selected {
     border: 1px dashed var(--primary);
 }
 
-.whiteout-rect-interactive .ann-delete-btn {
-    top: -6px;
-    right: -6px;
+.whiteout-del-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
     display: none;
 }
 
-.whiteout-rect-interactive:hover .ann-delete-btn {
+.whiteout-rect-interactive:hover .whiteout-del-btn,
+.whiteout-rect-interactive.selected .whiteout-del-btn {
     display: inline-flex;
+}
+
+.whiteout-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
 }
 
 .overlay-handle {

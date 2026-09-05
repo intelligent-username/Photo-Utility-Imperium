@@ -67,7 +67,7 @@ def sample_page4():
 
 @app.route('/PDF')
 def sample_page5():
-    print("PDF Merger Page")
+    print("PDF Editor Page")
     return render_template('Pages/PDF.html')
 
 # Page 1

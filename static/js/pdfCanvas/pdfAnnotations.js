@@ -28,6 +28,12 @@ export function getContrastBgColor(hexColor) {
     }
 }
 
+function getOrdinal(n) {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 export function formatDate(format) {
     const d = new Date();
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -40,12 +46,22 @@ export function formatDate(format) {
     const dd = String(day).padStart(2, '0');
 
     switch (format) {
-        case 'words-short': return `${monthsShort[monthIdx]} ${day}, ${year}`;
-        case 'words-long':  return `${months[monthIdx]} ${day}, ${year}`;
-        case 'numeric-slash': return `${mm}/${dd}/${year}`;
-        case 'numeric-dash':  return `${year}-${mm}-${dd}`;
-        case 'numeric-dot':   return `${dd}.${mm}.${year}`;
-        default: return `${monthsShort[monthIdx]} ${day}, ${year}`;
+        case 'words-short':
+            return `${monthsShort[monthIdx]}. ${getOrdinal(day)}, ${year}`;
+        case 'words-full':
+        case 'words-long':
+            return `${months[monthIdx]} ${getOrdinal(day)}, ${year}`;
+        case 'numbers-us':
+        case 'numeric-slash':
+            return `${mm}/${dd}/${year}`;
+        case 'numbers-eu':
+            return `${dd}/${mm}/${year}`;
+        case 'numeric-dash':
+            return `${year}-${mm}-${dd}`;
+        case 'numeric-dot':
+            return `${dd}.${mm}.${year}`;
+        default:
+            return `${monthsShort[monthIdx]}. ${getOrdinal(day)}, ${year}`;
     }
 }
 
@@ -625,6 +641,7 @@ export function startWhiteout(e, wrap, page) {
         const finalHeight = parseFloat(box.style.height);
 
         if (finalWidth > 5 && finalHeight > 5) {
+            snapshotPageLayers(page);
             const wo = {
                 type: 'whiteout',
                 id: `wo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
