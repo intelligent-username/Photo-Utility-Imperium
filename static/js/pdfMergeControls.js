@@ -15,7 +15,9 @@ import {
     deleteSelectedLayer,
     deselectAllLayers,
     performUndo,
-    performRedo
+    performRedo,
+    selectedLayerInfo,
+    getSelectedLayerInfo
 } from './pdfCanvas.js';
 
 export function setupToolbarControls() {
@@ -527,6 +529,11 @@ function setupDateDropdown(selectAnnSubTool) {
                 opt.classList.add('active');
                 state.dateFormat = opt.getAttribute('data-format');
                 updateDatePreview();
+                const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+                if (sel && sel.layer && sel.page) {
+                    sel.layer.text = formatDate(state.dateFormat);
+                    renderCardCanvas(sel.page);
+                }
             });
         });
     }
@@ -540,6 +547,12 @@ function setupDateDropdown(selectAnnSubTool) {
                 state.dateFont = opt.getAttribute('data-font');
                 state.dateBold = opt.getAttribute('data-bold') === 'true';
                 updateDatePreview();
+                const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+                if (sel && sel.layer && sel.page) {
+                    sel.layer.fontFamily = state.dateFont;
+                    sel.layer.bold = state.dateBold;
+                    renderCardCanvas(sel.page);
+                }
             });
         });
     }
@@ -555,6 +568,15 @@ function setupDateDropdown(selectAnnSubTool) {
                 if (dateColorInput) dateColorInput.value = hex;
                 if (dateColorSwatch) dateColorSwatch.style.backgroundColor = hex;
                 updateDatePreview();
+                const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+                if (sel && sel.layer && sel.page) {
+                    sel.layer.color = hex;
+                    renderCardCanvas(sel.page);
+                }
+                const mainColorInput = document.getElementById('ann-color');
+                const customSwatch = document.getElementById('custom-color-swatch');
+                if (mainColorInput) mainColorInput.value = hex;
+                if (customSwatch) customSwatch.style.backgroundColor = hex;
             });
         });
     }
@@ -569,21 +591,47 @@ function setupDateDropdown(selectAnnSubTool) {
                 d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === hex.toLowerCase());
             });
             updateDatePreview();
+            const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+            if (sel && sel.layer && sel.page) {
+                sel.layer.color = hex;
+                renderCardCanvas(sel.page);
+            }
+            const mainColorInput = document.getElementById('ann-color');
+            const customSwatch = document.getElementById('custom-color-swatch');
+            if (mainColorInput) mainColorInput.value = hex;
+            if (customSwatch) customSwatch.style.backgroundColor = hex;
         });
     }
 
+    const applyDateSizeChange = (val) => {
+        state.dateSize = val;
+        if (dateSizeInput) dateSizeInput.value = val;
+        updateDatePreview();
+        const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+        if (sel && sel.layer && sel.page) {
+            sel.layer.fontSize = val;
+            renderCardCanvas(sel.page);
+        }
+        const mainSizeInput = document.getElementById('ann-size');
+        if (mainSizeInput) mainSizeInput.value = val;
+    };
+
     if (dateSizeInput) {
-        dateSizeInput.addEventListener('input', (e) => { state.dateSize = parseInt(e.target.value, 10) || 16; updateDatePreview(); });
-        dateSizeInput.addEventListener('change', (e) => { state.dateSize = parseInt(e.target.value, 10) || 16; updateDatePreview(); });
+        dateSizeInput.addEventListener('input', (e) => {
+            e.stopPropagation();
+            applyDateSizeChange(parseInt(e.target.value, 10) || 16);
+        });
+        dateSizeInput.addEventListener('change', (e) => {
+            e.stopPropagation();
+            applyDateSizeChange(parseInt(e.target.value, 10) || 16);
+        });
     }
 
     if (dateSizeMinus && dateSizeInput) {
         dateSizeMinus.addEventListener('click', (e) => {
             e.stopPropagation();
             let val = Math.max(8, (parseInt(dateSizeInput.value, 10) || 16) - 2);
-            dateSizeInput.value = val;
-            state.dateSize = val;
-            updateDatePreview();
+            applyDateSizeChange(val);
         });
     }
 
@@ -591,9 +639,7 @@ function setupDateDropdown(selectAnnSubTool) {
         dateSizePlus.addEventListener('click', (e) => {
             e.stopPropagation();
             let val = Math.min(72, (parseInt(dateSizeInput.value, 10) || 16) + 2);
-            dateSizeInput.value = val;
-            state.dateSize = val;
-            updateDatePreview();
+            applyDateSizeChange(val);
         });
     }
 
@@ -793,12 +839,19 @@ function setupColorSizeControls() {
                 dot.classList.add('active');
                 const hex = dot.getAttribute('data-color');
                 state.annColor = hex;
+                state.dateColor = hex;
                 if (colorInput) colorInput.value = hex;
                 if (customSwatch) customSwatch.style.backgroundColor = hex;
 
-                if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
-                    selectedLayerInfo.layer.color = hex;
-                    renderCardCanvas(selectedLayerInfo.page);
+                const dateColorInput = document.getElementById('date-color');
+                const dateColorSwatch = document.getElementById('date-color-swatch');
+                if (dateColorInput) dateColorInput.value = hex;
+                if (dateColorSwatch) dateColorSwatch.style.backgroundColor = hex;
+
+                const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+                if (sel && sel.layer && sel.page) {
+                    sel.layer.color = hex;
+                    renderCardCanvas(sel.page);
                 }
             });
         });
@@ -808,24 +861,37 @@ function setupColorSizeControls() {
         colorInput.addEventListener('input', (e) => {
             const hex = e.target.value;
             state.annColor = hex;
+            state.dateColor = hex;
             if (customSwatch) customSwatch.style.backgroundColor = hex;
             colorDots.forEach(d => {
                 d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === hex.toLowerCase());
             });
 
-            if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
-                selectedLayerInfo.layer.color = hex;
-                renderCardCanvas(selectedLayerInfo.page);
+            const dateColorInput = document.getElementById('date-color');
+            const dateColorSwatch = document.getElementById('date-color-swatch');
+            if (dateColorInput) dateColorInput.value = hex;
+            if (dateColorSwatch) dateColorSwatch.style.backgroundColor = hex;
+
+            const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+            if (sel && sel.layer && sel.page) {
+                sel.layer.color = hex;
+                renderCardCanvas(sel.page);
             }
         });
     }
 
     const applySizeChange = (newSize) => {
         state.annSize = newSize;
-        if (selectedLayerInfo && selectedLayerInfo.layer && selectedLayerInfo.page) {
-            selectedLayerInfo.layer.fontSize = newSize;
-            renderCardCanvas(selectedLayerInfo.page);
+        state.dateSize = newSize;
+        const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+        if (sel && sel.layer && sel.page) {
+            sel.layer.fontSize = newSize;
+            renderCardCanvas(sel.page);
         }
+        const dateSizeInput = document.getElementById('date-size');
+        if (dateSizeInput) dateSizeInput.value = newSize;
+        const datePreviewText = document.getElementById('date-preview-text');
+        if (datePreviewText) datePreviewText.style.fontSize = `${Math.max(10, newSize)}px`;
     };
 
     if (sizeInput) {

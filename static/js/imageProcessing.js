@@ -127,13 +127,22 @@ export function initImageProcessing(options) {
     });
 
     if (qualitySlider && qualityValue) {
+        const updateQualityText = () => {
+            const val = parseInt(qualitySlider.value, 10);
+            qualityValue.textContent = val;
+            const modeEl = document.getElementById('compressionMode');
+            if (modeEl) {
+                modeEl.textContent = val >= 85 ? '(Lossless)' : '(Lossy)';
+            }
+        };
         qualitySlider.addEventListener('input', () => {
-            qualityValue.textContent = qualitySlider.value;
+            updateQualityText();
             if (page === 'IC' && convertAgainBtn) {
                 const curQ = parseInt(state.processedResults[state.currentSlideIndex]?.quality);
                 convertAgainBtn.classList.toggle('hidden', isNaN(curQ) || parseInt(qualitySlider.value) === curQ);
             }
         });
+        updateQualityText();
     }
 
     if (uploadArea) {

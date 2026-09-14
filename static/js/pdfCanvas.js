@@ -45,7 +45,9 @@ import {
     commitActivePlacement,
     deleteSelectedLayer,
     selectLayer,
-    deselectAllLayers
+    deselectAllLayers,
+    selectedLayerInfo,
+    getSelectedLayerInfo
 } from './pdfCanvas/pdfCardBuilder.js';
 
 import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
@@ -73,7 +75,9 @@ export {
     commitActivePlacement,
     deleteSelectedLayer,
     selectLayer,
-    deselectAllLayers
+    deselectAllLayers,
+    selectedLayerInfo,
+    getSelectedLayerInfo
 };
 
 export function renderCardCanvas(page) {

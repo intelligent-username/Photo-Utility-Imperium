@@ -11,6 +11,10 @@ let ghostEl = null;
 export let lastGhostPlacement = null;
 export let selectedLayerInfo = null; // { page, layer, el }
 
+export function getSelectedLayerInfo() {
+    return selectedLayerInfo;
+}
+
 export function selectLayer(page, layer, el) {
     deselectAllLayers();
     selectedLayerInfo = { page, layer, el };
@@ -20,11 +24,17 @@ export function selectLayer(page, layer, el) {
         const state = getState();
         if (layer.fontSize) {
             state.annSize = layer.fontSize;
+            state.dateSize = layer.fontSize;
             const sizeInput = document.getElementById('ann-size');
             if (sizeInput) sizeInput.value = layer.fontSize;
+            const dateSizeInput = document.getElementById('date-size');
+            if (dateSizeInput) dateSizeInput.value = layer.fontSize;
+            const datePreviewText = document.getElementById('date-preview-text');
+            if (datePreviewText) datePreviewText.style.fontSize = `${Math.max(10, layer.fontSize)}px`;
         }
         if (layer.color) {
             state.annColor = layer.color;
+            state.dateColor = layer.color;
             const colorInput = document.getElementById('ann-color');
             const customSwatch = document.getElementById('custom-color-swatch');
             if (colorInput) colorInput.value = layer.color;
@@ -32,7 +42,13 @@ export function selectLayer(page, layer, el) {
             document.querySelectorAll('.color-palette .color-dot').forEach(d => {
                 d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === layer.color.toLowerCase());
             });
+            const dateColorInput = document.getElementById('date-color');
+            const dateColorSwatch = document.getElementById('date-color-swatch');
+            if (dateColorInput) dateColorInput.value = layer.color;
+            if (dateColorSwatch) dateColorSwatch.style.backgroundColor = layer.color;
         }
+        const annBarControls = document.getElementById('ann-bar-controls');
+        if (annBarControls) annBarControls.classList.remove('hidden');
     }
 }
 
@@ -42,6 +58,11 @@ export function deselectAllLayers() {
     }
     document.querySelectorAll('.ann-marker.selected, .signature-rect.selected, .whiteout-rect-interactive.selected').forEach(el => el.classList.remove('selected'));
     selectedLayerInfo = null;
+    const state = getState();
+    if (state.mode !== 'annotate') {
+        const annBarControls = document.getElementById('ann-bar-controls');
+        if (annBarControls) annBarControls.classList.add('hidden');
+    }
 }
 
 export function deleteSelectedLayer() {

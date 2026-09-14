@@ -14,6 +14,7 @@ import { startCreateFormField } from './pdfFormFieldUI.js';
 export {
     lastGhostPlacement,
     selectedLayerInfo,
+    getSelectedLayerInfo,
     selectLayer,
     deselectAllLayers,
     deleteSelectedLayer,
@@ -261,6 +262,16 @@ export function buildCard(page) {
             snapshotPageLayers(page);
             page.layers.push(ann);
             renderCardCanvas(page);
+
+            // Auto-select placed date stamp so user can immediately resize or reposition it
+            const cardEl = document.getElementById(page.id);
+            if (cardEl) {
+                const markers = cardEl.querySelectorAll('.ann-marker');
+                const lastMarker = markers[markers.length - 1];
+                if (lastMarker) {
+                    selectLayer(page, ann, lastMarker);
+                }
+            }
         }
     });
 

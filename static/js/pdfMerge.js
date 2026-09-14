@@ -110,6 +110,7 @@ export function initPdfMerge(options) {
                 cropBox: p.cropBox,
                 overlays: p.overlays,
                 whiteouts: p.whiteouts,
+                standardized: p.standardized || null,
             }));
             formData.append('manifest', JSON.stringify(manifest));
 
