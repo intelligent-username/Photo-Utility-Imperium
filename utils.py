@@ -7,12 +7,33 @@ import cv2
 from PIL import Image
 import numpy as np
 import fitz
+import traceback
 
 #
 # Helpers & Utilities
 #-----------------------#
 # PDF Merger & Editor
 #
+
+def ensure_unencrypted_pdf_bytes(file_bytes):
+    """Decrypts AES/standard-encrypted PDFs using PyMuPDF (which handles AES natively without pycryptodome)
+    and returns clean unencrypted PDF bytes so PyPDF2 can process them safely without DependencyError."""
+    if not file_bytes or not file_bytes.startswith(b"%PDF"):
+        return file_bytes
+    try:
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        if doc.is_encrypted:
+            doc.authenticate("")
+            clean_doc = fitz.open()
+            clean_doc.insert_pdf(doc)
+            clean_bytes = clean_doc.tobytes(garbage=3, deflate=True)
+            clean_doc.close()
+            doc.close()
+            return clean_bytes
+        doc.close()
+    except Exception as e:
+        pass
+    return file_bytes
 
 def create_blank_page(width=612.0, height=792.0):
     """Creates a single blank PDF page in memory with specified dimensions (default standard Letter: 612x792 pt)."""
@@ -270,20 +291,91 @@ def merge_pdfs(readers, num_blank_pages=0):
             add_blank_pages(writer, num_blank_pages)
     return writer
 
+def standardize_single_pdf_page(file_bytes, page_idx, std_spec):
+    """Embeds a single PDF page into a standard white Letter/A4 canvas with contain-fit scaling."""
+    if isinstance(std_spec, dict):
+        tw = float(std_spec.get('tw', 612.0))
+        th = float(std_spec.get('th', 792.0))
+    elif isinstance(std_spec, str) and ('a4' in std_spec.lower() or 'eu' in std_spec.lower()):
+        tw, th = 595.0, 842.0
+    else:
+        tw, th = 612.0, 792.0
+
+    src_doc = fitz.open(stream=file_bytes, filetype="pdf")
+    try:
+        if src_doc.is_encrypted:
+            src_doc.authenticate("")
+        if page_idx >= len(src_doc):
+            return None, (tw, th)
+        src_page = src_doc[page_idx]
+
+        rect = src_page.rect
+        rot = src_page.rotation % 360
+        if rot in (90, 270):
+            sw, sh = rect.height, rect.width
+        else:
+            sw, sh = rect.width, rect.height
+
+        if sw <= 0: sw = 612.0
+        if sh <= 0: sh = 792.0
+
+        scale = min(tw / sw, th / sh)
+        rw = sw * scale
+        rh = sh * scale
+        x = (tw - rw) / 2.0
+        y = (th - rh) / 2.0
+
+        out_doc = fitz.open()
+        out_page = out_doc.new_page(width=tw, height=th)
+        out_page.draw_rect(fitz.Rect(0, 0, tw, th), color=None, fill=(1, 1, 1), width=0)
+
+        target_rect = fitz.Rect(x, y, x + rw, y + rh)
+        out_page.show_pdf_page(target_rect, src_doc, pno=page_idx, clip=src_page.rect, rotate=src_page.rotation, keep_proportion=True)
+
+        std_pdf_bytes = out_doc.tobytes(garbage=3, deflate=True)
+        out_doc.close()
+
+        std_reader = PdfReader(BytesIO(std_pdf_bytes))
+        return std_reader.pages[0], (tw, th)
+    finally:
+        src_doc.close()
+
 def process_pdf_edit_logic(readers, manifest, file_bytes_list=None):
     """Process ordered list of pages with sequential layer stack (annotations, crops, overlays, whiteouts)."""
     writer = PdfWriter()
     current_page_size = (612.0, 792.0)  # Default standard Letter size (612x792 pt)
 
     for item in manifest:
+        std = item.get('standardized')
         if item.get('isBlank'):
-            page = create_blank_page(width=current_page_size[0], height=current_page_size[1])
+            if std and isinstance(std, dict):
+                tw = float(std.get('tw', current_page_size[0]))
+                th = float(std.get('th', current_page_size[1]))
+            else:
+                tw, th = current_page_size
+            page = create_blank_page(width=tw, height=th)
+            current_page_size = (tw, th)
         else:
             file_idx = item.get('fileIndex', 0)
             page_idx = item.get('pageIndex', 0)
 
             if file_idx < len(readers) and page_idx < len(readers[file_idx].pages):
-                page = readers[file_idx].pages[page_idx]
+                orig_page = readers[file_idx].pages[page_idx]
+                if std and file_bytes_list and file_idx < len(file_bytes_list):
+                    try:
+                        std_page, new_size = standardize_single_pdf_page(file_bytes_list[file_idx], page_idx, std)
+                        if std_page:
+                            page = std_page
+                            current_page_size = new_size
+                        else:
+                            page = orig_page
+                    except Exception as e:
+                        print(f"Error standardizing page {page_idx} of file {file_idx}: {e}")
+                        traceback.print_exc()
+                        page = orig_page
+                else:
+                    page = orig_page
+
                 try:
                     current_page_size = (float(page.mediabox.width), float(page.mediabox.height))
                 except Exception:
@@ -434,12 +526,31 @@ def create_standard_blank_pdf(page_size_name, file_bytes=None, is_pdf_input=Fals
             # draw generated PDF page in place of rectangle - maxed
             try:
                 src = fitz.open(stream=file_bytes, filetype="pdf")
+                if len(src) == 0:
+                    raise ValueError("Empty PDF")
                 out = fitz.open()
-                page = out.new_page(width=w, height=h)
-                page.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=(1, 1, 1), width=0)
-                # show first page scaled to maxed rect
-                page.show_pdf_page(fitz.Rect(x, y, x+rw, y+rh), src, pno=0, clip=src[0].rect, keep_proportion=False, overlay=True)
-                print(f"embedded PDF page {sw}x{sh} -> rect {rw}x{rh}")
+                for src_page in src:
+                    rect = src_page.rect
+                    rot = src_page.rotation % 360
+                    if rot in (90, 270):
+                        page_sw, page_sh = rect.height, rect.width
+                    else:
+                        page_sw, page_sh = rect.width, rect.height
+
+                    if page_sw <= 0: page_sw = 612.0
+                    if page_sh <= 0: page_sh = 792.0
+
+                    page_scale = min(w / page_sw, h / page_sh)
+                    page_rw, page_rh = page_sw * page_scale, page_sh * page_scale
+                    page_x = (w - page_rw) / 2.0
+                    page_y = (h - page_rh) / 2.0
+
+                    out_page = out.new_page(width=w, height=h)
+                    out_page.draw_rect(fitz.Rect(0, 0, w, h), color=None, fill=(1, 1, 1), width=0)
+                    target_rect = fitz.Rect(page_x, page_y, page_x + page_rw, page_y + page_rh)
+                    out_page.show_pdf_page(target_rect, src, pno=src_page.number, clip=src_page.rect, rotate=src_page.rotation, keep_proportion=True)
+
+                print(f"embedded {len(src)} PDF page(s) standardized to {w}x{h}")
                 data = out.tobytes(garbage=3, deflate=True)
                 src.close()
                 out.close()

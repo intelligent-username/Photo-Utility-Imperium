@@ -1,14 +1,14 @@
 {% extends "template.html" %}
 
-{% block title %}Page Not Found (505){% endblock %}
+{% block title %}Internal Server Error (500){% endblock %}
 
 {% block content %}
 
 <div class="text-center">
     <h1 class="display-4">500</h1>
-    <p class="lead">The page you are looking for <u>does not exist</u>. There's an error on <i>our</i> end.</p>
-    <p>Error 500</p>
-    <img src="/static/media/errors/500.gif" alt="Error 500 Image">
+    <p class="lead">Something went wrong on our end.</p>
+    <p>Error 500: Internal Server Error</p>
+    <img src="{{ url_for('static', filename='media/errors/500.gif') }}" alt="Error 500 Image">
     <br>
     <br>
     <a href="/main" class="btn btn-primary">Home</a>

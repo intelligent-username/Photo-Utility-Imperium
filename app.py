@@ -14,6 +14,7 @@ import warnings
 import cv2
 import fitz
 from flask import Flask, jsonify, render_template, request, send_file
+import numpy as np
 from PIL import Image
 from PyPDF2 import PdfReader
 from rembg import remove
@@ -21,6 +22,7 @@ from rembg import remove
 from utils import (
     create_standard_blank_pdf,
     cv2_to_pil,
+    ensure_unencrypted_pdf_bytes,
     merge_pdfs,
     pil_to_cv2,
     process_pdf_edit_logic,
@@ -29,6 +31,7 @@ from utils import (
 warnings.simplefilter("ignore")
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB limit
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -254,7 +257,19 @@ def process_image_cleaning():
     img = Image.open(file.stream)
 
     cv_img = pil_to_cv2(img)
-    cleaned_cv = cv2.GaussianBlur(cv_img, (5, 5), 0)
+    try:
+        if len(cv_img.shape) == 3 and cv_img.shape[2] == 4:
+            bgr = cv_img[:, :, :3]
+            alpha = cv_img[:, :, 3]
+            denoised = cv2.fastNlMeansDenoisingColored(bgr, None, h=6, hColor=6, templateWindowSize=7, searchWindowSize=15)
+            cleaned_cv = np.dstack((denoised, alpha))
+        elif len(cv_img.shape) == 3 and cv_img.shape[2] == 3:
+            cleaned_cv = cv2.fastNlMeansDenoisingColored(cv_img, None, h=6, hColor=6, templateWindowSize=7, searchWindowSize=15)
+        else:
+            cleaned_cv = cv2.fastNlMeansDenoising(cv_img, None, h=6, templateWindowSize=7, searchWindowSize=15)
+    except Exception:
+        cleaned_cv = cv2.GaussianBlur(cv_img, (5, 5), 0)
+
     cleaned = cv2_to_pil(cleaned_cv)
 
     fmt = (img.format or "PNG").upper()
@@ -405,7 +420,8 @@ def process_pdf_merge():
         files = [request.files[k] for k in request.files if k.startswith("file")]
         pages_between = int(request.form.get("pages_between", 0))
 
-        readers = [PdfReader(f.stream) for f in files]
+        file_bytes_list = [ensure_unencrypted_pdf_bytes(f.read()) for f in files]
+        readers = [PdfReader(io.BytesIO(b)) for b in file_bytes_list]
         writer = merge_pdfs(readers, num_blank_pages=pages_between)
 
         buf = io.BytesIO()
@@ -415,17 +431,22 @@ def process_pdf_merge():
 
     except Exception as e:
         print(f"Error merging PDFs: {e}")
+        traceback.print_exc()
         return "Error merging PDFs", 500
 
 
 @app.route("/process_pdf_edit", methods=["POST"])
 def process_pdf_edit():
     try:
-        file_keys = sorted(k for k in request.files if k.startswith("file_"))
+        file_keys = sorted(
+            (k for k in request.files if k.startswith("file_")),
+            key=lambda k: int(k.split("_")[1]) if k.split("_")[1].isdigit() else k,
+        )
         files = [request.files[k] for k in file_keys]
         manifest = json.loads(request.form.get("manifest", "[]"))
 
-        file_bytes_list = [f.read() for f in files]
+        raw_bytes_list = [f.read() for f in files]
+        file_bytes_list = [ensure_unencrypted_pdf_bytes(b) for b in raw_bytes_list]
         readers = [PdfReader(io.BytesIO(b)) for b in file_bytes_list]
         writer = process_pdf_edit_logic(readers, manifest, file_bytes_list)
 
@@ -436,6 +457,7 @@ def process_pdf_edit():
 
     except Exception as e:
         print(f"Error editing PDF: {e}")
+        traceback.print_exc()
         return "Error editing PDF", 500
 
 
@@ -507,6 +529,12 @@ def forbidden(e):
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return render_template("error.html", code=413, title="File Too Large",
+                           message="Uploaded file exceeds the 100MB limit."), 413
 
 
 @app.errorhandler(429)
