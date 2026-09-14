@@ -1,6 +1,6 @@
 # Photo Utility Imperium
 
-![Nighthawks by Edward Hopper 1942](./static/media/rm/cover.png)
+![Nighthawks by Edward Hopper 1942](./static/media/rm/cover.webp)
 
 ## Every Image Manipulation Operation in One Place
 
@@ -16,13 +16,13 @@ The implemented methods are faster, more efficient, and accessible. The UI is si
 
 ### Background Removal
 
-![Background Removal Demo](static/media/rm/BR.png)
+![Background Removal Demo](static/media/rm/BR.webp)
 
 Input an image in any format, and get back a PNG with the background removed.
 
 ### Image Compressor
 
-![Image Compression Demo](static/media/rm/IC.png)
+![Image Compression Demo](static/media/rm/IC.webp)
 
 Reduce file size by getting rid of redundant data in the image.
 
@@ -30,7 +30,7 @@ Note: for "compression", it's often advisable to convert to `webp` instead of us
 
 ### Noise Reducer
 
-![Noise Reduction Demo](static/media/rm/NR.png)
+![Noise Reduction Demo](static/media/rm/NR.webp)
 
 Get rid of image noise to make the subjects appear more defined.
 
@@ -38,13 +38,13 @@ Note: do not use this on documents as this tends to blur the text.
 
 ### File Format Converter
 
-![JPEG to PDF conversion demo](static/media/rm/FC.png)
+![JPEG to PDF conversion demo](static/media/rm/FC.webp)
 
 Convert an image file to any format you need (PDF, PNG, JPEG, etc.).
 
 ### PDF Editor
 
-![Merge two PDFs and add one page in between](static/media/rm/PDF.png)
+![Merge two PDFs and add one page in between](static/media/rm/PDF.webp)
 
 This is the most comprehensive page. Here, you can:
 
