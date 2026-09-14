@@ -42,12 +42,22 @@ Note: do not use this on documents as this tends to blur the text.
 
 Convert an image file to any format you need (PDF, PNG, JPEG, etc.).
 
-### PDF Merger
+### PDF Editor
 
 ![Merge two PDFs and add one page in between](static/media/rm/PDF.png)
 
-Merge PDFs and add pages between them.
-  
+This is the most comprehensive page. Here, you can:
+
+- Merge pdfs
+- Add blank pages into the PDF them
+- Crop pages
+- Overlay pages on top of each other
+- Add whiteout on top of a certain section of the page
+- Add text, delete text, edit text
+- Sign the PDF, add a date stamp
+- Standardize page sizes to American A4 letter or Global A4.
+- Create fields, add text to those fields, delete pre-existing field, etc.
+
 ## Prerequisites
 
 To run this project locally, you need to have:
