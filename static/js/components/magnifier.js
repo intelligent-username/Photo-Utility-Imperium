@@ -1,69 +1,39 @@
 export function initMagnifierFeature() {
     const wrappers = document.querySelectorAll('.magnify-wrapper[data-pair="compare"]');
-    if (wrappers.length < 2) return;
+    if (wrappers.length < 2 || wrappers[0]._magInit) return;
+    wrappers[0]._magInit = true;
 
-    const zoomLevel = 2.5;
-    const lensSize = 120; // Must match CSS .magnifier-lens width/height
+    const zoom = 2.5, lensHalf = 60;
+    let raf = null, rects = [];
 
-    wrappers.forEach((wrapper) => {
-        const img = wrapper.querySelector('img');
-        const lens = wrapper.querySelector('.magnifier-lens');
-        if (!img || !lens) return;
+    const syncMetrics = () => {
+        rects = Array.from(wrappers, w => {
+            const img = w.querySelector('img'), lens = w.querySelector('.magnifier-lens');
+            if (!img || !lens) return null;
+            if (img.src) {
+                lens.style.backgroundImage = `url('${img.src}')`;
+                lens.style.backgroundSize = `${img.offsetWidth * zoom}px ${img.offsetHeight * zoom}px`;
+            }
+            return { w, img, lens, r: w.getBoundingClientRect(), ir: img.getBoundingClientRect() };
+        }).filter(Boolean);
+    };
 
-        const updateLensBackground = () => {
-            lens.style.backgroundImage = `url('${img.src}')`;
-            lens.style.backgroundSize = `${img.offsetWidth * zoomLevel}px ${img.offsetHeight * zoomLevel}px`;
-        };
-
-        img.addEventListener('load', updateLensBackground);
-        if (img.complete) updateLensBackground();
-
-        wrapper.addEventListener('mouseenter', () => {
-            wrappers.forEach(w => {
-                const wImg = w.querySelector('img');
-                const wLens = w.querySelector('.magnifier-lens');
-                if (wImg && wLens) {
-                    wLens.style.backgroundImage = `url('${wImg.src}')`;
-                    wLens.style.backgroundSize = `${wImg.offsetWidth * zoomLevel}px ${wImg.offsetHeight * zoomLevel}px`;
-                }
-                w.classList.add('magnify-active');
+    wrappers.forEach(w => {
+        w.addEventListener('mouseenter', () => { syncMetrics(); wrappers.forEach(el => el.classList.add('magnify-active')); });
+        w.addEventListener('mouseleave', () => { if (raf) cancelAnimationFrame(raf); wrappers.forEach(el => el.classList.remove('magnify-active')); });
+        w.addEventListener('mousemove', e => {
+            if (raf) cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+                const cur = rects.find(m => m.w === w);
+                if (!cur || !cur.ir.width) return;
+                const nx = Math.max(0, Math.min(1, (e.clientX - cur.ir.left) / cur.ir.width));
+                const ny = Math.max(0, Math.min(1, (e.clientY - cur.ir.top) / cur.ir.height));
+                rects.forEach(m => {
+                    m.lens.style.left = `${(m.ir.left - m.r.left) + nx * m.ir.width}px`;
+                    m.lens.style.top = `${(m.ir.top - m.r.top) + ny * m.ir.height}px`;
+                    m.lens.style.backgroundPosition = `-${nx * m.img.offsetWidth * zoom - lensHalf}px -${ny * m.img.offsetHeight * zoom - lensHalf}px`;
+                });
             });
-        });
-
-        wrapper.addEventListener('mouseleave', () => {
-            wrappers.forEach(w => w.classList.remove('magnify-active'));
-        });
-
-        wrapper.addEventListener('mousemove', (e) => {
-            const hoveredImg = wrapper.querySelector('img');
-            if (!hoveredImg) return;
-            const imgRect = hoveredImg.getBoundingClientRect();
-            if (imgRect.width === 0 || imgRect.height === 0) return;
-
-            const x = Math.max(0, Math.min(imgRect.width, e.clientX - imgRect.left));
-            const y = Math.max(0, Math.min(imgRect.height, e.clientY - imgRect.top));
-
-            const normX = x / imgRect.width;
-            const normY = y / imgRect.height;
-
-            wrappers.forEach(w => {
-                const wImg = w.querySelector('img');
-                const wLens = w.querySelector('.magnifier-lens');
-                if (!wImg || !wLens) return;
-
-                const wRect = w.getBoundingClientRect();
-                const wImgRect = wImg.getBoundingClientRect();
-
-                const posX = (wImgRect.left - wRect.left) + (normX * wImgRect.width);
-                const posY = (wImgRect.top - wRect.top) + (normY * wImgRect.height);
-
-                wLens.style.left = `${posX}px`;
-                wLens.style.top = `${posY}px`;
-
-                const bgX = (normX * wImg.offsetWidth * zoomLevel) - (lensSize / 2);
-                const bgY = (normY * wImg.offsetHeight * zoomLevel) - (lensSize / 2);
-                wLens.style.backgroundPosition = `-${bgX}px -${bgY}px`;
-            });
-        });
+        }, { passive: true });
     });
 }

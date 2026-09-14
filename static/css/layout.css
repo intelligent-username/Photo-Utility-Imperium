@@ -56,7 +56,27 @@ body[data-page] .col-md-8 {
 /* Align right column content with the upload area (below the .tool-title) */
 @media (min-width: 768px) {
     body[data-page] .col-md-8 {
-        padding-top: 70px;
+        padding-top: 0;
+    }
+
+    body[data-page] .col-md-8 > .slideshow-header:not(.hidden) {
+        min-height: 44px;
+        margin-top: 10px;
+        margin-bottom: 16px;
+        box-sizing: border-box;
+    }
+
+    body[data-page] .col-md-8 > .slideshow-header.hidden + .img-comp-wrapper,
+    body[data-page] .col-md-8 > .slideshow-header.hidden + .comparison-row,
+    body[data-page] .col-md-8 > .slideshow-header.hidden + .comparison-container,
+    body[data-page] .col-md-8 > .slideshow-header.hidden + #image-preview,
+    body[data-page] .col-md-8 > .slideshow-header.hidden + #result,
+    body[data-page] .col-md-8 > .img-comp-wrapper:first-child,
+    body[data-page] .col-md-8 > .comparison-row:first-child,
+    body[data-page] .col-md-8 > .comparison-container:first-child,
+    body[data-page] .col-md-8 > #image-preview:first-child,
+    body[data-page] .col-md-8 > #result:first-child {
+        margin-top: 70px !important;
     }
 }
 

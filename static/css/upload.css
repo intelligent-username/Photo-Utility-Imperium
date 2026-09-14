@@ -98,7 +98,7 @@
 
 #image-preview,
 #result {
-  margin-top: 16px;
+  margin-top: 0;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;

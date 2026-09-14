@@ -5,111 +5,58 @@
 
 export function initComparisonSlider(wrapperEl) {
     if (!wrapperEl) return;
+    wrapperEl._sliderDestroy?.();
 
     const clipper = wrapperEl.querySelector('.img-comp-clipper');
     const handle = wrapperEl.querySelector('.img-comp-handle');
+    const img = clipper?.querySelector('img');
     if (!clipper || !handle) return;
 
-    let isDragging = false;
-    let rectCache = null;
+    let isDragging = false, rect = null, raf = null;
 
-    function cacheRect() {
-        rectCache = wrapperEl.getBoundingClientRect();
-    }
-
-    function syncClipperImgWidth() {
-        const img = clipper.querySelector('img');
-        if (img) img.style.width = wrapperEl.clientWidth + 'px';
-    }
-
-    function setPosition(clientX) {
-        if (!rectCache) cacheRect();
-        let pct = ((clientX - rectCache.left) / rectCache.width) * 100;
-        pct = Math.max(5, Math.min(95, pct));
-        clipper.style.width = pct + '%';
-        handle.style.left = pct + '%';
+    const syncWidth = () => { if (img) img.style.width = `${wrapperEl.clientWidth}px`; };
+    const setPos = (clientX) => {
+        if (!rect) rect = wrapperEl.getBoundingClientRect();
+        const pct = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
+        clipper.style.width = `${pct}%`;
+        handle.style.left = `${pct}%`;
         handle.setAttribute('aria-valuenow', Math.round(pct));
-    }
+    };
 
-    function onPointerDown(e) {
-        e.preventDefault();
-        isDragging = true;
-        handle.classList.add('dragging');
-        handle.setPointerCapture(e.pointerId);
-        cacheRect();
-        setPosition(e.clientX);
-    }
-
-    function onPointerMove(e) {
-        if (!isDragging) return;
-        setPosition(e.clientX);
-    }
-
-    function onPointerUp(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.classList.remove('dragging');
-        handle.releasePointerCapture(e.pointerId);
-    }
-
-    function onKeyDown(e) {
-        let pct = parseFloat(handle.getAttribute('aria-valuenow')) || 50;
+    const onDown = (e) => { e.preventDefault(); isDragging = true; handle.classList.add('dragging'); handle.setPointerCapture(e.pointerId); rect = wrapperEl.getBoundingClientRect(); setPos(e.clientX); };
+    const onMove = (e) => { if (!isDragging) return; if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setPos(e.clientX)); };
+    const onUp = (e) => { if (!isDragging) return; isDragging = false; handle.classList.remove('dragging'); handle.releasePointerCapture(e.pointerId); };
+    const onKey = (e) => {
+        let p = parseFloat(handle.getAttribute('aria-valuenow')) || 50;
         const step = e.shiftKey ? 10 : 2;
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-            e.preventDefault();
-            pct = Math.max(5, pct - step);
-        } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            pct = Math.min(95, pct + step);
-        } else {
-            return;
-        }
-        clipper.style.width = pct + '%';
-        handle.style.left = pct + '%';
-        handle.setAttribute('aria-valuenow', Math.round(pct));
-    }
+        if (['ArrowLeft', 'ArrowDown'].includes(e.key)) p -= step;
+        else if (['ArrowRight', 'ArrowUp'].includes(e.key)) p += step;
+        else return;
+        e.preventDefault();
+        setPos(rect.left + (Math.max(5, Math.min(95, p)) / 100) * rect.width);
+    };
 
-    function onWrapperClick(e) {
-        if (e.target === handle || handle.contains(e.target)) return;
-        cacheRect();
-        setPosition(e.clientX);
-    }
-
-    function onResize() {
-        syncClipperImgWidth();
-        cacheRect();
-    }
-
-    // Initialize
     handle.setAttribute('tabindex', '0');
     handle.setAttribute('role', 'slider');
-    handle.setAttribute('aria-label', 'Comparison slider: drag to compare original and compressed image');
-    handle.setAttribute('aria-valuemin', '5');
-    handle.setAttribute('aria-valuemax', '95');
+    handle.setAttribute('aria-label', 'Comparison slider');
     handle.setAttribute('aria-valuenow', '50');
 
-    syncClipperImgWidth();
-    cacheRect();
+    syncWidth();
+    rect = wrapperEl.getBoundingClientRect();
 
-    handle.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', onPointerUp);
-    handle.addEventListener('keydown', onKeyDown);
-    wrapperEl.addEventListener('click', onWrapperClick);
-    window.addEventListener('resize', onResize);
+    handle.addEventListener('pointerdown', onDown);
+    document.addEventListener('pointermove', onMove, { passive: true });
+    document.addEventListener('pointerup', onUp, { passive: true });
+    handle.addEventListener('keydown', onKey);
+    wrapperEl.addEventListener('click', (e) => !handle.contains(e.target) && setPos(e.clientX));
+    window.addEventListener('resize', () => { syncWidth(); rect = wrapperEl.getBoundingClientRect(); }, { passive: true });
 
-    return function destroy() {
-        handle.removeEventListener('pointerdown', onPointerDown);
-        document.removeEventListener('pointermove', onPointerMove);
-        document.removeEventListener('pointerup', onPointerUp);
-        handle.removeEventListener('keydown', onKeyDown);
-        wrapperEl.removeEventListener('click', onWrapperClick);
-        window.removeEventListener('resize', onResize);
-        handle.removeAttribute('tabindex');
-        handle.removeAttribute('role');
-        handle.removeAttribute('aria-label');
-        handle.removeAttribute('aria-valuemin');
-        handle.removeAttribute('aria-valuemax');
-        handle.removeAttribute('aria-valuenow');
+    wrapperEl._sliderDestroy = () => {
+        handle.removeEventListener('pointerdown', onDown);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('keydown', onKey);
+        if (raf) cancelAnimationFrame(raf);
     };
+    return wrapperEl._sliderDestroy;
 }
