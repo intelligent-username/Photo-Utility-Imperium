@@ -1,5 +1,5 @@
-import { setupNavToggle } from './nav.js';
-import { createProcessingController } from './overlay.js';
+import { setupNavToggle } from './components/nav.js';
+import { createProcessingController } from './components/overlay.js';
 import { initImageProcessing } from './imageProcessing.js';
 import { initPdfMerge } from './pdfMerge.js';
 

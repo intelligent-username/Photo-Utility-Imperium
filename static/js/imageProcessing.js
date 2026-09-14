@@ -2,8 +2,8 @@
 //  imageProcessing.js — Image processing queue & fetch dispatcher
 // ===========================================
 
-import { initMagnifierFeature } from './magnifier.js';
-import { getBaseName, clearOutputs, updateSlideUI, displaySlide } from './imageProcessingUtils.js';
+import { initMagnifierFeature } from './components/magnifier.js';
+import { getBaseName, clearOutputs, updateSlideUI, displaySlide } from './utils/imageProcessingUtils.js';
 
 export function initImageProcessing(options) {
     const {

@@ -1,400 +1,448 @@
-# app.py  backend
-import warnings; warnings.simplefilter("ignore")
+"""app.py — Photo Utility Imperium backend."""
 
-
-from PIL import Image
-from rembg import remove
+import base64
+import io
+import json
+import traceback
+import warnings
 
 import cv2
-import os
-import io
-
-from flask import Flask, render_template, request, send_file, jsonify
-from utils import pil_to_cv2, cv2_to_pil, merge_pdfs, process_pdf_edit_logic, create_standard_blank_pdf
-import base64
 import fitz
-import json
+from flask import Flask, jsonify, render_template, request, send_file
+from PIL import Image
 from PyPDF2 import PdfReader
+from rembg import remove
+
+from utils import (
+    create_standard_blank_pdf,
+    cv2_to_pil,
+    merge_pdfs,
+    pil_to_cv2,
+    process_pdf_edit_logic,
+)
+
+warnings.simplefilter("ignore")
 
 app = Flask(__name__)
 
 @app.after_request
-def add_header(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+def add_no_cache_headers(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
-@app.route('/')
-def index():
-    print("Arrived at Main Page")
-    return render_template('Pages/main.html')
 
-@app.route('/main')
+# ---------------------------------------------------------------------------
+# Pages
+# ---------------------------------------------------------------------------
+
+@app.route("/")
+@app.route("/main")
 def main():
-    print("Arrived at Main Page")
-    return render_template('Pages/main.html')
+    return render_template("Pages/main.html")
 
-# Silence Chrome DevTools well-known request
-@app.route('/.well-known/appspecific/com.chrome.devtools.json')
+
+@app.route("/BR")
+def background_remover():
+    return render_template("Pages/BR.html")
+
+
+@app.route("/IC")
+def image_compressor():
+    return render_template("Pages/IC.html")
+
+
+@app.route("/NR")
+def noise_reducer():
+    return render_template("Pages/NR.html")
+
+
+@app.route("/FC")
+def format_converter():
+    return render_template("Pages/FC.html")
+
+
+@app.route("/PDF")
+def pdf_editor():
+    return render_template("Pages/PDF.html")
+
+
+# Silence noisy browser requests
+@app.route("/.well-known/appspecific/com.chrome.devtools.json")
 def chrome_devtools():
-    return '', 204
+    return "", 204
 
-@app.route('/favicon.ico')
+
+@app.route("/favicon.ico")
 def favicon():
-    return '', 204
+    return "", 204
 
-# Routes
-@app.route('/BR')
-def sample_page1():
-    print("Background Remover Page")
-    return render_template('Pages/BR.html')
 
-@app.route('/IC')
-def sample_page2():
-    print("Image Compressor")
-    return render_template('Pages/IC.html')
+# ---------------------------------------------------------------------------
+# Background Remover
+# ---------------------------------------------------------------------------
 
-@app.route('/NR')
-def sample_page3():
-    print("Noise Reduction Page")
-    return render_template('Pages/NR.html')
-
-@app.route('/FC')
-def sample_page4():
-    print("Format Converter Page")
-    return render_template('Pages/FC.html')
-
-@app.route('/PDF')
-def sample_page5():
-    print("PDF Editor Page")
-    return render_template('Pages/PDF.html')
-
-# Page 1
-@app.route('/process_background_removal', methods=['POST'])
+@app.route("/process_background_removal", methods=["POST"])
 def process_background_removal():
-    if 'file' not in request.files:
-        return 'No file uploaded', 400
-    file = request.files['file']
+    if "file" not in request.files:
+        return "No file uploaded", 400
 
-    img = Image.open(file.stream)
+    img = Image.open(request.files["file"].stream)
     output = remove(img)
 
-    processed_io = io.BytesIO()
-    output.save(processed_io, format='PNG')
-    processed_io.seek(0)
+    buf = io.BytesIO()
+    output.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
 
-    return send_file(processed_io, mimetype='image/png')  
 
-# Page 2
-@app.route('/process_compression', methods=['POST'])
+# ---------------------------------------------------------------------------
+# Image Compressor
+# ---------------------------------------------------------------------------
+
+@app.route("/process_compression", methods=["POST"])
 def process_compression():
-    if 'file' not in request.files:
-        return 'No file uploaded', 400
-    
-    file = request.files['file']
+    if "file" not in request.files:
+        return "No file uploaded", 400
+
+    file = request.files["file"]
     img = Image.open(file.stream)
-    orig_format = (img.format or 'JPEG').upper()
-    if orig_format == 'JPG':
-        orig_format = 'JPEG'
-    
-    compressed_io = io.BytesIO()
-    
-    if orig_format == 'PNG':
+
+    fmt = (img.format or "JPEG").upper()
+    if fmt == "JPG":
+        fmt = "JPEG"
+
+    quality = int(request.form.get("quality", 50))
+    buf = io.BytesIO()
+
+    if fmt == "PNG":
         if img.mode not in ("RGB", "RGBA", "P"):
             img = img.convert("RGBA")
-        img.save(compressed_io, format='PNG', optimize=True)
-        mimetype = 'image/png'
-    elif orig_format == 'WEBP':
-        img.save(compressed_io, format='WEBP', lossless=True, method=6)
-        mimetype = 'image/webp'
-    elif orig_format == 'JPEG':
-        quality = int(request.form.get('quality', 50))
+        # PNG is lossless — the only way to meaningfully shrink it is to
+        # reduce the color palette.  Map quality 1-100 to 8-256 colors.
+        if quality < 100:
+            has_alpha = img.mode == "RGBA"
+            colors = max(8, int(256 * (quality / 100)))
+            img = img.quantize(colors=colors, method=2, dither=1)
+            if has_alpha:
+                img = img.convert("RGBA")
+            else:
+                img = img.convert("RGB")
+        img.save(buf, format="PNG", optimize=True)
+        mimetype = "image/png"
+    elif fmt == "WEBP":
+        img.save(buf, format="WEBP", quality=quality, method=6)
+        mimetype = "image/webp"
+    else:
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-        img.save(compressed_io, format='JPEG', quality=quality)
-        mimetype = 'image/jpeg'
-    else:
-        quality = int(request.form.get('quality', 50))
-        try:
-            img.save(compressed_io, format=orig_format, quality=quality)
-            mimetype = f'image/{orig_format.lower()}'
-        except Exception:
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-            img.save(compressed_io, format='JPEG', quality=quality)
-            mimetype = 'image/jpeg'
-    
-    compressed_io.seek(0)
-    return send_file(compressed_io, mimetype=mimetype)
+        if fmt == "JPEG":
+            img.save(buf, format="JPEG", quality=quality)
+            mimetype = "image/jpeg"
+        else:
+            try:
+                img.save(buf, format=fmt, quality=quality)
+                mimetype = f"image/{fmt.lower()}"
+            except Exception:
+                img.save(buf, format="JPEG", quality=quality)
+                mimetype = "image/jpeg"
 
-# Page 3
-@app.route('/process_image_cleaning', methods=['POST'])
+    buf.seek(0)
+    return send_file(buf, mimetype=mimetype)
+
+
+# ---------------------------------------------------------------------------
+# Noise Reducer
+# ---------------------------------------------------------------------------
+
+@app.route("/process_image_cleaning", methods=["POST"])
 def process_image_cleaning():
-    if 'file' not in request.files:
-        return 'No file uploaded', 400
-    
-    file = request.files['file']
-    img = Image.open(file.stream)
-    
-    # Convert image to OpenCV format
-    cv_img = pil_to_cv2(img)
-    
-    # Apply Gaussian Blur, reduce noise
-    cleaned_img = cv2.GaussianBlur(cv_img, (5, 5), 0)
-    
-    # Convert back to PIL for output
-    cleaned_pil_img = cv2_to_pil(cleaned_img)
-    
-    processed_io = io.BytesIO()
+    if "file" not in request.files:
+        return "No file uploaded", 400
 
-    # Preserve original image format (Pillow format key for JPEG is 'JPEG')
-    fmt = (img.format or 'PNG').upper()
-    if fmt in ('JPG', 'JPEG'):
-        if cleaned_pil_img.mode in ("RGBA", "P", "LA"):
-            cleaned_pil_img = cleaned_pil_img.convert("RGB")
-        out_format = 'JPEG'
-        mimetype = 'image/jpeg'
+    file = request.files["file"]
+    img = Image.open(file.stream)
+
+    cv_img = pil_to_cv2(img)
+    cleaned_cv = cv2.GaussianBlur(cv_img, (5, 5), 0)
+    cleaned = cv2_to_pil(cleaned_cv)
+
+    fmt = (img.format or "PNG").upper()
+    if fmt in ("JPG", "JPEG"):
+        if cleaned.mode in ("RGBA", "P", "LA"):
+            cleaned = cleaned.convert("RGB")
+        out_format = "JPEG"
+        mimetype = "image/jpeg"
     else:
         out_format = fmt
-        mimetype = f'image/{fmt.lower()}'
+        mimetype = f"image/{fmt.lower()}"
 
-    cleaned_pil_img.save(processed_io, format=out_format)
-    processed_io.seek(0)
-    
-    return send_file(processed_io, mimetype=mimetype)
+    buf = io.BytesIO()
+    cleaned.save(buf, format=out_format)
+    buf.seek(0)
+    return send_file(buf, mimetype=mimetype)
 
-# Page 4
-@app.route('/process_image_conversion', methods=['POST'])
+
+# ---------------------------------------------------------------------------
+# Format Converter
+# ---------------------------------------------------------------------------
+
+_MIME_MAP = {
+    "EPS":  "application/postscript",
+    "TIFF": "image/tiff",
+    "TIF":  "image/tiff",
+    "PPM":  "image/x-portable-pixmap",
+    "JPEG": "image/jpeg",
+    "JPG":  "image/jpeg",
+    "PNG":  "image/png",
+    "WEBP": "image/webp",
+    "GIF":  "image/gif",
+    "BMP":  "image/bmp",
+}
+
+_PREVIEW_FORMATS = {"EPS", "TIFF", "TIF", "PPM"}
+
+
+@app.route("/process_image_conversion", methods=["POST"])
 def process_image_conversion():
-    if 'file' not in request.files or 'output_format' not in request.form:
-        return 'File or format not provided', 400
-    
-    file = request.files['file']
-    output_format = request.form['output_format'].upper()
-    page_size = request.form.get('page_size', '').strip()
-    
+    if "file" not in request.files or "output_format" not in request.form:
+        return "File or format not provided", 400
+
+    file = request.files["file"]
+    output_format = request.form["output_format"].upper()
+    page_size = request.form.get("page_size", "").strip()
+
     file_bytes = file.read()
-    is_pdf_input = file_bytes.startswith(b'%PDF') or file.content_type == 'application/pdf' or (bool(file.filename) and file.filename.lower().endswith('.pdf'))
+    is_pdf = (
+        file_bytes.startswith(b"%PDF")
+        or file.content_type == "application/pdf"
+        or (bool(file.filename) and file.filename.lower().endswith(".pdf"))
+    )
 
     try:
-        if output_format == 'PDF':
+        if output_format == "PDF":
             if page_size:
-                # Standardize: blank page with rectangle of original size
-                print(f"Standardize requested: page_size='{page_size}' output_format={output_format}")
-                pdf_data = create_standard_blank_pdf(page_size, file_bytes, is_pdf_input)
-                print(f"Standardize generated {len(pdf_data)} bytes")
-            elif is_pdf_input:
+                pdf_data = create_standard_blank_pdf(page_size, file_bytes, is_pdf)
+            elif is_pdf:
                 pdf_data = file_bytes
             else:
                 img = Image.open(io.BytesIO(file_bytes))
                 if img.mode in ("RGBA", "P", "LA"):
                     img = img.convert("RGB")
-                processed_io = io.BytesIO()
-                img.save(processed_io, format='PDF')
-                pdf_data = processed_io.getvalue()
+                tmp = io.BytesIO()
+                img.save(tmp, format="PDF")
+                pdf_data = tmp.getvalue()
 
             return send_file(
                 io.BytesIO(pdf_data),
-                mimetype='application/pdf',
+                mimetype="application/pdf",
                 as_attachment=True,
-                download_name='converted.pdf'
+                download_name="converted.pdf",
             )
+
+        # Non-PDF output
+        if is_pdf:
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            if not doc:
+                return "PDF is empty", 400
+            pix = doc[0].get_pixmap()
+            img = Image.open(io.BytesIO(pix.tobytes()))
         else:
-            if is_pdf_input:
-                doc = fitz.open(stream=file_bytes, filetype="pdf")
-                if len(doc) > 0:
-                    pix = doc[0].get_pixmap()
-                    img = Image.open(io.BytesIO(pix.tobytes()))
-                else:
-                    return 'PDF is empty', 400
-            else:
-                img = Image.open(io.BytesIO(file_bytes))
+            img = Image.open(io.BytesIO(file_bytes))
 
-            # Ensure color mode compatibility for output formats (EPS, JPEG, PPM, etc.)
-            if output_format in ('JPEG', 'JPG', 'EPS', 'PPM') and img.mode in ('RGBA', 'P', 'LA'):
-                img = img.convert('RGB')
-            elif output_format == 'EPS' and img.mode not in ('RGB', '1', 'L'):
-                img = img.convert('RGB')
+        # Mode compatibility
+        if output_format in ("JPEG", "JPG", "EPS", "PPM") and img.mode in ("RGBA", "P", "LA"):
+            img = img.convert("RGB")
+        elif output_format == "EPS" and img.mode not in ("RGB", "1", "L"):
+            img = img.convert("RGB")
 
-            processed_io = io.BytesIO()
-            if output_format in ('TIFF', 'TIF'):
-                img.save(processed_io, format='TIFF', compression='tiff_lzw')
-            else:
-                img.save(processed_io, format=output_format)
-            processed_io.seek(0)
+        buf = io.BytesIO()
+        if output_format in ("TIFF", "TIF"):
+            img.save(buf, format="TIFF", compression="tiff_lzw")
+        else:
+            img.save(buf, format=output_format)
+        buf.seek(0)
 
-            # Generate preview thumbnail for formats browsers cannot natively render
-            preview_b64 = None
-            if output_format in ('EPS', 'TIFF', 'TIF', 'PPM'):
-                try:
-                    p_img = img.copy()
-                    p_img.thumbnail((1200, 1200))
-                    if p_img.mode in ('RGBA', 'P', 'LA'):
-                        p_img = p_img.convert('RGB')
-                    p_io = io.BytesIO()
-                    p_img.save(p_io, format='JPEG', quality=85)
-                    preview_b64 = "data:image/jpeg;base64," + base64.b64encode(p_io.getvalue()).decode('utf-8')
-                except Exception as pe:
-                    print(f"Preview generation warning: {pe}")
+        mimetype = _MIME_MAP.get(output_format, f"image/{output_format.lower()}")
 
-            mime_map = {
-                'EPS': 'application/postscript',
-                'TIFF': 'image/tiff',
-                'TIF': 'image/tiff',
-                'PPM': 'image/x-portable-pixmap',
-                'JPEG': 'image/jpeg',
-                'JPG': 'image/jpeg',
-                'PNG': 'image/png',
-                'WEBP': 'image/webp',
-                'GIF': 'image/gif',
-                'BMP': 'image/bmp'
-            }
-            mimetype = mime_map.get(output_format, f'image/{output_format.lower()}')
+        # Generate JPEG preview for formats browsers can't render natively
+        preview_b64 = None
+        if output_format in _PREVIEW_FORMATS:
+            try:
+                preview = img.copy()
+                preview.thumbnail((1200, 1200))
+                if preview.mode in ("RGBA", "P", "LA"):
+                    preview = preview.convert("RGB")
+                p_buf = io.BytesIO()
+                preview.save(p_buf, format="JPEG", quality=85)
+                preview_b64 = "data:image/jpeg;base64," + base64.b64encode(p_buf.getvalue()).decode()
+            except Exception as e:
+                print(f"Preview generation warning: {e}")
 
-            if request.form.get('return_json') == 'true' or preview_b64:
-                file_b64 = base64.b64encode(processed_io.getvalue()).decode('utf-8')
-                return jsonify({
-                    'success': True,
-                    'file_b64': file_b64,
-                    'preview_b64': preview_b64,
-                    'mimetype': mimetype,
-                    'filename': f'converted.{output_format.lower()}'
-                })
+        if request.form.get("return_json") == "true" or preview_b64:
+            return jsonify({
+                "success": True,
+                "file_b64": base64.b64encode(buf.getvalue()).decode(),
+                "preview_b64": preview_b64,
+                "mimetype": mimetype,
+                "filename": f"converted.{output_format.lower()}",
+            })
 
-            return send_file(
-                processed_io,
-                mimetype=mimetype,
-                as_attachment=True,
-                download_name=f'converted.{output_format.lower()}'
-            )
+        return send_file(
+            buf,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=f"converted.{output_format.lower()}",
+        )
 
     except IOError as e:
-        import traceback
-        print(f"IOError processing image conversion: {e}")
+        print(f"IOError during image conversion: {e}")
         traceback.print_exc()
-        return 'Error: File format not supported or invalid image', 400
+        return "Error: File format not supported or invalid image", 400
     except Exception as e:
-        import traceback
-        print(f"Error processing image conversion: {e}")
+        print(f"Error during image conversion: {e}")
         traceback.print_exc()
-        return f'Error processing image: {e}', 500
+        return f"Error processing image: {e}", 500
 
-# Page 5
-@app.route('/process_pdf_merge', methods=['POST'])
+
+# ---------------------------------------------------------------------------
+# PDF editor
+# ---------------------------------------------------------------------------
+
+@app.route("/process_pdf_merge", methods=["POST"])
 def process_pdf_merge():
     try:
-        files = [request.files[key] for key in request.files if key.startswith('file')]
-        pages_between = int(request.form.get('pages_between', 0))
+        files = [request.files[k] for k in request.files if k.startswith("file")]
+        pages_between = int(request.form.get("pages_between", 0))
 
-        readers = [PdfReader(file.stream) for file in files]
-        merged_writer = merge_pdfs(readers, num_blank_pages=pages_between)  # Pass pages_between to utility function
+        readers = [PdfReader(f.stream) for f in files]
+        writer = merge_pdfs(readers, num_blank_pages=pages_between)
 
-        output_io = io.BytesIO()
-        merged_writer.write(output_io)
-        output_io.seek(0)
-
-        return send_file(output_io, mimetype='application/pdf', as_attachment=True, download_name='merged.pdf')
+        buf = io.BytesIO()
+        writer.write(buf)
+        buf.seek(0)
+        return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name="merged.pdf")
 
     except Exception as e:
         print(f"Error merging PDFs: {e}")
-        return 'Error merging PDFs', 500
+        return "Error merging PDFs", 500
 
-@app.route('/process_pdf_edit', methods=['POST'])
+
+@app.route("/process_pdf_edit", methods=["POST"])
 def process_pdf_edit():
     try:
-        file_keys = sorted([k for k in request.files.keys() if k.startswith('file_')])
+        file_keys = sorted(k for k in request.files if k.startswith("file_"))
         files = [request.files[k] for k in file_keys]
-        manifest_raw = request.form.get('manifest', '[]')
-        manifest = json.loads(manifest_raw)
+        manifest = json.loads(request.form.get("manifest", "[]"))
 
         file_bytes_list = [f.read() for f in files]
         readers = [PdfReader(io.BytesIO(b)) for b in file_bytes_list]
-        edited_writer = process_pdf_edit_logic(readers, manifest, file_bytes_list)
+        writer = process_pdf_edit_logic(readers, manifest, file_bytes_list)
 
-        output_io = io.BytesIO()
-        edited_writer.write(output_io)
-        output_io.seek(0)
-
-        return send_file(output_io, mimetype='application/pdf', as_attachment=True, download_name='edited.pdf')
+        buf = io.BytesIO()
+        writer.write(buf)
+        buf.seek(0)
+        return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name="edited.pdf")
 
     except Exception as e:
         print(f"Error editing PDF: {e}")
-        return 'Error editing PDF', 500
+        return "Error editing PDF", 500
 
-@app.route('/process_pdf_standardize', methods=['POST'])
+
+@app.route("/process_pdf_standardize", methods=["POST"])
 def process_pdf_standardize():
     try:
-        page_size = request.form.get('page_size', '').strip()
+        page_size = request.form.get("page_size", "").strip()
         if not page_size:
-            return 'page_size required', 400
-        # collect files: file_0, file_1, ... or single file
-        file_keys = sorted([k for k in request.files.keys() if k.startswith('file')])
-        files = [request.files[k] for k in file_keys] if file_keys else []
-        if not files:
-            return 'No files', 400
-        print(f"Standardize PDF: {len(files)} files page_size='{page_size}'")
+            return "page_size required", 400
+
+        file_keys = sorted(k for k in request.files if k.startswith("file"))
+        if not file_keys:
+            return "No files", 400
+
+        print(f"Standardize PDF: {len(file_keys)} file(s), page_size='{page_size}'")
+
         final_doc = fitz.open()
-        for f in files:
-            fb = f.read()
+        for k in file_keys:
+            fb = request.files[k].read()
             if not fb:
                 continue
             std_bytes = create_standard_blank_pdf(page_size, fb, is_pdf_input=True)
             tmp = fitz.open(stream=std_bytes, filetype="pdf")
             final_doc.insert_pdf(tmp)
             tmp.close()
-        if len(final_doc) == 0:
-            return 'No pages generated', 500
+
+        page_count = len(final_doc)
+        if page_count == 0:
+            return "No pages generated", 500
+
         out_bytes = final_doc.tobytes(garbage=3, deflate=True)
         final_doc.close()
-        print(f"Standardize PDF generated {len(out_bytes)} bytes pages={len(final_doc) if 'final_doc' in locals() else '?'}")
-        return send_file(io.BytesIO(out_bytes), mimetype='application/pdf', as_attachment=True, download_name='standardized.pdf')
+
+        print(f"Standardize PDF generated {len(out_bytes)} bytes, {page_count} page(s)")
+        return send_file(
+            io.BytesIO(out_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="standardized.pdf",
+        )
+
     except Exception as e:
-        import traceback
         print(f"Error standardizing PDF: {e}")
         traceback.print_exc()
-        return f'Error standardizing PDF: {e}', 500
+        return f"Error standardizing PDF: {e}", 500
 
-# Error Handler Routes
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('404.html'), 404
 
-@app.errorhandler(500)
-def internal_error(error):
-    return render_template('500.html'), 500
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
 
 @app.errorhandler(400)
-def bad_request(error):
-    return render_template('400.html'), 400
+def bad_request(e):
+    return render_template("400.html"), 400
 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    return render_template('500.html'), 500
-
-from flask import render_template
-
-@app.errorhandler(403)
-def forbidden(e):
-    return render_template('error.html', code=403, title='Forbidden',
-                           message="You don't have permission to access this resource."), 403
-
-@app.errorhandler(503)
-def service_unavailable(e):
-    return render_template('error.html', code=503, title='Service Unavailable',
-                           message="The service is temporarily unavailable. Try again later."), 503
 
 @app.errorhandler(401)
 def unauthorized(e):
-    return render_template('error.html', code=401, title='Unauthorized',
+    return render_template("error.html", code=401, title="Unauthorized",
                            message="Please sign in to continue."), 401
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template("error.html", code=403, title="Forbidden",
+                           message="You don't have permission to access this resource."), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("404.html"), 404
+
 
 @app.errorhandler(429)
 def too_many_requests(e):
-    response = render_template('error.html', code=429, title='Too Many Requests',
-                               message="You're sending requests too quickly. Please try again later.")
-    return response, 429
+    return render_template("error.html", code=429, title="Too Many Requests",
+                           message="You're sending requests too quickly. Please try again later."), 429
 
-# Just run the app
-if __name__ == '__main__':
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template("500.html"), 500
+
+
+@app.errorhandler(503)
+def service_unavailable(e):
+    return render_template("error.html", code=503, title="Service Unavailable",
+                           message="The service is temporarily unavailable. Try again later."), 503
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return render_template("500.html"), 500
+
+
+# ---------------------------------------------------------------
+
+if __name__ == "__main__":
     app.run(debug=True)

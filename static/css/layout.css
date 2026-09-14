@@ -53,6 +53,13 @@ body[data-page] .col-md-8 {
     max-width: 100% !important;
 }
 
+/* Align right column content with the upload area (below the .tool-title) */
+@media (min-width: 768px) {
+    body[data-page] .col-md-8 {
+        padding-top: 70px;
+    }
+}
+
 @media (min-width: 768px) {
     /* Set exactly 10px gap between columns and remove padding to sit them flush */
     body[data-page] .page-container > .row {

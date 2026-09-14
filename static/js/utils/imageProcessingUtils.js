@@ -2,7 +2,7 @@
 //  imageProcessingUtils.js — Formatting & slideshow UI helpers
 // ===========================================
 
-import { initComparisonSlider } from './comparison-slider.js';
+import { initComparisonSlider } from '../components/comparison-slider.js';
 
 export const getBaseName = (filename) => filename.replace(/\.[^/.]+$/, '');
 
