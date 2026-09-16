@@ -132,7 +132,14 @@ export function initPdfMerge(options) {
 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'edited.pdf';
+                const hasEdits = activePages.some(p =>
+                    (p.annotations && p.annotations.length > 0) ||
+                    (p.overlays && p.overlays.length > 0) ||
+                    (p.whiteouts && p.whiteouts.length > 0) ||
+                    p.cropBox ||
+                    (p.layers && p.layers.some(l => l.visible === false))
+                );
+                a.download = hasEdits ? 'edited.pdf' : 'merged.pdf';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();

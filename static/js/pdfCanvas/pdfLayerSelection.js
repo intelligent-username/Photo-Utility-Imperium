@@ -117,18 +117,20 @@ export function initGhostPreview() {
 
         if (state.mode === 'signature' && state.activeSignature) {
             const sig = state.activeSignature;
-            const targetH = 22 * canvasScale;
             const aspect = sig.aspectRatio || (sig.naturalWidth && sig.naturalHeight ? sig.naturalWidth / sig.naturalHeight : 3.0);
-            const ghostW = Math.max(14, targetH * aspect);
-            const ghostH = Math.max(9, targetH);
+            const targetWR = sig.widthRatio || state.lastSignatureWidthRatio || 0.22;
+            const minW = Math.max(0.08, 48 / (canvasRect.width || 1));
+            const wRatio = Math.max(minW, Math.min(0.95, targetWR));
+
+            const ghostW = wRatio * canvasRect.width;
+            const ghostH = (ghostW / aspect);
+            const hRatio = ghostH / (canvasRect.height || 1);
 
             let left = e.clientX - ghostW / 2;
             let top = e.clientY - ghostH / 2;
             left = Math.max(canvasRect.left, Math.min(canvasRect.right - ghostW, left));
             top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - ghostH, top));
 
-            const wRatio = Math.min(0.95, ghostW / (canvasRect.width || 1));
-            const hRatio = Math.min(0.5, ghostH / (canvasRect.height || 1));
             const clickLeft = Math.max(0, Math.min(1.0 - wRatio, (left - canvasRect.left) / (canvasRect.width || 1)));
             const clickTop = Math.max(0, Math.min(1.0 - hRatio, (top - canvasRect.top) / (canvasRect.height || 1)));
             lastGhostPlacement = { page, leftRatio: clickLeft, topRatio: clickTop, widthRatio: wRatio, heightRatio: hRatio };

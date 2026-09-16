@@ -7,8 +7,8 @@
     --font-mono: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
     --bg: #0f0f0f;
     --bg-soft: #1a1a1a;
-    --panel: rgba(20, 20, 20, 0.8);
-    --panel-elev: rgba(30, 30, 30, 0.9);
+    --panel: rgba(20, 20, 20, 0.95);
+    --panel-elev: #1a1a1e;
     --border: rgba(255, 255, 255, 0.08);
     --text: #f0f6fc;
     --muted: #8b949e;

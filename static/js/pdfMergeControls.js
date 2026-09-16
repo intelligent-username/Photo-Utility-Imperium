@@ -48,7 +48,7 @@ export function setupToolbarControls() {
         setAppMode('select');
     }
 
-    function selectAnnSubTool(subTool) {
+    function selectAnnSubTool(subTool, options = {}) {
         const signMenu = document.getElementById('sign-dropdown-menu');
         const dateMenu = document.getElementById('date-dropdown-menu');
         if (subTool === 'cursor') {
@@ -75,8 +75,14 @@ export function setupToolbarControls() {
             if (annToolText) annToolText.classList.remove('active');
             if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
-            if (signMenu) signMenu.classList.toggle('hidden');
             if (dateMenu) dateMenu.classList.add('hidden');
+            if (options.toggleMenu) {
+                if (signMenu) signMenu.classList.toggle('hidden');
+            } else if (options.openMenu) {
+                if (signMenu) signMenu.classList.remove('hidden');
+            } else {
+                if (signMenu) signMenu.classList.add('hidden');
+            }
             setAppMode('signature');
         } else if (subTool === 'date') {
             if (annToolDate) annToolDate.classList.add('active');
@@ -84,8 +90,27 @@ export function setupToolbarControls() {
             if (annToolText) annToolText.classList.remove('active');
             if (annToolSign) annToolSign.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
-            if (dateMenu) dateMenu.classList.add('hidden');
             if (signMenu) signMenu.classList.add('hidden');
+            if (options.toggleMenu) {
+                if (dateMenu) {
+                    const opening = dateMenu.classList.contains('hidden');
+                    dateMenu.classList.toggle('hidden');
+                    if (opening && dateDropdownControls) {
+                        dateDropdownControls.updateDatePreview();
+                        dateDropdownControls.renderDateFormatList();
+                    }
+                }
+            } else if (options.openMenu) {
+                if (dateMenu) {
+                    dateMenu.classList.remove('hidden');
+                    if (dateDropdownControls) {
+                        dateDropdownControls.updateDatePreview();
+                        dateDropdownControls.renderDateFormatList();
+                    }
+                }
+            } else {
+                if (dateMenu) dateMenu.classList.add('hidden');
+            }
             setAppMode('date');
         }
     }
@@ -364,7 +389,10 @@ export function setupToolbarControls() {
             if (whiteoutBtn) whiteoutBtn.classList.remove('active');
             if (annotateBtn) annotateBtn.classList.add('active');
             if (annBar) annBar.classList.remove('hidden');
-            selectAnnSubTool('sign');
+            if (state.signatures && state.signatures.length > 0) {
+                state.activeSignature = state.signatures[0];
+            }
+            selectAnnSubTool('sign', { openMenu: false });
         } else if (key === 'd') {
             deselectAllLayers();
             commitActivePlacement();
@@ -375,19 +403,26 @@ export function setupToolbarControls() {
             if (whiteoutBtn) whiteoutBtn.classList.remove('active');
             if (annotateBtn) annotateBtn.classList.add('active');
             if (annBar) annBar.classList.remove('hidden');
-            selectAnnSubTool('date');
+            if (state.dateFormats && state.dateFormats.length > 0) {
+                state.dateFormat = state.dateFormats[0];
+                if (dateDropdownControls) {
+                    dateDropdownControls.updateDatePreview();
+                    dateDropdownControls.renderDateFormatList();
+                }
+            }
+            selectAnnSubTool('date', { openMenu: false });
         }
     });
     if (annToolSign) {
         annToolSign.addEventListener('click', (e) => {
             e.stopPropagation();
-            selectAnnSubTool('sign');
+            selectAnnSubTool('sign', { toggleMenu: true });
         });
     }
     if (annToolDate) {
         annToolDate.addEventListener('click', (e) => {
             e.stopPropagation();
-            selectAnnSubTool('date');
+            selectAnnSubTool('date', { toggleMenu: true });
         });
     }
     let dateDropdownControls = null;
@@ -400,8 +435,8 @@ export function setupToolbarControls() {
                 const opening = dateMenu.classList.contains('hidden');
                 dateMenu.classList.toggle('hidden');
                 if (opening && dateDropdownControls) {
-                    dateDropdownControls.updateDateFormatButtons();
                     dateDropdownControls.updateDatePreview();
+                    dateDropdownControls.renderDateFormatList();
                 }
             }
             if (signMenu) signMenu.classList.add('hidden');
@@ -488,7 +523,6 @@ function setupRichTooltips() {
 function setupDateDropdown(selectAnnSubTool) {
     const state = getState();
     const dateMenu = document.getElementById('date-dropdown-menu');
-    const dateFormatOptions = document.querySelectorAll('.date-format-option');
     const dateFontOptions = document.querySelectorAll('.date-font-option');
     const datePreviewText = document.getElementById('date-preview-text');
     const dateColorInput = document.getElementById('date-color');
@@ -498,16 +532,16 @@ function setupDateDropdown(selectAnnSubTool) {
     const dateSizeMinus = document.getElementById('date-size-minus');
     const dateSizePlus = document.getElementById('date-size-plus');
 
-    function updateDateFormatButtons() {
-        if (dateFormatOptions.length) {
-            dateFormatOptions.forEach(opt => {
-                const fmt = opt.getAttribute('data-format');
-                if (fmt) {
-                    opt.textContent = formatDate(fmt);
-                }
-            });
+    try {
+        const rawFmts = localStorage.getItem('pdf_saved_date_formats');
+        if (rawFmts) {
+            const parsed = JSON.parse(rawFmts);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                state.dateFormats = parsed;
+                state.dateFormat = state.dateFormats[0];
+            }
         }
-    }
+    } catch(e) {}
 
     function updateDatePreview() {
         if (!datePreviewText) return;
@@ -518,16 +552,92 @@ function setupDateDropdown(selectAnnSubTool) {
         datePreviewText.style.fontSize = `${Math.max(10, state.dateSize)}px`;
     }
 
-    updateDateFormatButtons();
-    updateDatePreview();
+    function renderDateFormatList() {
+        const container = document.querySelector('.date-format-options');
+        if (!container) return;
+        container.innerHTML = '';
 
-    if (dateFormatOptions.length) {
-        dateFormatOptions.forEach(opt => {
-            opt.addEventListener('click', (e) => {
+        if (!state.dateFormats || state.dateFormats.length === 0) {
+            state.dateFormats = ['words-short', 'words-full', 'numbers-us', 'numbers-eu'];
+        }
+
+        const total = state.dateFormats.length;
+        state.dateFormats.forEach((fmtKey, idx) => {
+            const card = document.createElement('div');
+            const isHalf = (total > 3 && idx >= 2);
+            card.className = `date-format-card ${state.dateFormat === fmtKey ? 'active' : ''} ${isHalf ? 'col-half' : 'col-full'}`;
+            card.draggable = true;
+            card.dataset.format = fmtKey;
+
+            const contentWrap = document.createElement('div');
+            contentWrap.className = 'date-format-content';
+
+            const handle = document.createElement('span');
+            handle.className = 'date-format-handle';
+            handle.innerHTML = '&#8942;&#8942;';
+            handle.title = 'Drag to reorder';
+
+            const label = document.createElement('span');
+            label.className = 'date-format-label';
+            label.textContent = formatDate(fmtKey);
+
+            contentWrap.appendChild(handle);
+            contentWrap.appendChild(label);
+
+            let isDraggingFmt = false;
+
+            card.addEventListener('dragstart', (e) => {
+                isDraggingFmt = true;
+                e.dataTransfer.setData('text/plain', fmtKey);
+                e.dataTransfer.effectAllowed = 'move';
+                card.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+                container.querySelectorAll('.date-format-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+                setTimeout(() => { isDraggingFmt = false; }, 50);
+            });
+
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                card.classList.add('drag-over');
+            });
+
+            card.addEventListener('dragleave', () => {
+                card.classList.remove('drag-over');
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('drag-over');
+                const fromFmt = e.dataTransfer.getData('text/plain');
+                if (!fromFmt || fromFmt === fmtKey) return;
+                const fromIdx = state.dateFormats.indexOf(fromFmt);
+                const toIdx = state.dateFormats.indexOf(fmtKey);
+                if (fromIdx >= 0 && toIdx >= 0) {
+                    const [moved] = state.dateFormats.splice(fromIdx, 1);
+                    state.dateFormats.splice(toIdx, 0, moved);
+                    state.dateFormat = state.dateFormats[0];
+                    try {
+                        localStorage.setItem('pdf_saved_date_formats', JSON.stringify(state.dateFormats));
+                    } catch (err) {}
+                    renderDateFormatList();
+                    updateDatePreview();
+                    const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+                    if (sel && sel.layer && sel.page) {
+                        sel.layer.text = formatDate(state.dateFormat);
+                        renderCardCanvas(sel.page);
+                    }
+                }
+            });
+
+            card.addEventListener('click', (e) => {
+                if (isDraggingFmt) return;
                 e.stopPropagation();
-                dateFormatOptions.forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-                state.dateFormat = opt.getAttribute('data-format');
+                state.dateFormat = fmtKey;
+                renderDateFormatList();
                 updateDatePreview();
                 const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
                 if (sel && sel.layer && sel.page) {
@@ -535,8 +645,14 @@ function setupDateDropdown(selectAnnSubTool) {
                     renderCardCanvas(sel.page);
                 }
             });
+
+            card.appendChild(contentWrap);
+            container.appendChild(card);
         });
     }
+
+    renderDateFormatList();
+    updateDatePreview();
 
     if (dateFontOptions.length) {
         dateFontOptions.forEach(opt => {
@@ -644,7 +760,7 @@ function setupDateDropdown(selectAnnSubTool) {
     }
 
     updateDatePreview();
-    return { updateDateFormatButtons, updateDatePreview };
+    return { updateDatePreview, renderDateFormatList };
 }
 
 function setupSignatureModal(selectAnnSubTool) {
@@ -679,15 +795,30 @@ function setupSignatureModal(selectAnnSubTool) {
             return;
         }
 
-        state.signatures.forEach(stamp => {
+        const total = state.signatures.length;
+        state.signatures.forEach((stamp, idx) => {
             const card = document.createElement('div');
-            card.className = `sig-stamp-card ${state.activeSignature && state.activeSignature.id === stamp.id ? 'active' : ''}`;
+            const isHalf = (total > 3 && idx >= 2);
+            card.className = `sig-stamp-card ${state.activeSignature && state.activeSignature.id === stamp.id ? 'active' : ''} ${isHalf ? 'col-half' : 'col-full'}`;
+            card.draggable = true;
+            card.dataset.id = stamp.id;
+
+            const contentWrap = document.createElement('div');
+            contentWrap.className = 'sig-stamp-content';
+
+            const handle = document.createElement('span');
+            handle.className = 'sig-stamp-handle';
+            handle.innerHTML = '&#8942;&#8942;';
+            handle.title = 'Drag to reorder';
 
             const prev = document.createElement('div');
             prev.className = 'sig-stamp-preview';
             prev.style.fontFamily = `"${stamp.fontFamily}", cursive`;
             prev.style.color = stamp.color || '#0b1220';
             prev.textContent = stamp.text;
+
+            contentWrap.appendChild(handle);
+            contentWrap.appendChild(prev);
 
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
@@ -701,14 +832,64 @@ function setupSignatureModal(selectAnnSubTool) {
                 renderSignatureStampsList();
             });
 
+            let isDraggingCard = false;
+
+            card.addEventListener('dragstart', (e) => {
+                if (e.target.closest('.sig-stamp-del')) {
+                    e.preventDefault();
+                    return;
+                }
+                isDraggingCard = true;
+                e.dataTransfer.setData('text/plain', stamp.id);
+                e.dataTransfer.effectAllowed = 'move';
+                card.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+                if (sigStampsList) {
+                    sigStampsList.querySelectorAll('.sig-stamp-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+                }
+                setTimeout(() => { isDraggingCard = false; }, 50);
+            });
+
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                card.classList.add('drag-over');
+            });
+
+            card.addEventListener('dragleave', () => {
+                card.classList.remove('drag-over');
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('drag-over');
+                const fromId = e.dataTransfer.getData('text/plain');
+                if (!fromId || fromId === stamp.id) return;
+                const fromIdx = state.signatures.findIndex(s => s.id === fromId);
+                const toIdx = state.signatures.findIndex(s => s.id === stamp.id);
+                if (fromIdx >= 0 && toIdx >= 0) {
+                    const [moved] = state.signatures.splice(fromIdx, 1);
+                    state.signatures.splice(toIdx, 0, moved);
+                    state.activeSignature = state.signatures[0];
+                    try {
+                        localStorage.setItem('pdf_saved_signatures', JSON.stringify(state.signatures));
+                    } catch (err) {}
+                    renderSignatureStampsList();
+                }
+            });
+
             card.addEventListener('click', () => {
+                if (isDraggingCard) return;
                 state.activeSignature = stamp;
                 selectAnnSubTool('sign');
                 if (signMenu) signMenu.classList.add('hidden');
                 renderSignatureStampsList();
             });
 
-            card.appendChild(prev);
+            card.appendChild(contentWrap);
             card.appendChild(delBtn);
             sigStampsList.appendChild(card);
         });

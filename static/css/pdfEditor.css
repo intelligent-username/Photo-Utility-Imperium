@@ -86,19 +86,21 @@
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    width: 260px;
-    background: var(--panel-elev);
-    border: 1px solid var(--border);
+    width: 320px;
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-    padding: 8px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+    padding: 10px;
     z-index: 100;
+    backdrop-filter: blur(16px);
 }
 
 .pdf-dropdown-menu.hidden {
     display: none !important;
 }
 
+#sign-dropdown-menu,
 #date-dropdown-menu {
     width: 320px;
 }
@@ -149,7 +151,101 @@
 }
 
 /* Date Stamp Options & Previews */
-.date-format-options,
+.date-format-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0 8px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.date-format-card {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border: 1.5px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+    cursor: grab;
+    transition: border-color var(--transition), transform var(--transition), background-color var(--transition), opacity var(--transition);
+    user-select: none;
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 100%;
+}
+
+.date-format-card.col-full {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.date-format-card.col-half {
+    flex: 0 0 calc(50% - 3px);
+    width: calc(50% - 3px);
+    max-width: calc(50% - 3px);
+    padding: 6px 8px;
+}
+
+.date-format-card:active {
+    cursor: grabbing;
+}
+
+.date-format-card:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.date-format-card.active {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+}
+
+.date-format-card.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+    border-color: var(--primary);
+}
+
+.date-format-card.drag-over {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.25);
+}
+
+.date-format-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.date-format-handle {
+    color: #9ca3af;
+    font-size: 1rem;
+    cursor: grab;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.date-format-card:hover .date-format-handle {
+    color: var(--primary);
+}
+
+.date-format-label {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .date-font-options {
     display: flex;
     flex-wrap: wrap;
@@ -223,10 +319,10 @@
 }
 
 .signature-stamps-list {
-    max-height: 180px;
+    max-height: 220px;
     overflow-y: auto;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 6px;
     padding: 2px 0;
 }
@@ -238,9 +334,33 @@
     background: #ffffff;
     border: 1.5px solid var(--border);
     border-radius: 6px;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: border-color var(--transition), transform var(--transition);
+    padding: 7px 10px;
+    cursor: grab;
+    transition: border-color var(--transition), transform var(--transition), background-color var(--transition), opacity var(--transition);
+    user-select: none;
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 100%;
+}
+
+.sig-stamp-card.col-full {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.sig-stamp-card.col-half {
+    flex: 0 0 calc(50% - 3px);
+    width: calc(50% - 3px);
+    max-width: calc(50% - 3px);
+    padding: 6px 8px;
+}
+
+.sig-stamp-card.col-half .sig-stamp-preview {
+    font-size: 1.05rem;
+}
+
+.sig-stamp-card:active {
+    cursor: grabbing;
 }
 
 .sig-stamp-card:hover {
@@ -251,6 +371,39 @@
 .sig-stamp-card.active {
     border-color: var(--primary);
     box-shadow: 0 0 8px rgba(245, 185, 66, 0.4);
+}
+
+.sig-stamp-card.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+    border-color: var(--primary);
+}
+
+.sig-stamp-card.drag-over {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+}
+
+.sig-stamp-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    flex: 1;
+}
+
+.sig-stamp-handle {
+    color: #9ca3af;
+    font-size: 1rem;
+    cursor: grab;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.sig-stamp-card:hover .sig-stamp-handle {
+    color: var(--primary);
 }
 
 .sig-stamp-preview {

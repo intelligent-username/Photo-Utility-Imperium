@@ -89,6 +89,64 @@ h3 {
     outline-offset: 2px;
 }
 
+.denoise-level-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.denoise-level-row label {
+    white-space: nowrap;
+}
+
+#denoise-level-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.denoise-lvl-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 2px solid rgba(245, 185, 66, 0.4);
+    background: transparent;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    padding: 0;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.denoise-lvl-btn:hover {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.1);
+}
+
+.denoise-lvl-btn:active {
+    transform: scale(0.92);
+}
+
+.denoise-lvl-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.denoise-lvl-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-color: transparent;
+    color: #0b1220;
+}
 .btn-success {
     color: #fff;
     background-color: #28a745;

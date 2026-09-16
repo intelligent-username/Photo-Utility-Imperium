@@ -205,6 +205,8 @@
     align-items: center;
     justify-content: center;
     overflow: visible;
+    min-width: 32px;
+    min-height: 12px;
 }
 
 .signature-rect:active {

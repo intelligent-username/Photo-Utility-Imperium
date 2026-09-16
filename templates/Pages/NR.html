@@ -8,6 +8,16 @@ block bodytag %} data-page="NR" {% endblock %} {% block content %}
     <h2 class="tool-title">Noise Reducer</h2>
     {% set upload_text = "Drag & Drop or Click to Upload Image" %} {% set
     upload_accept = "image/*" %} {% include 'Components/upload_area.html' %}
+
+    <!-- Denoising Level -->
+    <div class="denoise-level-row">
+      <label class="form-label mb-0">Denoising Level:</label>
+      <div id="denoise-level-group">
+        <button id="denoise-lvl-1" class="denoise-lvl-btn" data-level="1" aria-label="Denoising level 1 — soft blur">1</button>
+        <button id="denoise-lvl-2" class="denoise-lvl-btn active" data-level="2" aria-label="Denoising level 2 — medium denoising">2</button>
+        <button id="denoise-lvl-3" class="denoise-lvl-btn" data-level="3" aria-label="Denoising level 3 — strong denoising">3</button>
+      </div>
+    </div>
   </div>
 
   <!-- Right Side: Comparison -->
@@ -62,7 +72,7 @@ block bodytag %} data-page="NR" {% endblock %} {% block content %}
         </div>
         <!-- Processed Image -->
         <div class="comparison-pane" id="result-pane">
-          <h4>Cleaned</h4>
+          <h4>Denoised</h4>
           <div class="magnify-wrapper" data-pair="compare">
             <img id="output" src="" alt="Cleaned Image" class="img-fluid" />
             <div class="magnifier-lens"></div>

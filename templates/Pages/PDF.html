@@ -139,10 +139,7 @@
               <div class="dropdown-divider"></div>
               <div class="dropdown-header-title">DATE FORMAT</div>
               <div class="date-format-options">
-                <button type="button" class="date-format-option active" data-format="words-short">Aug. 7th, 2026</button>
-                <button type="button" class="date-format-option" data-format="words-full">August 7th, 2026</button>
-                <button type="button" class="date-format-option" data-format="numbers-us">08/07/2026</button>
-                <button type="button" class="date-format-option" data-format="numbers-eu">07/08/2026</button>
+                <!-- Dynamic draggable date format cards rendered here -->
               </div>
               <div class="dropdown-divider"></div>
               <div class="dropdown-header-title">FONT</div>
@@ -158,13 +155,10 @@
                     <button class="color-dot active" data-color="#000000" style="background: #000000;" title="Black"></button>
                     <button class="color-dot" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
                     <button class="color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
-                    <div class="custom-color-wrapper" title="Custom Color">
-                      <input type="color" id="date-color" name="date-color" class="custom-color-input" value="#000000" />
-                      <span class="custom-color-swatch" id="date-color-swatch" style="background: #000000;"></span>
-                    </div>
                   </div>
                 </div>
-                <div class="ann-size-stepper">
+                <div class="ann-bar-sep"></div>
+                <div class="date-size-group">
                   <span class="ann-bar-label">Size</span>
                   <div class="size-pill-control">
                     <button type="button" class="size-btn" id="date-size-minus" title="Decrease Size">-</button>
@@ -181,12 +175,12 @@
           <div class="ann-color-picker-group">
             <span class="ann-bar-label">Color</span>
             <div class="color-palette">
-              <button class="color-dot active" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
+              <button class="color-dot" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
               <button class="color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
-              <button class="color-dot" data-color="#000000" style="background: #000000;" title="Black"></button>
+              <button class="color-dot active" data-color="#000000" style="background: #000000;" title="Black"></button>
               <div class="custom-color-wrapper" title="Custom Color">
-                <input type="color" id="ann-color" name="ann-color" class="custom-color-input" value="#ff0000" />
-                <span class="custom-color-swatch" id="custom-color-swatch" style="background: #ff0000;"></span>
+                <input type="color" id="ann-color" name="ann-color" class="custom-color-input" value="#000000" />
+                <span class="custom-color-swatch" id="custom-color-swatch" style="background: #000000;"></span>
               </div>
             </div>
           </div>

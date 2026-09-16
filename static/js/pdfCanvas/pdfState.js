@@ -6,13 +6,16 @@ const state = {
     pages: [],       // { id, fileIdx, pageIdx, fileName, excluded, annotations[], cropBox, overlays[], _pdfPage, isBlank, aspectRatio }
     files: [],       // raw File objects
     mode: 'select',  // 'select' | 'annotate' | 'crop' | 'overlay' | 'signature' | 'date' | 'whiteout'
-    annColor: '#ff0000',
+    annColor: '#000000',
     annSize: 16,
     overlaySource: null,
     viewMode: 'large',
     isLargeView: true,
     signatures: [],
     activeSignature: null,
+    lastSignatureWidthRatio: null,
+    lastSignatureHeightRatio: null,
+    dateFormats: ['words-short', 'words-full', 'numbers-us', 'numbers-eu'],
     dateFont: 'Arial',
     dateBold: false,
     dateFormat: 'words-short',

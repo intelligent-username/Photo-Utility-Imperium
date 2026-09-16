@@ -72,7 +72,7 @@ export function initImageProcessing(options) {
     function dispatchFile(file, idx) {
         const pUrl = URL.createObjectURL(file);
         if (page === 'BR') {
-            sendFileToBackend(file, '/process_background_removal', {}, 'no_bg', 'png', pUrl, idx);
+            sendFileToBackend(file, '/process_background_removal', {}, 'fg', 'png', pUrl, idx);
         } else if (page === 'FC' && formatSelect) {
             sendFileToBackend(file, '/process_image_conversion', { output_format: formatSelect.value }, 'converted', formatSelect.value.toLowerCase(), pUrl, idx);
         } else if (page === 'IC') {
@@ -81,7 +81,8 @@ export function initImageProcessing(options) {
             sendFileToBackend(file, '/process_compression', { quality: q }, 'compressed', ext, pUrl, idx);
         } else if (page === 'NR') {
             const ext = (file.name || '').split('.').pop().toLowerCase() || 'png';
-            sendFileToBackend(file, '/process_image_cleaning', {}, 'cleaned', ext, pUrl, idx);
+            const level = document.querySelector('.denoise-lvl-btn.active')?.dataset.level || '2';
+            sendFileToBackend(file, '/process_image_cleaning', { denoise_level: level }, 'denoised', ext, pUrl, idx);
         }
     }
 
@@ -123,7 +124,7 @@ export function initImageProcessing(options) {
         const size = document.querySelector('input[name="pageSizeChoice"]:checked')?.value || 'US Letter';
         toggleModal(false);
         const cur = state.processedResults[state.currentSlideIndex]?.file;
-        if (cur) sendFileToBackend(cur, '/process_image_conversion', { output_format: 'PDF', page_size: size }, 'standardized', 'pdf', URL.createObjectURL(cur), state.currentSlideIndex);
+        if (cur) sendFileToBackend(cur, '/process_image_conversion', { output_format: 'PDF', page_size: size }, 'converted', 'pdf', URL.createObjectURL(cur), state.currentSlideIndex);
     });
 
     if (qualitySlider && qualityValue) {
@@ -166,4 +167,16 @@ export function initImageProcessing(options) {
         [downloadBtn, resultImage, document.getElementById('output-pdf'), document.getElementById('compressed-size'), document.getElementById('converted-name')].forEach(el => el?.classList.add('hidden'));
         dispatchFile(cur, state.currentSlideIndex);
     });
+
+    // Denoise level toggle (NR page only)
+    if (page === 'NR') {
+        document.querySelectorAll('.denoise-lvl-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.denoise-lvl-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const cur = state.processedResults[state.currentSlideIndex]?.file;
+                if (cur) dispatchFile(cur, state.currentSlideIndex);
+            });
+        });
+    }
 }

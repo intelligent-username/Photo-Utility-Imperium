@@ -251,12 +251,13 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
 
                 const pxW = wRect.width || 1;
                 const pxH = wRect.height || 1;
+                const minW = Math.max(0.08, 48 / pxW);
 
                 if (activeHandle === 'se') {
                     const scaleX = (initWR * pxW + diffX) / (initWR * pxW || 1);
                     const scaleY = (initHR * pxH + diffY) / (initHR * pxH || 1);
-                    const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
-                    newW = Math.max(0.04, Math.min(1.0 - initLR, initWR * scale));
+                    const scale = Math.max(0.1, Math.min(5.0, Math.max(scaleX, scaleY)));
+                    newW = Math.max(minW, Math.min(1.0 - initLR, initWR * scale));
                     newH = (newW * pxW / baseAspect) / pxH;
                     if (newT + newH > 1.0) {
                         newH = 1.0 - newT;
@@ -265,8 +266,8 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
                 } else if (activeHandle === 'sw') {
                     const scaleX = (initWR * pxW - diffX) / (initWR * pxW || 1);
                     const scaleY = (initHR * pxH + diffY) / (initHR * pxH || 1);
-                    const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
-                    newW = Math.max(0.04, Math.min(initLR + initWR, initWR * scale));
+                    const scale = Math.max(0.1, Math.min(5.0, Math.max(scaleX, scaleY)));
+                    newW = Math.max(minW, Math.min(initLR + initWR, initWR * scale));
                     newH = (newW * pxW / baseAspect) / pxH;
                     newL = initLR + (initWR - newW);
                     if (newT + newH > 1.0) {
@@ -277,8 +278,8 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
                 } else if (activeHandle === 'ne') {
                     const scaleX = (initWR * pxW + diffX) / (initWR * pxW || 1);
                     const scaleY = (initHR * pxH - diffY) / (initHR * pxH || 1);
-                    const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
-                    newW = Math.max(0.04, Math.min(1.0 - initLR, initWR * scale));
+                    const scale = Math.max(0.1, Math.min(5.0, Math.max(scaleX, scaleY)));
+                    newW = Math.max(minW, Math.min(1.0 - initLR, initWR * scale));
                     newH = (newW * pxW / baseAspect) / pxH;
                     newT = initTR + (initHR - newH);
                     if (newT < 0) {
@@ -289,8 +290,8 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
                 } else if (activeHandle === 'nw') {
                     const scaleX = (initWR * pxW - diffX) / (initWR * pxW || 1);
                     const scaleY = (initHR * pxH - diffY) / (initHR * pxH || 1);
-                    const scale = Math.max(0.2, Math.min(4.0, Math.max(scaleX, scaleY)));
-                    newW = Math.max(0.04, Math.min(initLR + initWR, initWR * scale));
+                    const scale = Math.max(0.1, Math.min(5.0, Math.max(scaleX, scaleY)));
+                    newW = Math.max(minW, Math.min(initLR + initWR, initWR * scale));
                     newH = (newW * pxW / baseAspect) / pxH;
                     newL = initLR + (initWR - newW);
                     newT = initTR + (initHR - newH);
@@ -323,6 +324,7 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
         };
 
         const onUp = () => {
+            const wasResizing = isResizing;
             isDragging = false;
             isResizing = false;
             const state = getState();
@@ -331,6 +333,31 @@ export function renderSignatureLayer(wrap, page, layer, canvasScale, card) {
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
             if (moved) {
+                if (wasResizing) {
+                    const newWR = layer.widthRatio;
+                    const newHR = layer.heightRatio;
+                    state.lastSignatureWidthRatio = newWR;
+                    state.lastSignatureHeightRatio = newHR;
+                    try {
+                        localStorage.setItem('pdf_last_sig_width_ratio', String(newWR));
+                        localStorage.setItem('pdf_last_sig_height_ratio', String(newHR));
+                    } catch (e) {}
+
+                    if (state.activeSignature) {
+                        state.activeSignature.widthRatio = newWR;
+                        state.activeSignature.heightRatio = newHR;
+                    }
+                    if (state.signatures) {
+                        const matchingSig = state.signatures.find(s => s.dataUrl === layer.dataUrl || (s.text === layer.text && s.fontFamily === layer.fontFamily));
+                        if (matchingSig) {
+                            matchingSig.widthRatio = newWR;
+                            matchingSig.heightRatio = newHR;
+                        }
+                        try {
+                            localStorage.setItem('pdf_saved_signatures', JSON.stringify(state.signatures));
+                        } catch (e) {}
+                    }
+                }
                 renderCardCanvas(page);
             }
         };

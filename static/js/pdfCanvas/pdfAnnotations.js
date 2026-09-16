@@ -131,6 +131,7 @@ export async function generateSignatureDataUrl(text, fontFamily, color) {
 
 export async function saveSignatureStamp(text, fontFamily, color) {
     const sigData = await generateSignatureDataUrl(text, fontFamily, color);
+    const state = getState();
     const stamp = {
         id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         text,
@@ -139,9 +140,10 @@ export async function saveSignatureStamp(text, fontFamily, color) {
         dataUrl: sigData.dataUrl,
         naturalWidth: sigData.naturalWidth,
         naturalHeight: sigData.naturalHeight,
-        aspectRatio: sigData.aspectRatio
+        aspectRatio: sigData.aspectRatio,
+        widthRatio: state.lastSignatureWidthRatio || 0.22,
+        heightRatio: state.lastSignatureHeightRatio || null
     };
-    const state = getState();
     state.signatures.push(stamp);
     state.activeSignature = stamp;
     try {
@@ -184,6 +186,10 @@ export function loadSavedSignatures() {
                 }
             });
         }
+        const lastW = localStorage.getItem('pdf_last_sig_width_ratio');
+        const lastH = localStorage.getItem('pdf_last_sig_height_ratio');
+        if (lastW) state.lastSignatureWidthRatio = parseFloat(lastW);
+        if (lastH) state.lastSignatureHeightRatio = parseFloat(lastH);
     } catch (e) {}
     return state.signatures;
 }

@@ -2,12 +2,12 @@
 //  pdfCardBuilder.js — Page card DOM generation, grid sync & facade
 // ===========================================
 
-import { getState, createPageObject } from './pdfState.js';
+import { getState, createPageObject, setAppMode } from './pdfState.js';
 import { openAnnotationInput, startWhiteout, formatDate } from './pdfAnnotations.js';
 import { startCrop, handleOverlayClick, removeOverlay } from './pdfCropOverlay.js';
 import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers, snapshotPageExcluded, snapshotPagesOrder } from './pdfHistory.js';
-import { initGhostPreview, deselectAllLayers } from './pdfLayerSelection.js';
+import { initGhostPreview, deselectAllLayers, hideGhost } from './pdfLayerSelection.js';
 import { startCreateFormField } from './pdfFormFieldUI.js';
 
 // ── Re-exports for backwards compatibility ──────────────────────────────────
@@ -209,16 +209,15 @@ export function buildCard(page) {
             if (e.target.closest('.signature-rect')) return;
             e.stopPropagation();
             const rect = canvas.getBoundingClientRect();
-            const wrapRect = wrap.getBoundingClientRect();
-            const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : 0.55;
             const sig = state.activeSignature;
-            const targetH = 22 * canvasScale;
             const aspect = sig.aspectRatio || (sig.naturalWidth && sig.naturalHeight ? sig.naturalWidth / sig.naturalHeight : 3.0);
-            const sigW = Math.max(14, targetH * aspect);
-            const sigH = Math.max(9, targetH);
+            const targetWR = sig.widthRatio || state.lastSignatureWidthRatio || 0.22;
+            const minW = Math.max(0.08, 48 / (rect.width || 1));
+            const wRatio = Math.max(minW, Math.min(0.95, targetWR));
 
-            const wRatio = Math.min(0.95, sigW / (rect.width || 1));
-            const hRatio = Math.min(0.5, sigH / (rect.height || 1));
+            const sigW = wRatio * rect.width;
+            const sigH = (sigW / aspect);
+            const hRatio = sigH / (rect.height || 1);
 
             const clickX = e.clientX - rect.left - sigW / 2;
             const clickY = e.clientY - rect.top - sigH / 2;
@@ -238,6 +237,14 @@ export function buildCard(page) {
                 widthRatio: wRatio,
                 heightRatio: hRatio
             });
+
+            hideGhost();
+            const cursorBtn = document.getElementById('ann-tool-cursor');
+            if (cursorBtn) {
+                cursorBtn.click();
+            } else {
+                setAppMode('select');
+            }
 
             renderCardCanvas(page);
         } else if (state.mode === 'date') {
@@ -261,6 +268,15 @@ export function buildCard(page) {
 
             snapshotPageLayers(page);
             page.layers.push(ann);
+
+            hideGhost();
+            const cursorBtn = document.getElementById('ann-tool-cursor');
+            if (cursorBtn) {
+                cursorBtn.click();
+            } else {
+                setAppMode('select');
+            }
+
             renderCardCanvas(page);
 
             // Auto-select placed date stamp so user can immediately resize or reposition it
