@@ -47,6 +47,48 @@ export function selectLayer(page, layer, el) {
             if (dateColorInput) dateColorInput.value = layer.color;
             if (dateColorSwatch) dateColorSwatch.style.backgroundColor = layer.color;
         }
+        if (layer.fontFamily) {
+            state.annFont = layer.fontFamily;
+            const fontSelect = document.getElementById('ann-font');
+            if (fontSelect) {
+                const ff = layer.fontFamily.toLowerCase();
+                if (ff.includes('times') || ff.includes('serif')) fontSelect.value = 'Times New Roman, serif';
+                else if (ff.includes('courier') || ff.includes('mono')) fontSelect.value = 'Courier New, monospace';
+                else fontSelect.value = 'Helvetica, Arial, sans-serif';
+            }
+        }
+        if (layer.bold !== undefined) {
+            state.annBold = !!layer.bold;
+            const boldBtn = document.getElementById('ann-bold-toggle');
+            if (boldBtn) boldBtn.classList.toggle('active', !!layer.bold);
+        }
+        const textSizeStepper = document.getElementById('ann-text-size-stepper');
+        const lineThicknessStepper = document.getElementById('ann-line-thickness-stepper');
+        if (textSizeStepper) textSizeStepper.classList.remove('hidden');
+        if (lineThicknessStepper) lineThicknessStepper.classList.add('hidden');
+        const annBarControls = document.getElementById('ann-bar-controls');
+        if (annBarControls) annBarControls.classList.remove('hidden');
+    } else if (layer && layer.type === 'line') {
+        const state = getState();
+        if (layer.color) {
+            state.annColor = layer.color;
+            const colorInput = document.getElementById('ann-color');
+            const customSwatch = document.getElementById('custom-color-swatch');
+            if (colorInput) colorInput.value = layer.color;
+            if (customSwatch) customSwatch.style.backgroundColor = layer.color;
+            document.querySelectorAll('.color-palette .color-dot').forEach(d => {
+                d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === layer.color.toLowerCase());
+            });
+        }
+        if (layer.thickness) {
+            state.annLineWidth = layer.thickness;
+            const lineInput = document.getElementById('ann-line-width');
+            if (lineInput) lineInput.value = layer.thickness;
+        }
+        const textSizeStepper = document.getElementById('ann-text-size-stepper');
+        const lineThicknessStepper = document.getElementById('ann-line-thickness-stepper');
+        if (textSizeStepper) textSizeStepper.classList.add('hidden');
+        if (lineThicknessStepper) lineThicknessStepper.classList.remove('hidden');
         const annBarControls = document.getElementById('ann-bar-controls');
         if (annBarControls) annBarControls.classList.remove('hidden');
     }
@@ -55,8 +97,17 @@ export function selectLayer(page, layer, el) {
 export function deselectAllLayers() {
     if (selectedLayerInfo && selectedLayerInfo.el) {
         selectedLayerInfo.el.classList.remove('selected');
+        const line = selectedLayerInfo.el.querySelector ? selectedLayerInfo.el.querySelector('line') : null;
+        if (line) {
+            line.removeAttribute('stroke-dasharray');
+            line.removeAttribute('filter');
+        }
     }
     document.querySelectorAll('.ann-marker.selected, .signature-rect.selected, .whiteout-rect-interactive.selected').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.pdf-line-layer-svg line').forEach(l => {
+        l.removeAttribute('stroke-dasharray');
+        l.removeAttribute('filter');
+    });
     selectedLayerInfo = null;
     const state = getState();
     if (state.mode !== 'annotate') {

@@ -96,6 +96,12 @@
             </svg>
             <span>Text</span>
           </button>
+          <button class="ann-tool-btn" id="ann-tool-line" data-tooltip="`L`&#10;Draw Line (Hold Ctrl to snap)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="20" x2="20" y2="4"></line>
+            </svg>
+            <span>Line</span>
+          </button>
           <!-- Sign Dropdown Menu inside Annotation Bar -->
           <div class="pdf-dropdown-wrapper" id="sign-dropdown-wrapper">
             <button class="ann-tool-btn" id="ann-tool-sign" data-tooltip="`S`&#10;Signatures &amp; stamps">
@@ -185,13 +191,37 @@
             </div>
           </div>
           <div class="ann-bar-sep"></div>
+          <!-- Font Family Selector -->
+          <div class="ann-font-picker-group">
+            <span class="ann-bar-label">Font</span>
+            <select id="ann-font" name="ann-font" class="ann-toolbar-select">
+              <option value="Helvetica, Arial, sans-serif">Sans (Helvetica)</option>
+              <option value="Times New Roman, serif">Serif (Times)</option>
+              <option value="Courier New, monospace">Mono (Courier)</option>
+            </select>
+          </div>
+          <div class="ann-bar-sep"></div>
+          <!-- Boldness Toggle -->
+          <button type="button" class="ann-tool-btn ann-bold-toggle-btn" id="ann-bold-toggle" title="Toggle Bold">
+            <b>B</b>
+          </button>
+          <div class="ann-bar-sep"></div>
           <!-- Size Stepper Pill -->
-          <div class="ann-size-stepper">
+          <div class="ann-size-stepper" id="ann-text-size-stepper">
             <span class="ann-bar-label">Size</span>
             <div class="size-pill-control">
               <button type="button" class="size-btn" id="ann-size-minus" title="Decrease Size">-</button>
               <input type="number" id="ann-size" name="ann-size" class="size-input-field" value="16" min="8" max="72" autocomplete="off" />
               <button type="button" class="size-btn" id="ann-size-plus" title="Increase Size">+</button>
+            </div>
+          </div>
+          <!-- Line Thickness Stepper Pill -->
+          <div class="ann-size-stepper hidden" id="ann-line-thickness-stepper">
+            <span class="ann-bar-label">Weight</span>
+            <div class="size-pill-control">
+              <button type="button" class="size-btn" id="ann-line-minus" title="Thinner Line">-</button>
+              <input type="number" id="ann-line-width" name="ann-line-width" class="size-input-field" value="2" min="1" max="24" autocomplete="off" />
+              <button type="button" class="size-btn" id="ann-line-plus" title="Thicker Line">+</button>
             </div>
           </div>
         </div>

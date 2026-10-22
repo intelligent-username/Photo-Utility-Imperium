@@ -636,3 +636,36 @@
     border-color: #3b82f6;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
+
+/* Pre-existing PDF text interactive line overlay */
+.pdf-extracted-text-line {
+    position: absolute;
+    box-sizing: border-box;
+    cursor: text;
+    pointer-events: auto;
+    z-index: 10;
+    border-radius: 2px;
+    padding: 0 1px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pdf-extracted-text-line:hover:not(.is-editing) {
+    background-color: rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+.pdf-extracted-text-line.has-edit {
+    background-color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+.pdf-extracted-text-line.is-editing {
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 2px #3b82f6, 0 2px 10px rgba(0, 0, 0, 0.18) !important;
+    outline: none !important;
+    cursor: text !important;
+    z-index: 35 !important;
+}
+

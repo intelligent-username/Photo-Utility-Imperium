@@ -3,7 +3,7 @@
 // ===========================================
 
 import { getState, createPageObject, setAppMode } from './pdfState.js';
-import { openAnnotationInput, startWhiteout, formatDate } from './pdfAnnotations.js';
+import { openAnnotationInput, startWhiteout, formatDate, startDrawLine } from './pdfAnnotations.js';
 import { startCrop, handleOverlayClick, removeOverlay } from './pdfCropOverlay.js';
 import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers, snapshotPageExcluded, snapshotPagesOrder } from './pdfHistory.js';
@@ -302,6 +302,9 @@ export function buildCard(page) {
         } else if (state.mode === 'field-form-create') {
             e.preventDefault();
             startCreateFormField(e, wrap, page);
+        } else if (state.mode === 'line') {
+            e.preventDefault();
+            startDrawLine(e, wrap, page);
         }
     });
 

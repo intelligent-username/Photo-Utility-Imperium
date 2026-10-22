@@ -28,7 +28,8 @@ import {
     loadSavedSignatures,
     getFormFieldMetrics,
     getSortedFormFields,
-    findAnnotationForField
+    findAnnotationForField,
+    startDrawLine
 } from './pdfCanvas/pdfAnnotations.js';
 
 import {
@@ -50,6 +51,8 @@ import {
     getSelectedLayerInfo
 } from './pdfCanvas/pdfCardBuilder.js';
 
+import { extractPageTextLines, renderPageTextOverlay } from './pdfCanvas/pdfTextLayer.js';
+
 import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
 
 export {
@@ -67,6 +70,7 @@ export {
     getFormFieldMetrics,
     getSortedFormFields,
     findAnnotationForField,
+    startDrawLine,
     buildCard,
     syncGrid,
     addCropControls,
@@ -77,7 +81,9 @@ export {
     selectLayer,
     deselectAllLayers,
     selectedLayerInfo,
-    getSelectedLayerInfo
+    getSelectedLayerInfo,
+    extractPageTextLines,
+    renderPageTextOverlay
 };
 
 export function renderCardCanvas(page) {

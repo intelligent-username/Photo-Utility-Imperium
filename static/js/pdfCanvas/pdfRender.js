@@ -5,6 +5,7 @@
 import { getState, createPageObject } from './pdfState.js';
 import { buildCard, renderCardLayers } from './pdfCardBuilder.js';
 import { addCropControls, syncRectToPercentage } from './pdfCropOverlay.js';
+import { extractPageTextLines } from './pdfTextLayer.js';
 
 // ——— Clean architecture: separate drawers, original page drawer untouched ———
 function drawYellowMaxedRect(ctx, page, vpWidth, vpHeight) {
@@ -249,13 +250,22 @@ export async function loadFiles(fileList) {
                     console.warn('Could not extract PDF annotations:', annotErr);
                 }
 
+                let textLines = [];
+                try {
+                    textLines = await extractPageTextLines(pdfPage);
+                } catch (textErr) {
+                    console.warn('Could not extract PDF text content:', textErr);
+                }
+
                 const page = createPageObject({
                     fileIdx,
                     pageIdx: p,
                     fileName: file.name,
                     _pdfPage: pdfPage,
-                    formFields
+                    formFields,
+                    textLines
                 });
+                page._textLines = textLines;
                 state.pages.push(page);
                 const card = buildCard(page);
                 grid.appendChild(card);

@@ -5,9 +5,12 @@
 const state = {
     pages: [],       // { id, fileIdx, pageIdx, fileName, excluded, annotations[], cropBox, overlays[], _pdfPage, isBlank, aspectRatio }
     files: [],       // raw File objects
-    mode: 'select',  // 'select' | 'annotate' | 'crop' | 'overlay' | 'signature' | 'date' | 'whiteout'
+    mode: 'select',  // 'select' | 'annotate' | 'crop' | 'overlay' | 'signature' | 'date' | 'whiteout' | 'line'
     annColor: '#000000',
     annSize: 16,
+    annLineWidth: 2,
+    annFont: 'Helvetica, Arial, sans-serif',
+    annBold: false,
     overlaySource: null,
     viewMode: 'large',
     isLargeView: true,
@@ -69,6 +72,7 @@ export function createPageObject(config) {
         aspectRatio: config.aspectRatio,
         _pdfPage: config._pdfPage || null,
         formFields: config.formFields || [],
+        _textLines: config.textLines || [],
         layers,
     };
 

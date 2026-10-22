@@ -13,6 +13,15 @@ function cloneLayers(layers) {
     return (layers || []).map(l => ({ ...l }));
 }
 
+function cloneTextEdits(edits) {
+    if (!edits) return {};
+    const copy = {};
+    for (const k of Object.keys(edits)) {
+        copy[k] = { ...edits[k] };
+    }
+    return copy;
+}
+
 function cloneFormFields(fields) {
     return (fields || []).map(f => ({ ...f }));
 }
@@ -28,7 +37,13 @@ function currentSnapshot(state, entry) {
     }
     if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
-        return page ? { ...entry, snapshot: cloneLayers(page.layers) } : null;
+        return page ? {
+            ...entry,
+            snapshot: {
+                layers: cloneLayers(page.layers),
+                textEdits: cloneTextEdits(page.textEdits)
+            }
+        } : null;
     }
     if (entry.type === 'page_form_fields') {
         const page = state.pages.find(p => p.id === entry.pageId);
@@ -105,7 +120,12 @@ function applyEntry(state, entry, syncGridCb) {
     } else if (entry.type === 'page_layers') {
         const page = state.pages.find(p => p.id === entry.pageId);
         if (!page) return;
-        page.layers = cloneLayers(entry.snapshot);
+        if (Array.isArray(entry.snapshot)) {
+            page.layers = cloneLayers(entry.snapshot);
+        } else if (entry.snapshot && typeof entry.snapshot === 'object') {
+            page.layers = cloneLayers(entry.snapshot.layers);
+            page.textEdits = cloneTextEdits(entry.snapshot.textEdits);
+        }
         renderCardCanvas(page);
 
     } else if (entry.type === 'page_form_fields') {
@@ -169,9 +189,17 @@ function applyEntry(state, entry, syncGridCb) {
 
 // ─── Snapshot APIs ──────────────────────────────────────────────────────────
 
-/** Call BEFORE mutating page.layers */
+/** Call BEFORE mutating page.layers or page.textEdits */
 export function snapshotPageLayers(page) {
-    pushUndo({ type: 'page_layers', pageId: page.id, snapshot: cloneLayers(page.layers) });
+    if (!page) return;
+    pushUndo({
+        type: 'page_layers',
+        pageId: page.id,
+        snapshot: {
+            layers: cloneLayers(page.layers),
+            textEdits: cloneTextEdits(page.textEdits)
+        }
+    });
 }
 
 /** Call BEFORE mutating page.formFields (or both formFields + layers) */

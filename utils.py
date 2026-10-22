@@ -76,8 +76,11 @@ def apply_text_annotations(page, annotations):
         y = (1.0 - y_ratio) * height  # Invert Y for PDF space
 
         # Map basic font families to built-in reportlab fonts
-        if 'times' in font_family.lower():
+        ff_lower = font_family.lower()
+        if 'times' in ff_lower or 'serif' in ff_lower:
             font_name = "Times-Bold" if is_bold else "Times-Roman"
+        elif 'courier' in ff_lower or 'mono' in ff_lower:
+            font_name = "Courier-Bold" if is_bold else "Courier"
         else:
             font_name = "Helvetica-Bold" if is_bold else "Helvetica"
 
@@ -108,6 +111,41 @@ def apply_text_annotations(page, annotations):
         for i, line in enumerate(wrapped_lines):
             can.drawString(x, y - font_size - (i * line_height), line)
 
+    can.save()
+    packet.seek(0)
+
+    overlay_reader = PdfReader(packet)
+    if len(overlay_reader.pages) > 0:
+        page.merge_page(overlay_reader.pages[0])
+
+    return page
+
+def apply_line_layer(page, layer):
+    """Draws a vector line onto a PDF page using reportlab."""
+    if not layer:
+        return page
+
+    x1_ratio = float(layer.get('x1Ratio', 0.0))
+    y1_ratio = float(layer.get('y1Ratio', 0.0))
+    x2_ratio = float(layer.get('x2Ratio', 0.0))
+    y2_ratio = float(layer.get('y2Ratio', 0.0))
+    color_hex = layer.get('color', '#000000')
+    thickness = float(layer.get('thickness', 2))
+
+    width = float(page.mediabox.width)
+    height = float(page.mediabox.height)
+
+    x1 = x1_ratio * width
+    y1 = (1.0 - y1_ratio) * height  # Invert Y for PDF space
+    x2 = x2_ratio * width
+    y2 = (1.0 - y2_ratio) * height
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=(width, height))
+    can.setStrokeColor(HexColor(color_hex))
+    can.setLineWidth(thickness)
+    can.setLineCap(0)  # Butt cap (flat, no curves at ends)
+    can.line(x1, y1, x2, y2)
     can.save()
     packet.seek(0)
 
@@ -281,6 +319,105 @@ def apply_whiteouts(page, whiteouts):
         return page
 
 
+def apply_text_edits(page, text_edits):
+    """Directly redacts pre-existing text areas and inserts replacement text
+    at the exact coordinates and baseline using PyMuPDF vector operations.
+    """
+    if not text_edits:
+        return page
+
+    edits_list = list(text_edits.values()) if isinstance(text_edits, dict) else text_edits
+    if not edits_list:
+        return page
+
+    # Convert PyPDF page to single-page PDF for PyMuPDF processing
+    writer = PdfWriter()
+    writer.add_page(page)
+    tmp_io = BytesIO()
+    writer.write(tmp_io)
+    tmp_io.seek(0)
+
+    try:
+        doc = fitz.open(stream=tmp_io.getvalue(), filetype="pdf")
+        doc_page = doc[0]
+        page_w = doc_page.rect.width
+        page_h = doc_page.rect.height
+
+        # Phase 1: Add redaction annotations for all edited lines
+        for edit in edits_list:
+            left_ratio = float(edit.get('leftRatio', 0.0))
+            top_ratio = float(edit.get('topRatio', 0.0))
+            width_ratio = float(edit.get('widthRatio', 0.0))
+            height_ratio = float(edit.get('heightRatio', 0.0))
+
+            pad_x = 0.5
+            pad_y = 0.5
+            x0 = max(0.0, left_ratio * page_w - pad_x)
+            y0 = max(0.0, top_ratio * page_h - pad_y)
+            x1 = min(page_w, (left_ratio + width_ratio) * page_w + pad_x)
+            y1 = min(page_h, (top_ratio + height_ratio) * page_h + pad_y)
+
+            rect = fitz.Rect(x0, y0, x1, y1)
+            doc_page.add_redact_annot(rect, fill=(1, 1, 1))
+
+        # Apply all vector redactions permanently
+        doc_page.apply_redactions()
+
+        # Phase 2: Insert replacement text
+        for edit in edits_list:
+            new_text = edit.get('text', '')
+            if not new_text or not new_text.strip():
+                # User deleted text; redaction already cleanly wiped it
+                continue
+
+            left_ratio = float(edit.get('leftRatio', 0.0))
+            top_ratio = float(edit.get('topRatio', 0.0))
+            height_ratio = float(edit.get('heightRatio', 0.0))
+
+            font_size = float(edit.get('fontSize', 12))
+            font_family = edit.get('fontFamily', '')
+            is_bold = bool(edit.get('bold', False))
+
+            ff_lower = font_family.lower()
+            if 'times' in ff_lower or 'serif' in ff_lower or 'roman' in ff_lower:
+                fontname = "tibo" if is_bold else "tiro"
+            elif 'courier' in ff_lower or 'mono' in ff_lower:
+                fontname = "cobo" if is_bold else "cour"
+            else:
+                fontname = "hebo" if is_bold else "helv"
+
+            color_hex = str(edit.get('color', '#000000')).lstrip('#')
+            if len(color_hex) == 6:
+                color_rgb = tuple(int(color_hex[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+            else:
+                color_rgb = (0.0, 0.0, 0.0)
+
+            # Baseline calculation in top-down coordinates
+            x0 = left_ratio * page_w
+            y0 = top_ratio * page_h
+            y1 = (top_ratio + height_ratio) * page_h
+            baseline_y = y1 - ((y1 - y0) * 0.15)
+
+            pt = fitz.Point(x0, baseline_y)
+            try:
+                doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fontname, color=color_rgb)
+            except Exception:
+                try:
+                    fallback_font = "helv-bold" if is_bold else "helv"
+                    doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fallback_font, color=color_rgb)
+                except Exception as ex:
+                    print(f"PyMuPDF insert_text failed: {ex}")
+
+        out_io = BytesIO(doc.tobytes())
+        doc.close()
+        return PdfReader(out_io).pages[0]
+
+    except Exception as e:
+        print(f"Error applying text edits with PyMuPDF: {e}")
+        traceback.print_exc()
+        return page
+
+
 def merge_pdfs(readers, num_blank_pages=0):
     """Merge PDFs with optional blank pages between files."""
     writer = PdfWriter()
@@ -387,6 +524,11 @@ def process_pdf_edit_logic(readers, manifest, file_bytes_list=None):
         if 'cropBox' in item and item['cropBox']:
             page = apply_crop_box(page, item['cropBox'])
 
+        # Apply direct text edits on pre-existing text lines
+        text_edits = item.get('textEdits')
+        if text_edits:
+            page = apply_text_edits(page, text_edits)
+
         # Process unified layers in EXACT chronological order
         layers = item.get('layers', [])
         
@@ -409,6 +551,8 @@ def process_pdf_edit_logic(readers, manifest, file_bytes_list=None):
                 page = apply_whiteouts(page, [layer])
             elif l_type == 'annotation':
                 page = apply_text_annotations(page, [layer])
+            elif l_type == 'line':
+                page = apply_line_layer(page, layer)
             elif l_type == 'signature':
                 page = apply_signature_layer(page, layer)
             elif l_type == 'overlay':

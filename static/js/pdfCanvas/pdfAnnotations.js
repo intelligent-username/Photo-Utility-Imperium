@@ -361,8 +361,8 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     input.style.maxWidth = '100%';
     let currentAnnColor = existingAnn ? (existingAnn.color || (options.color || state.annColor)) : (options.color ? options.color : (options.date ? state.dateColor : state.annColor));
     let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : (options.fontSize ? options.fontSize : (options.date ? state.dateSize : state.annSize));
-    let currentAnnFont = existingAnn ? (existingAnn.fontFamily || 'inherit') : (options.date ? state.dateFont : 'inherit');
-    let currentAnnBold = existingAnn ? (existingAnn.bold || false) : (options.date ? state.dateBold : false);
+    let currentAnnFont = existingAnn ? (existingAnn.fontFamily || 'inherit') : (options.fontFamily ? options.fontFamily : (options.date ? state.dateFont : (state.annFont || 'inherit')));
+    let currentAnnBold = existingAnn ? (existingAnn.bold || false) : (options.bold !== undefined ? options.bold : (options.date ? state.dateBold : (state.annBold || false)));
 
     const applyContrastTheme = (hexColor) => {
         if (isFormField) return;
@@ -402,12 +402,41 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainPicker) mainPicker.value = currentAnnColor;
     });
 
+    const fontSelect = document.createElement('select');
+    fontSelect.id = 'ann-popover-font';
+    fontSelect.name = 'ann-popover-font';
+    fontSelect.className = 'ann-popover-font';
+    fontSelect.title = 'Font Family';
+    [
+        { value: 'Helvetica, Arial, sans-serif', label: 'Sans-Serif (Helvetica)' },
+        { value: 'Times New Roman, serif', label: 'Serif (Times)' },
+        { value: 'Courier New, monospace', label: 'Monospace (Courier)' }
+    ].forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.value;
+        opt.textContent = f.label;
+        if (currentAnnFont && (currentAnnFont.toLowerCase().includes(f.value.split(',')[0].toLowerCase()) || (f.value.includes('Times') && currentAnnFont.toLowerCase().includes('times')) || (f.value.includes('Courier') && currentAnnFont.toLowerCase().includes('courier')))) {
+            opt.selected = true;
+        }
+        fontSelect.appendChild(opt);
+    });
+    fontSelect.addEventListener('change', (e) => {
+        currentAnnFont = e.target.value;
+        input.style.fontFamily = currentAnnFont;
+        autoResize();
+    });
+
     const sizeSelect = document.createElement('select');
     sizeSelect.id = 'ann-popover-size';
     sizeSelect.name = 'ann-popover-size';
     sizeSelect.className = 'ann-popover-size';
     sizeSelect.title = 'Font Size';
-    [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64].forEach(sz => {
+    const standardSizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36, 48, 64];
+    if (!standardSizes.includes(currentAnnSize)) {
+        standardSizes.push(currentAnnSize);
+        standardSizes.sort((a, b) => a - b);
+    }
+    standardSizes.forEach(sz => {
         const opt = document.createElement('option');
         opt.value = sz;
         opt.textContent = `${sz}px`;
@@ -424,9 +453,25 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     });
 
+    const boldBtn = document.createElement('button');
+    boldBtn.type = 'button';
+    boldBtn.className = 'ann-popover-bold-btn' + (currentAnnBold ? ' active' : '');
+    boldBtn.innerHTML = '<b>B</b>';
+    boldBtn.title = 'Toggle Bold (Ctrl+B)';
+    boldBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        currentAnnBold = !currentAnnBold;
+        boldBtn.classList.toggle('active', currentAnnBold);
+        input.style.fontWeight = currentAnnBold ? 'bold' : 'normal';
+        autoResize();
+    });
+
     if (!isFormField) {
         controls.appendChild(colorPicker);
+        controls.appendChild(fontSelect);
         controls.appendChild(sizeSelect);
+        controls.appendChild(boldBtn);
         box.appendChild(controls);
     }
 
@@ -485,6 +530,9 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             if (isFormField) {
                 ann.isFormField = true;
                 if (options.fieldId) ann.fieldId = options.fieldId;
+            }
+            if (options.sourceTextId) {
+                ann.sourceTextId = options.sourceTextId;
             }
             page.layers.push(ann);
         }
@@ -599,6 +647,13 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             e.preventDefault();
             document.removeEventListener('pointerdown', onDocClick);
             commit();
+        } else if (!isFormField && (e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            currentAnnBold = !currentAnnBold;
+            const bBtn = box.querySelector('.ann-popover-bold-btn');
+            if (bBtn) bBtn.classList.toggle('active', currentAnnBold);
+            input.style.fontWeight = currentAnnBold ? 'bold' : 'normal';
+            autoResize();
         } else if (!isFormField && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '.' || e.key === '>')) {
             e.preventDefault();
             setFontSize(currentAnnSize + 2);
@@ -660,6 +715,89 @@ export function startWhiteout(e, wrap, page) {
         }
         box.remove();
         renderCardCanvas(page);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+}
+
+export function startDrawLine(e, wrap, page) {
+    const state = getState();
+    if (state.mode !== 'line') return;
+    const rect = wrap.getBoundingClientRect();
+    const startX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const startY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+
+    // Create live SVG preview container
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'pdf-live-line-svg');
+    svg.style.position = 'absolute';
+    svg.style.inset = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '40';
+
+    const lineEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    lineEl.setAttribute('x1', startX);
+    lineEl.setAttribute('y1', startY);
+    lineEl.setAttribute('x2', startX);
+    lineEl.setAttribute('y2', startY);
+    lineEl.setAttribute('stroke', state.annColor || '#000000');
+    lineEl.setAttribute('stroke-width', state.annLineWidth || 2);
+    lineEl.setAttribute('stroke-linecap', 'butt');
+
+    svg.appendChild(lineEl);
+    wrap.appendChild(svg);
+
+    let curX = startX;
+    let curY = startY;
+
+    const onMove = (moveEv) => {
+        let rawX = Math.max(0, Math.min(rect.width, moveEv.clientX - rect.left));
+        let rawY = Math.max(0, Math.min(rect.height, moveEv.clientY - rect.top));
+
+        // Holding Ctrl or Shift restricts line to perfectly vertical or perfectly horizontal
+        if (moveEv.ctrlKey || moveEv.shiftKey) {
+            const dx = Math.abs(rawX - startX);
+            const dy = Math.abs(rawY - startY);
+            if (dx >= dy) {
+                curX = rawX;
+                curY = startY; // perfectly horizontal
+            } else {
+                curX = startX; // perfectly vertical
+                curY = rawY;
+            }
+        } else {
+            curX = rawX;
+            curY = rawY;
+        }
+
+        lineEl.setAttribute('x2', curX);
+        lineEl.setAttribute('y2', curY);
+    };
+
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        svg.remove();
+
+        const dist = Math.hypot(curX - startX, curY - startY);
+        if (dist > 4) {
+            snapshotPageLayers(page);
+            const lineLayer = {
+                type: 'line',
+                id: `line_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                x1Ratio: startX / rect.width,
+                y1Ratio: startY / rect.height,
+                x2Ratio: curX / rect.width,
+                y2Ratio: curY / rect.height,
+                color: state.annColor || '#000000',
+                thickness: state.annLineWidth || 2
+            };
+            page.layers.push(lineLayer);
+            renderCardCanvas(page);
+        }
     };
 
     document.addEventListener('mousemove', onMove);

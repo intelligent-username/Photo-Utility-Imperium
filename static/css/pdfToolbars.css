@@ -160,10 +160,45 @@
 }
 
 .ann-color-picker-group,
+.ann-font-picker-group,
 .ann-size-stepper {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.ann-toolbar-select {
+    height: 26px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    padding: 0 6px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.ann-toolbar-select:focus,
+.ann-toolbar-select:hover {
+    border-color: var(--primary);
+}
+
+.ann-bold-toggle-btn {
+    height: 26px;
+    width: 28px;
+    padding: 0;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ann-bold-toggle-btn.active {
+    background: var(--primary) !important;
+    color: #0b1220 !important;
+    border-color: var(--primary) !important;
 }
 
 .ann-bar-label {

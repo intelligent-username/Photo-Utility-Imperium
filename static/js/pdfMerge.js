@@ -106,6 +106,7 @@ export function initPdfMerge(options) {
                 pageIndex: p.pageIdx,
                 isBlank: p.isBlank || false,
                 layers: p.layers,
+                textEdits: p.textEdits || {},
                 annotations: p.annotations,
                 cropBox: p.cropBox,
                 overlays: p.overlays,
@@ -136,6 +137,7 @@ export function initPdfMerge(options) {
                     (p.annotations && p.annotations.length > 0) ||
                     (p.overlays && p.overlays.length > 0) ||
                     (p.whiteouts && p.whiteouts.length > 0) ||
+                    (p.textEdits && Object.keys(p.textEdits).length > 0) ||
                     p.cropBox ||
                     (p.layers && p.layers.some(l => l.visible === false))
                 );

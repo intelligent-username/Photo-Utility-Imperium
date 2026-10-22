@@ -30,6 +30,7 @@ export function setupToolbarControls() {
     const fieldFormBtn = document.getElementById('field-form-btn');
     const annToolCursor = document.getElementById('ann-tool-cursor');
     const annToolText = document.getElementById('ann-tool-text');
+    const annToolLine = document.getElementById('ann-tool-line');
     const annToolSign = document.getElementById('ann-tool-sign');
     const annToolDate = document.getElementById('ann-tool-date');
     const annToolDateCaret = document.getElementById('ann-tool-date-caret');
@@ -51,9 +52,13 @@ export function setupToolbarControls() {
     function selectAnnSubTool(subTool, options = {}) {
         const signMenu = document.getElementById('sign-dropdown-menu');
         const dateMenu = document.getElementById('date-dropdown-menu');
+        const textSizeStepper = document.getElementById('ann-text-size-stepper');
+        const lineThicknessStepper = document.getElementById('ann-line-thickness-stepper');
+
         if (subTool === 'cursor') {
             if (annToolCursor) annToolCursor.classList.add('active');
             if (annToolText) annToolText.classList.remove('active');
+            if (annToolLine) annToolLine.classList.remove('active');
             if (annToolSign) annToolSign.classList.remove('active');
             if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
@@ -63,16 +68,32 @@ export function setupToolbarControls() {
         } else if (subTool === 'text') {
             if (annToolText) annToolText.classList.add('active');
             if (annToolCursor) annToolCursor.classList.remove('active');
+            if (annToolLine) annToolLine.classList.remove('active');
             if (annToolSign) annToolSign.classList.remove('active');
             if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.remove('hidden');
+            if (textSizeStepper) textSizeStepper.classList.remove('hidden');
+            if (lineThicknessStepper) lineThicknessStepper.classList.add('hidden');
             if (signMenu) signMenu.classList.add('hidden');
             if (dateMenu) dateMenu.classList.add('hidden');
             setAppMode('annotate');
+        } else if (subTool === 'line') {
+            if (annToolLine) annToolLine.classList.add('active');
+            if (annToolCursor) annToolCursor.classList.remove('active');
+            if (annToolText) annToolText.classList.remove('active');
+            if (annToolSign) annToolSign.classList.remove('active');
+            if (annToolDate) annToolDate.classList.remove('active');
+            if (annBarControls) annBarControls.classList.remove('hidden');
+            if (textSizeStepper) textSizeStepper.classList.add('hidden');
+            if (lineThicknessStepper) lineThicknessStepper.classList.remove('hidden');
+            if (signMenu) signMenu.classList.add('hidden');
+            if (dateMenu) dateMenu.classList.add('hidden');
+            setAppMode('line');
         } else if (subTool === 'sign') {
             if (annToolSign) annToolSign.classList.add('active');
             if (annToolCursor) annToolCursor.classList.remove('active');
             if (annToolText) annToolText.classList.remove('active');
+            if (annToolLine) annToolLine.classList.remove('active');
             if (annToolDate) annToolDate.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
             if (dateMenu) dateMenu.classList.add('hidden');
@@ -88,6 +109,7 @@ export function setupToolbarControls() {
             if (annToolDate) annToolDate.classList.add('active');
             if (annToolCursor) annToolCursor.classList.remove('active');
             if (annToolText) annToolText.classList.remove('active');
+            if (annToolLine) annToolLine.classList.remove('active');
             if (annToolSign) annToolSign.classList.remove('active');
             if (annBarControls) annBarControls.classList.add('hidden');
             if (signMenu) signMenu.classList.add('hidden');
@@ -288,6 +310,7 @@ export function setupToolbarControls() {
 
     if (annToolCursor) annToolCursor.addEventListener('click', () => selectAnnSubTool('cursor'));
     if (annToolText) annToolText.addEventListener('click', () => selectAnnSubTool('text'));
+    if (annToolLine) annToolLine.addEventListener('click', () => selectAnnSubTool('line'));
 
     let rPressCount = 0;
     let lastRPressTime = 0;
@@ -379,6 +402,17 @@ export function setupToolbarControls() {
             if (annotateBtn) annotateBtn.classList.add('active');
             if (annBar) annBar.classList.remove('hidden');
             selectAnnSubTool('text');
+        } else if (key === 'l') {
+            deselectAllLayers();
+            commitActivePlacement();
+            if (ffBar) ffBar.classList.add('hidden');
+            if (fieldFormBtn) fieldFormBtn.classList.remove('active');
+            if (cropBtn) cropBtn.classList.remove('active');
+            if (overlayBtn) overlayBtn.classList.remove('active');
+            if (whiteoutBtn) whiteoutBtn.classList.remove('active');
+            if (annotateBtn) annotateBtn.classList.add('active');
+            if (annBar) annBar.classList.remove('hidden');
+            selectAnnSubTool('line');
         } else if (key === 's') {
             deselectAllLayers();
             commitActivePlacement();
@@ -1095,6 +1129,64 @@ function setupColorSizeControls() {
             sizeInput.value = val;
             applySizeChange(val);
             sizeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
+
+    const fontSelect = document.getElementById('ann-font');
+    if (fontSelect) {
+        fontSelect.addEventListener('change', (e) => {
+            const fontVal = e.target.value;
+            state.annFont = fontVal;
+            const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+            if (sel && sel.layer && sel.page) {
+                sel.layer.fontFamily = fontVal;
+                renderCardCanvas(sel.page);
+            }
+        });
+    }
+
+    const boldToggle = document.getElementById('ann-bold-toggle');
+    if (boldToggle) {
+        boldToggle.addEventListener('click', () => {
+            state.annBold = !state.annBold;
+            boldToggle.classList.toggle('active', state.annBold);
+            const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+            if (sel && sel.layer && sel.page) {
+                sel.layer.bold = state.annBold;
+                renderCardCanvas(sel.page);
+            }
+        });
+    }
+
+    const lineWidthInput = document.getElementById('ann-line-width');
+    const lineMinus = document.getElementById('ann-line-minus');
+    const linePlus = document.getElementById('ann-line-plus');
+
+    const applyLineWidthChange = (w) => {
+        const val = Math.max(1, Math.min(24, w));
+        state.annLineWidth = val;
+        if (lineWidthInput) lineWidthInput.value = val;
+        const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
+        if (sel && sel.layer && sel.page && sel.layer.type === 'line') {
+            sel.layer.thickness = val;
+            renderCardCanvas(sel.page);
+        }
+    };
+
+    if (lineWidthInput) {
+        lineWidthInput.addEventListener('input', (e) => applyLineWidthChange(parseInt(e.target.value, 10) || 2));
+        lineWidthInput.addEventListener('change', (e) => applyLineWidthChange(parseInt(e.target.value, 10) || 2));
+    }
+    if (lineMinus && lineWidthInput) {
+        lineMinus.addEventListener('click', () => {
+            const cur = parseInt(lineWidthInput.value, 10) || 2;
+            applyLineWidthChange(cur - 1);
+        });
+    }
+    if (linePlus && lineWidthInput) {
+        linePlus.addEventListener('click', () => {
+            const cur = parseInt(lineWidthInput.value, 10) || 2;
+            applyLineWidthChange(cur + 1);
         });
     }
 }
