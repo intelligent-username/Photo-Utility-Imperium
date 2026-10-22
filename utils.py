@@ -321,7 +321,7 @@ def apply_whiteouts(page, whiteouts):
 
 def apply_text_edits(page, text_edits):
     """Directly redacts pre-existing text areas and inserts replacement text
-    at the exact coordinates and baseline using PyMuPDF vector operations.
+    at the exact coordinates and baseline using the original font, size, and color.
     """
     if not text_edits:
         return page
@@ -343,27 +343,54 @@ def apply_text_edits(page, text_edits):
         page_w = doc_page.rect.width
         page_h = doc_page.rect.height
 
-        # Phase 1: Add redaction annotations for all edited lines
+        # Phase 1: Query original font, size, and color directly from PDF stream BEFORE redaction
         for edit in edits_list:
             left_ratio = float(edit.get('leftRatio', 0.0))
             top_ratio = float(edit.get('topRatio', 0.0))
             width_ratio = float(edit.get('widthRatio', 0.0))
             height_ratio = float(edit.get('heightRatio', 0.0))
 
+            x0 = max(0.0, left_ratio * page_w)
+            y0 = max(0.0, top_ratio * page_h)
+            x1 = min(page_w, (left_ratio + width_ratio) * page_w)
+            y1 = min(page_h, (top_ratio + height_ratio) * page_h)
+
+            try:
+                clip_r = fitz.Rect(max(0.0, x0 - 2), max(0.0, y0 - 2), min(page_w, x1 + 2), min(page_h, y1 + 2))
+                text_dict = doc_page.get_text("dict", clip=clip_r)
+                orig_spans = []
+                for b in text_dict.get("blocks", []):
+                    for l in b.get("lines", []):
+                        for s in l.get("spans", []):
+                            txt = s.get("text", "").strip()
+                            if txt:
+                                orig_spans.append(s)
+
+                if orig_spans:
+                    orig_spans.sort(key=lambda s: len(s.get("text", "")), reverse=True)
+                    prim = orig_spans[0]
+                    if prim.get("font"):
+                        edit['origPdfFont'] = prim["font"]
+                    if prim.get("size") and float(prim["size"]) > 0:
+                        edit['origPdfSize'] = float(prim["size"])
+                    if "color" in prim and prim["color"] is not None:
+                        edit['origPdfColor'] = prim["color"]
+                    if "flags" in prim:
+                        edit['origPdfFlags'] = prim["flags"]
+                    if "bbox" in prim:
+                        edit['origBbox'] = prim["bbox"]
+            except Exception as ex:
+                print(f"Error querying original PDF span properties: {ex}")
+
             pad_x = 0.5
             pad_y = 0.5
-            x0 = max(0.0, left_ratio * page_w - pad_x)
-            y0 = max(0.0, top_ratio * page_h - pad_y)
-            x1 = min(page_w, (left_ratio + width_ratio) * page_w + pad_x)
-            y1 = min(page_h, (top_ratio + height_ratio) * page_h + pad_y)
-
-            rect = fitz.Rect(x0, y0, x1, y1)
+            rect = fitz.Rect(max(0.0, x0 - pad_x), max(0.0, y0 - pad_y), min(page_w, x1 + pad_x), min(page_h, y1 + pad_y))
             doc_page.add_redact_annot(rect, fill=(1, 1, 1))
 
         # Apply all vector redactions permanently
         doc_page.apply_redactions()
 
-        # Phase 2: Insert replacement text
+        # Phase 2: Insert replacement text using original font, font size, and font color
         for edit in edits_list:
             new_text = edit.get('text', '')
             if not new_text or not new_text.strip():
@@ -374,36 +401,72 @@ def apply_text_edits(page, text_edits):
             top_ratio = float(edit.get('topRatio', 0.0))
             height_ratio = float(edit.get('heightRatio', 0.0))
 
-            font_size = float(edit.get('fontSize', 12))
-            font_family = edit.get('fontFamily', '')
-            is_bold = bool(edit.get('bold', False))
+            # 1. Exact font size: prioritize direct PDF stream font size, fallback to edit fontSize
+            font_size = float(edit.get('origPdfSize') or edit.get('fontSize') or 12.0)
 
-            ff_lower = font_family.lower()
-            if 'times' in ff_lower or 'serif' in ff_lower or 'roman' in ff_lower:
-                fontname = "tibo" if is_bold else "tiro"
-            elif 'courier' in ff_lower or 'mono' in ff_lower:
-                fontname = "cobo" if is_bold else "cour"
+            # 2. Exact font family & style
+            font_cand = edit.get('origPdfFont') or edit.get('rawFontName') or edit.get('fontFamily', '')
+            flags = edit.get('origPdfFlags', 0)
+            is_bold = bool(flags & 2) or ('bold' in font_cand.lower()) or ('black' in font_cand.lower()) or bool(edit.get('bold', False))
+            is_italic = bool(flags & 4) or ('italic' in font_cand.lower()) or ('oblique' in font_cand.lower())
+
+            fc_lower = font_cand.lower()
+            if 'times' in fc_lower or 'serif' in fc_lower or 'roman' in fc_lower or 'georgia' in fc_lower or 'cambria' in fc_lower:
+                if is_bold and is_italic:
+                    fontname = "tibi"
+                elif is_bold:
+                    fontname = "tibo"
+                elif is_italic:
+                    fontname = "tiit"
+                else:
+                    fontname = "tiro"
+            elif 'courier' in fc_lower or 'mono' in fc_lower or 'consolas' in fc_lower:
+                if is_bold and is_italic:
+                    fontname = "cobi"
+                elif is_bold:
+                    fontname = "cobo"
+                elif is_italic:
+                    fontname = "coit"
+                else:
+                    fontname = "cour"
             else:
-                fontname = "hebo" if is_bold else "helv"
+                if is_bold and is_italic:
+                    fontname = "hebi"
+                elif is_bold:
+                    fontname = "hebo"
+                elif is_italic:
+                    fontname = "heit"
+                else:
+                    fontname = "helv"
 
-            color_hex = str(edit.get('color', '#000000')).lstrip('#')
-            if len(color_hex) == 6:
-                color_rgb = tuple(int(color_hex[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+            # 3. Exact font color
+            if 'origPdfColor' in edit and edit['origPdfColor'] is not None:
+                c = int(edit['origPdfColor'])
+                color_rgb = (((c >> 16) & 255) / 255.0, ((c >> 8) & 255) / 255.0, (c & 255) / 255.0)
             else:
-                color_rgb = (0.0, 0.0, 0.0)
+                color_hex = str(edit.get('color', '#000000')).lstrip('#')
+                if len(color_hex) == 6:
+                    color_rgb = tuple(int(color_hex[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+                else:
+                    color_rgb = (0.0, 0.0, 0.0)
 
-            # Baseline calculation in top-down coordinates
+            # 4. Baseline calculation in top-down coordinates
             x0 = left_ratio * page_w
             y0 = top_ratio * page_h
             y1 = (top_ratio + height_ratio) * page_h
-            baseline_y = y1 - ((y1 - y0) * 0.15)
+            if 'origBbox' in edit and edit['origBbox']:
+                ob = edit['origBbox']
+                x0 = ob[0]
+                baseline_y = ob[3] - (font_size * 0.15)
+            else:
+                baseline_y = y1 - (font_size * 0.18)
 
             pt = fitz.Point(x0, baseline_y)
             try:
                 doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fontname, color=color_rgb)
             except Exception:
                 try:
-                    fallback_font = "helv-bold" if is_bold else "helv"
+                    fallback_font = "hebo" if is_bold else "helv"
                     doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fallback_font, color=color_rgb)
                 except Exception as ex:
                     print(f"PyMuPDF insert_text failed: {ex}")

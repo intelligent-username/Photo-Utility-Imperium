@@ -644,10 +644,12 @@
     cursor: text;
     pointer-events: auto;
     z-index: 10;
-    border-radius: 2px;
-    padding: 0 1px;
-    display: flex;
-    align-items: center;
+    border-radius: 1px;
+    padding: 0;
+    margin: 0;
+    display: block;
+    white-space: pre;
+    overflow: visible;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -667,5 +669,8 @@
     outline: none !important;
     cursor: text !important;
     z-index: 35 !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
+
 

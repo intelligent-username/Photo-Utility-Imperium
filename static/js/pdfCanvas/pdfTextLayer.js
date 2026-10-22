@@ -1,5 +1,5 @@
 // ===========================================
-//  pdfTextLayer.js — Pre-existing PDF text extraction & direct in-place editing
+//  pdfTextLayer.js — Pre-existing PDF text extraction & pixel-perfect in-place editing
 // ===========================================
 
 import { getState } from './pdfState.js';
@@ -7,7 +7,55 @@ import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers } from './pdfHistory.js';
 
 /**
- * Extracts text items from a PDF.js page and clusters them into distinct lines.
+ * Samples glyph pixels from the rendered canvas at the line bounding box
+ * to determine the exact ground-truth text color.
+ */
+function sampleLineTextColor(canvas, line) {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return '#000000';
+    try {
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return '#000000';
+
+        const cx = Math.max(0, Math.floor(line.leftRatio * canvas.width));
+        const cy = Math.max(0, Math.floor(line.topRatio * canvas.height));
+        const cw = Math.max(1, Math.min(canvas.width - cx, Math.floor(line.widthRatio * canvas.width)));
+        const ch = Math.max(1, Math.min(canvas.height - cy, Math.floor(line.heightRatio * canvas.height)));
+
+        const sampleW = Math.min(cw, 80);
+        const imgData = ctx.getImageData(cx, cy, sampleW, ch);
+        const data = imgData.data;
+
+        let darkestLum = 255;
+        let bestR = 0, bestG = 0, bestB = 0;
+        let found = false;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a < 128) continue;
+            // Luminance: 0.299R + 0.587G + 0.114B
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            // Ignore near-white canvas background pixels (lum > 235)
+            if (lum < 235 && lum < darkestLum) {
+                darkestLum = lum;
+                bestR = r;
+                bestG = g;
+                bestB = b;
+                found = true;
+            }
+        }
+
+        if (found) {
+            const toHex = (c) => c.toString(16).padStart(2, '0');
+            return `#${toHex(bestR)}${toHex(bestG)}${toHex(bestB)}`;
+        }
+        return '#000000';
+    } catch (_) {
+        return '#000000';
+    }
+}
+
+/**
+ * Extracts text items from a PDF.js page and clusters them into distinct lines with exact typography metrics.
  */
 export async function extractPageTextLines(pdfPage) {
     if (!pdfPage || typeof pdfPage.getTextContent !== 'function') return [];
@@ -15,9 +63,9 @@ export async function extractPageTextLines(pdfPage) {
         const textContent = await pdfPage.getTextContent();
         const vp = pdfPage.getViewport({ scale: 1.0 });
         const items = textContent.items || [];
+        const styles = textContent.styles || {};
         if (items.length === 0) return [];
 
-        // Map items to normalized coordinate boxes (ratios relative to page dimensions)
         const parsedItems = [];
         for (const it of items) {
             const rawStr = it.str || '';
@@ -26,7 +74,9 @@ export async function extractPageTextLines(pdfPage) {
             const tx = it.transform; // [scaleX, skewY, skewX, scaleY, transX, transY]
             const x = tx[4];
             const y = tx[5];
-            const fontHeight = Math.hypot(tx[2], tx[3]) || it.height || 12;
+            const scaleX = Math.hypot(tx[0], tx[1]);
+            const scaleY = Math.hypot(tx[2], tx[3]);
+            const fontHeight = Math.max(scaleY, it.height || 0) || scaleX || 12;
             const itemWidth = it.width || (rawStr.length * fontHeight * 0.55);
 
             // In PDF coordinate space, (x, y) is bottom-left of the glyph
@@ -35,25 +85,72 @@ export async function extractPageTextLines(pdfPage) {
             const widthRatio = Math.max(0.005, Math.min(1.0 - leftRatio, itemWidth / vp.width));
             const heightRatio = Math.max(0.005, Math.min(1.0 - topRatio, (fontHeight * 1.15) / vp.height));
 
-            let fontName = it.fontName || '';
-            let fontFamily = 'Helvetica, Arial, sans-serif';
-            let isBold = false;
-            const fnLower = fontName.toLowerCase();
-            if (fnLower.includes('times') || fnLower.includes('serif') || fnLower.includes('roman') || fnLower.includes('georgia') || fnLower.includes('cambria')) {
-                fontFamily = 'Times New Roman, serif';
-            } else if (fnLower.includes('courier') || fnLower.includes('mono') || fnLower.includes('consolas')) {
-                fontFamily = 'Courier New, monospace';
-            } else {
-                fontFamily = 'Helvetica, Arial, sans-serif';
+            // Extract real font name and styles
+            const style = styles[it.fontName] || {};
+            let rawFontName = it.fontName || '';
+            try {
+                if (pdfPage.commonObjs && typeof pdfPage.commonObjs.has === 'function' && pdfPage.commonObjs.has(it.fontName)) {
+                    const fo = pdfPage.commonObjs.get(it.fontName);
+                    if (fo && (fo.name || fo.fallbackName)) {
+                        rawFontName = fo.name || fo.fallbackName;
+                    }
+                }
+            } catch (_) {}
+            if (!rawFontName && style.fontFamily) {
+                rawFontName = style.fontFamily;
             }
-            if (fnLower.includes('bold') || fnLower.includes('black') || fnLower.includes('heavy') || fnLower.includes('demi') || fnLower.includes('medium') || fnLower.includes('w7') || fnLower.includes('w8') || fnLower.includes('w9')) {
+
+            const cleanFont = rawFontName.replace(/^[A-Z]{6}\+/, '');
+            const fnLower = cleanFont.toLowerCase();
+            let fontFamily = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+            let isBold = false;
+
+            if (fnLower.includes('times') || fnLower.includes('serif') || fnLower.includes('roman') || fnLower.includes('cambria') || fnLower.includes('georgia') || fnLower.includes('garamond')) {
+                if (fnLower.includes('georgia')) {
+                    fontFamily = 'Georgia, "Times New Roman", serif';
+                } else if (fnLower.includes('garamond')) {
+                    fontFamily = 'Garamond, "Times New Roman", serif';
+                } else {
+                    fontFamily = '"Times New Roman", Times, Georgia, serif';
+                }
+            } else if (fnLower.includes('courier') || fnLower.includes('mono') || fnLower.includes('consolas')) {
+                if (fnLower.includes('consolas')) {
+                    fontFamily = 'Consolas, "Courier New", monospace';
+                } else {
+                    fontFamily = '"Courier New", Courier, monospace';
+                }
+            } else if (fnLower.includes('calibri')) {
+                fontFamily = 'Calibri, "Segoe UI", Arial, sans-serif';
+            } else if (fnLower.includes('verdana')) {
+                fontFamily = 'Verdana, Geneva, sans-serif';
+            } else if (fnLower.includes('tahoma')) {
+                fontFamily = 'Tahoma, Verdana, sans-serif';
+            } else if (fnLower.includes('trebuchet')) {
+                fontFamily = '"Trebuchet MS", Arial, sans-serif';
+            } else {
+                fontFamily = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+            }
+
+            if (
+                fnLower.includes('bold') ||
+                fnLower.includes('black') ||
+                fnLower.includes('heavy') ||
+                fnLower.includes('demi') ||
+                fnLower.includes('medium') ||
+                fnLower.includes('w7') ||
+                fnLower.includes('w8') ||
+                fnLower.includes('w9') ||
+                fnLower.includes('-b') ||
+                fnLower.includes('ps-b')
+            ) {
                 isBold = true;
             }
 
             parsedItems.push({
                 text: rawStr,
-                fontSize: Math.round(fontHeight),
+                fontSize: parseFloat(fontHeight.toFixed(2)),
                 fontFamily,
+                rawFontName: cleanFont,
                 bold: isBold,
                 leftRatio,
                 topRatio,
@@ -76,9 +173,7 @@ export async function extractPageTextLines(pdfPage) {
             for (const line of lines) {
                 const vertDiff = Math.abs(item.centerY - line.centerY);
                 const maxH = Math.max(item.heightRatio, line.heightRatio);
-                // Vertical alignment tolerance
                 if (vertDiff < maxH * 0.45) {
-                    // Check horizontal gap: if too large (across columns > 8% of page), do not merge
                     const gap = item.leftRatio - line.rightRatio;
                     if (gap >= -0.01 && gap < 0.08) {
                         matchedLine = line;
@@ -113,6 +208,7 @@ export async function extractPageTextLines(pdfPage) {
                     centerY: item.centerY,
                     fontSize: item.fontSize,
                     fontFamily: item.fontFamily,
+                    rawFontName: item.rawFontName,
                     bold: item.bold,
                 });
             }
@@ -129,7 +225,6 @@ export async function extractPageTextLines(pdfPage) {
                 } else {
                     const prev = line.items[i - 1];
                     const gap = cur.leftRatio - prev.rightRatio;
-                    // If gap indicates a word break, insert space unless already present
                     if (gap > 0.003 && !prev.text.endsWith(' ') && !cur.text.startsWith(' ')) {
                         combinedStr += ' ' + cur.text;
                     } else {
@@ -148,6 +243,7 @@ export async function extractPageTextLines(pdfPage) {
                 heightRatio: line.heightRatio,
                 fontSize: line.fontSize,
                 fontFamily: line.fontFamily,
+                rawFontName: line.rawFontName,
                 bold: line.bold
             };
         }).filter(l => l.text.length > 0);
@@ -159,9 +255,9 @@ export async function extractPageTextLines(pdfPage) {
 }
 
 /**
- * Activates direct in-place contenteditable editing on the target text span.
+ * Activates direct in-place contenteditable editing with typography identical to the canvas result.
  */
-function activateDirectInlineEdit(wrap, page, line, span, displayFontSize) {
+function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, linePixelHeight) {
     const card = document.getElementById(page.id);
     if (card) card.draggable = false;
 
@@ -172,11 +268,20 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize) {
     span.contentEditable = 'true';
     span.spellcheck = false;
     span.innerText = initialText;
+
+    // Apply exact typography and geometry to match the underlying text
     span.style.backgroundColor = '#ffffff';
     span.style.minWidth = `${(line.widthRatio * 100).toFixed(3)}%`;
     span.style.width = 'fit-content';
-    span.style.maxWidth = `calc(100% - ${(line.leftRatio * 100).toFixed(3)}% - 6px)`;
+    span.style.maxWidth = `calc(100% - ${(line.leftRatio * 100).toFixed(3)}% - 4px)`;
+    span.style.fontFamily = line.fontFamily || 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+    span.style.fontSize = `${displayFontSize}px`;
+    span.style.fontWeight = line.bold ? '700' : '400';
+    span.style.color = (edit && edit.color) || line.color || '#000000';
+    span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
     span.style.whiteSpace = 'pre';
+    span.style.padding = '0';
+    span.style.margin = '0';
     span.style.zIndex = '35';
 
     // Focus and select all contents
@@ -211,7 +316,6 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize) {
         span.classList.remove('is-editing');
 
         if (newText === priorText) {
-            // Nothing changed
             if (!priorEdit) {
                 span.innerText = '';
                 span.style.backgroundColor = 'transparent';
@@ -234,7 +338,7 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize) {
             span.style.width = `${(line.widthRatio * 100).toFixed(3)}%`;
             span.title = `Click to edit text: "${line.text}"`;
         } else {
-            // New direct text edit
+            // New direct text edit preserving exact original font, size, and color
             page.textEdits[line.id] = {
                 id: line.id,
                 originalText: origText,
@@ -245,6 +349,7 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize) {
                 heightRatio: line.heightRatio,
                 fontSize: line.fontSize,
                 fontFamily: line.fontFamily,
+                rawFontName: line.rawFontName || '',
                 bold: line.bold,
                 color: line.color || '#000000'
             };
@@ -308,13 +413,27 @@ export function renderPageTextOverlay(wrap, page) {
     const lines = page._textLines;
     if (!lines || lines.length === 0) return;
 
+    const canvas = wrap.querySelector('canvas');
     const wrapRect = wrap.getBoundingClientRect();
-    const vpHeight = (page.pdfPage && typeof page.pdfPage.getViewport === 'function')
-        ? page.pdfPage.getViewport({ scale: 1.0 }).height
-        : (wrapRect.height || 792);
-    const scaleRatio = wrapRect.height > 0 ? (wrapRect.height / vpHeight) : 0.6;
+    const currentWrapHeight = wrapRect.height || (canvas ? canvas.clientHeight : 800);
+
+    // Compute scale ratio between PDF points (viewport 1.0) and screen pixels
+    const pdfPage = page._pdfPage;
+    let pageScale = 1.0;
+    if (pdfPage && typeof pdfPage.getViewport === 'function') {
+        const vp1 = pdfPage.getViewport({ scale: 1.0 });
+        if (vp1.height > 0 && currentWrapHeight > 0) {
+            pageScale = currentWrapHeight / vp1.height;
+        }
+    }
 
     lines.forEach(line => {
+        // Sample ground-truth color from canvas if needed
+        if (canvas && (!line.color || line.color === '#000000')) {
+            const sampled = sampleLineTextColor(canvas, line);
+            if (sampled) line.color = sampled;
+        }
+
         const edit = page.textEdits ? page.textEdits[line.id] : null;
         const hasEdit = edit !== null && edit !== undefined;
         const currentText = hasEdit ? edit.text : line.text;
@@ -328,12 +447,24 @@ export function renderPageTextOverlay(wrap, page) {
         span.style.minWidth = `${(line.widthRatio * 100).toFixed(3)}%`;
         span.style.height = `${(line.heightRatio * 100).toFixed(3)}%`;
 
-        const displayFontSize = Math.max(9, Math.round((line.fontSize || 12) * scaleRatio));
-        span.style.fontFamily = line.fontFamily || 'Helvetica, Arial, sans-serif';
+        // Calculate display font size that matches canvas text
+        const linePixelHeight = line.heightRatio * currentWrapHeight;
+        let displayFontSize = 0;
+        if (pageScale > 0 && line.fontSize) {
+            displayFontSize = Math.round(line.fontSize * pageScale);
+        }
+        if (!displayFontSize || displayFontSize < 6) {
+            displayFontSize = Math.round(linePixelHeight * 0.85);
+        }
+        displayFontSize = Math.max(8, displayFontSize);
+
+        span.style.fontFamily = line.fontFamily || 'Arial, "Helvetica Neue", Helvetica, sans-serif';
         span.style.fontSize = `${displayFontSize}px`;
         span.style.fontWeight = line.bold ? '700' : '400';
         span.style.color = (edit && edit.color) || line.color || '#000000';
-        span.style.lineHeight = '1.15';
+        span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
+        span.style.padding = '0';
+        span.style.margin = '0';
 
         if (hasEdit) {
             span.innerText = currentText;
@@ -353,7 +484,7 @@ export function renderPageTextOverlay(wrap, page) {
             e.stopPropagation();
             e.preventDefault();
 
-            activateDirectInlineEdit(wrap, page, line, span, displayFontSize);
+            activateDirectInlineEdit(wrap, page, line, span, displayFontSize, linePixelHeight);
         });
 
         wrap.appendChild(span);
