@@ -10,14 +10,20 @@ export const MAX_UNDO = 50;
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function cloneLayers(layers) {
-    return (layers || []).map(l => ({ ...l }));
+    return (layers || []).map(l => ({
+        ...l,
+        runs: l.runs ? l.runs.map(r => ({ ...r })) : undefined
+    }));
 }
 
 function cloneTextEdits(edits) {
     if (!edits) return {};
     const copy = {};
     for (const k of Object.keys(edits)) {
-        copy[k] = { ...edits[k] };
+        copy[k] = {
+            ...edits[k],
+            runs: edits[k].runs ? edits[k].runs.map(r => ({ ...r })) : undefined
+        };
     }
     return copy;
 }

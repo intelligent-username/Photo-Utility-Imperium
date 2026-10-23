@@ -244,7 +244,8 @@ export async function extractPageTextLines(pdfPage) {
                 fontSize: line.fontSize,
                 fontFamily: line.fontFamily,
                 rawFontName: line.rawFontName,
-                bold: line.bold
+                bold: line.bold,
+                originalBold: line.bold
             };
         }).filter(l => l.text.length > 0);
 
@@ -252,6 +253,100 @@ export async function extractPageTextLines(pdfPage) {
         console.warn('extractPageTextLines error:', e);
         return [];
     }
+}
+
+/**
+ * Renders structured runs ({ text, bold }) into a container element as styled fragments.
+ */
+export function renderRunsToElement(el, runs, fallbackText = '', fallbackBold = false) {
+    el.innerHTML = '';
+    if (Array.isArray(runs) && runs.length > 0) {
+        for (const run of runs) {
+            if (!run.text) continue;
+            if (run.bold) {
+                const b = document.createElement('b');
+                b.textContent = run.text;
+                b.style.fontWeight = '700';
+                el.appendChild(b);
+            } else {
+                const s = document.createElement('span');
+                s.textContent = run.text;
+                s.style.fontWeight = '400';
+                el.appendChild(s);
+            }
+        }
+    } else {
+        if (fallbackBold) {
+            const b = document.createElement('b');
+            b.textContent = fallbackText || '';
+            b.style.fontWeight = '700';
+            el.appendChild(b);
+        } else {
+            el.textContent = fallbackText || '';
+        }
+    }
+}
+
+/**
+ * Extracts structured runs ({ text, bold }) from a contenteditable DOM element.
+ */
+export function extractRunsFromElement(rootNode, defaultBold = false) {
+    const rawRuns = [];
+
+    function traverse(node, currentBold) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const txt = node.textContent;
+            if (txt && txt.length > 0) {
+                rawRuns.push({ text: txt, bold: currentBold });
+            }
+            return;
+        }
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const tagName = node.tagName.toLowerCase();
+            if (tagName === 'br') {
+                rawRuns.push({ text: '\n', bold: currentBold });
+                return;
+            }
+
+            let isBold = currentBold;
+            const fw = node.style ? (node.style.fontWeight || '').toLowerCase() : '';
+            if (tagName === 'b' || tagName === 'strong' || fw === 'bold' || fw === '700' || fw === '800' || fw === '900') {
+                isBold = true;
+            } else if (tagName === 'span' && (fw === 'normal' || fw === '400')) {
+                isBold = false;
+            }
+
+            for (const child of node.childNodes) {
+                traverse(child, isBold);
+            }
+        }
+    }
+
+    traverse(rootNode, defaultBold);
+
+    const merged = [];
+    for (const r of rawRuns) {
+        if (!r.text) continue;
+        if (merged.length > 0 && merged[merged.length - 1].bold === r.bold) {
+            merged[merged.length - 1].text += r.text;
+        } else {
+            merged.push({ text: r.text, bold: !!r.bold });
+        }
+    }
+
+    const fullText = merged.map(r => r.text).join('');
+    const anyBold = merged.some(r => r.bold);
+    const allBold = merged.length > 0 && merged.every(r => r.bold);
+    const hasPartialBold = anyBold && !allBold;
+
+    return {
+        runs: merged,
+        text: fullText,
+        allBold: allBold,
+        anyBold: anyBold,
+        hasPartialBold: hasPartialBold
+    };
 }
 
 /**
@@ -263,11 +358,11 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
 
     const edit = page.textEdits ? page.textEdits[line.id] : null;
     const initialText = edit ? edit.text : (line.originalText || line.text);
+    let currentBold = (edit && edit.bold !== undefined) ? edit.bold : Boolean(line.bold);
 
     span.classList.add('is-editing');
     span.contentEditable = 'true';
     span.spellcheck = false;
-    span.innerText = initialText;
 
     // Apply exact typography and geometry to match the underlying text
     span.style.backgroundColor = '#ffffff';
@@ -276,13 +371,57 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
     span.style.maxWidth = `calc(100% - ${(line.leftRatio * 100).toFixed(3)}% - 4px)`;
     span.style.fontFamily = line.fontFamily || 'Arial, "Helvetica Neue", Helvetica, sans-serif';
     span.style.fontSize = `${displayFontSize}px`;
-    span.style.fontWeight = line.bold ? '700' : '400';
+    span.style.fontWeight = '400';
     span.style.color = (edit && edit.color) || line.color || '#000000';
     span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
     span.style.whiteSpace = 'pre';
     span.style.padding = '0';
     span.style.margin = '0';
     span.style.zIndex = '35';
+
+    // Populate initial content: prioritize structured runs, fallback to bold tag or plain text
+    if (edit && edit.runs && edit.runs.length > 0) {
+        renderRunsToElement(span, edit.runs, initialText, currentBold);
+    } else if (currentBold) {
+        renderRunsToElement(span, [{ text: initialText, bold: true }], initialText, true);
+    } else {
+        span.textContent = initialText;
+    }
+
+    // Sync toolbar bold button with current selection / caret bold state
+    const boldToggleBtn = document.getElementById('ann-bold-toggle');
+    const updateToolbarBold = () => {
+        try {
+            const isB = document.queryCommandState('bold');
+            if (boldToggleBtn) boldToggleBtn.classList.toggle('active', isB);
+            getState().annBold = isB;
+        } catch (_) {}
+    };
+
+    const toggleSelectionBold = () => {
+        span.focus();
+        document.execCommand('bold', false, null);
+        updateToolbarBold();
+    };
+
+    const onCustomToggleBold = () => {
+        toggleSelectionBold();
+    };
+    span.addEventListener('toggle-bold', onCustomToggleBold);
+
+    // Track caret/selection movements to keep toolbar button in sync
+    const onSelectionChange = () => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            const anchor = sel.anchorNode;
+            if (anchor && (span === anchor || span.contains(anchor))) {
+                updateToolbarBold();
+            }
+        }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    span.addEventListener('keyup', updateToolbarBold);
+    span.addEventListener('mouseup', updateToolbarBold);
 
     // Focus and select all contents
     span.focus();
@@ -293,12 +432,17 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
         sel.removeAllRanges();
         sel.addRange(range);
     } catch (_) {}
+    updateToolbarBold();
 
     let finished = false;
 
     const cleanup = () => {
         span.removeEventListener('keydown', onKeyDown);
         span.removeEventListener('blur', onBlur);
+        span.removeEventListener('keyup', updateToolbarBold);
+        span.removeEventListener('mouseup', updateToolbarBold);
+        span.removeEventListener('toggle-bold', onCustomToggleBold);
+        document.removeEventListener('selectionchange', onSelectionChange);
         if (card) card.draggable = (getState().mode === 'select');
     };
 
@@ -307,19 +451,35 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
         finished = true;
         cleanup();
 
-        const newText = span.innerText.replace(/[\r\n]+/g, ' ').trim();
+        const extracted = extractRunsFromElement(span, currentBold);
+        const newText = extracted.text.replace(/[\r\n]+/g, ' ').trim();
+        const runs = extracted.runs.map(r => ({
+            text: r.text.replace(/[\r\n]+/g, ' '),
+            bold: !!r.bold
+        })).filter(r => r.text.length > 0);
+
         const origText = line.originalText || line.text;
+        const origBold = Boolean(line.originalBold !== undefined ? line.originalBold : line.bold);
         const priorEdit = page.textEdits ? page.textEdits[line.id] : null;
         const priorText = priorEdit ? priorEdit.text : origText;
+        const priorBold = priorEdit ? Boolean(priorEdit.bold) : origBold;
+        const priorRuns = priorEdit ? priorEdit.runs : null;
 
         span.contentEditable = 'false';
         span.classList.remove('is-editing');
 
-        if (newText === priorText) {
+        const runsChanged = JSON.stringify(runs) !== JSON.stringify(priorRuns);
+        const textChanged = (newText !== priorText);
+        const boldChanged = (extracted.allBold !== priorBold);
+
+        if (!textChanged && !boldChanged && !runsChanged) {
             if (!priorEdit) {
-                span.innerText = '';
+                span.innerHTML = '';
                 span.style.backgroundColor = 'transparent';
                 span.style.width = `${(line.widthRatio * 100).toFixed(3)}%`;
+                span.style.fontWeight = origBold ? '700' : '400';
+            } else {
+                renderRunsToElement(span, priorEdit.runs, priorEdit.text, priorEdit.bold);
             }
             return;
         }
@@ -328,21 +488,27 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
         snapshotPageLayers(page);
         page.textEdits = page.textEdits || {};
 
-        if (newText === origText) {
-            // Restored original PDF text
+        if (!extracted.hasPartialBold && newText === origText && extracted.allBold === origBold) {
+            // Restored original PDF text and original boldness
             delete page.textEdits[line.id];
             line.text = origText;
+            line.bold = origBold;
+            delete line.runs;
             span.classList.remove('has-edit');
-            span.innerText = '';
+            span.innerHTML = '';
             span.style.backgroundColor = 'transparent';
             span.style.width = `${(line.widthRatio * 100).toFixed(3)}%`;
+            span.style.fontWeight = origBold ? '700' : '400';
             span.title = `Click to edit text: "${line.text}"`;
         } else {
-            // New direct text edit preserving exact original font, size, and color
+            // New direct text edit preserving exact original font, size, and color with partial bold runs
             page.textEdits[line.id] = {
                 id: line.id,
                 originalText: origText,
                 text: newText,
+                runs: runs,
+                bold: extracted.allBold,
+                hasPartialBold: extracted.hasPartialBold,
                 leftRatio: line.leftRatio,
                 topRatio: line.topRatio,
                 widthRatio: line.widthRatio,
@@ -350,14 +516,16 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
                 fontSize: line.fontSize,
                 fontFamily: line.fontFamily,
                 rawFontName: line.rawFontName || '',
-                bold: line.bold,
-                color: line.color || '#000000'
+                color: (edit && edit.color) || line.color || '#000000'
             };
             line.text = newText;
+            line.bold = extracted.allBold;
+            line.runs = runs;
             span.classList.add('has-edit');
-            span.innerText = newText;
+            renderRunsToElement(span, runs, newText, extracted.allBold);
             span.style.backgroundColor = '#ffffff';
             span.style.width = 'fit-content';
+            span.style.fontWeight = '400';
             span.title = `Edited text: "${newText}" (Click to edit)`;
         }
 
@@ -374,20 +542,29 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
 
         const priorEdit = page.textEdits ? page.textEdits[line.id] : null;
         if (priorEdit) {
-            span.innerText = priorEdit.text;
+            if (priorEdit.runs && priorEdit.runs.length > 0) {
+                renderRunsToElement(span, priorEdit.runs, priorEdit.text, priorEdit.bold);
+            } else {
+                span.innerText = priorEdit.text;
+                span.style.fontWeight = priorEdit.bold ? '700' : '400';
+            }
             span.style.backgroundColor = '#ffffff';
             span.style.width = 'fit-content';
         } else {
-            span.innerText = '';
+            span.innerHTML = '';
             span.style.backgroundColor = 'transparent';
             span.classList.remove('has-edit');
             span.style.width = `${(line.widthRatio * 100).toFixed(3)}%`;
+            span.style.fontWeight = line.bold ? '700' : '400';
         }
     };
 
     const onKeyDown = (e) => {
         e.stopPropagation();
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            toggleSelectionBold();
+        } else if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             commitEdit();
         } else if (e.key === 'Escape') {
@@ -437,6 +614,7 @@ export function renderPageTextOverlay(wrap, page) {
         const edit = page.textEdits ? page.textEdits[line.id] : null;
         const hasEdit = edit !== null && edit !== undefined;
         const currentText = hasEdit ? edit.text : line.text;
+        const isLineBold = (hasEdit && edit.bold !== undefined) ? edit.bold : Boolean(line.bold);
 
         const span = document.createElement('div');
         span.className = 'pdf-extracted-text-line' + (hasEdit ? ' has-edit' : '');
@@ -460,14 +638,19 @@ export function renderPageTextOverlay(wrap, page) {
 
         span.style.fontFamily = line.fontFamily || 'Arial, "Helvetica Neue", Helvetica, sans-serif';
         span.style.fontSize = `${displayFontSize}px`;
-        span.style.fontWeight = line.bold ? '700' : '400';
+        span.style.fontWeight = isLineBold ? '700' : '400';
         span.style.color = (edit && edit.color) || line.color || '#000000';
         span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
         span.style.padding = '0';
         span.style.margin = '0';
 
         if (hasEdit) {
-            span.innerText = currentText;
+            if (edit.runs && edit.runs.length > 0) {
+                renderRunsToElement(span, edit.runs, currentText, isLineBold);
+            } else {
+                span.innerText = currentText;
+                span.style.fontWeight = isLineBold ? '700' : '400';
+            }
             span.style.backgroundColor = '#ffffff';
             span.title = `Edited text: "${currentText}" (Click to edit)`;
         } else {

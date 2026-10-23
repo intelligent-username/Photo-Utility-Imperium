@@ -332,6 +332,12 @@ export function setupToolbarControls() {
             performRedo();
             return;
         }
+        if ((e.ctrlKey || e.metaKey) && key === 'b') {
+            e.preventDefault();
+            const boldToggle = document.getElementById('ann-bold-toggle');
+            if (boldToggle) boldToggle.click();
+            return;
+        }
         if (key === 'r') {
             const now = Date.now();
             if (now - lastRPressTime < 800) {
@@ -1147,12 +1153,38 @@ function setupColorSizeControls() {
 
     const boldToggle = document.getElementById('ann-bold-toggle');
     if (boldToggle) {
+        boldToggle.addEventListener('mousedown', (e) => {
+            const activeEditing = document.querySelector('.pdf-extracted-text-line.is-editing, .ann-edit-box .ann-input[contenteditable="true"]');
+            if (activeEditing) {
+                e.preventDefault();
+            }
+        });
+
         boldToggle.addEventListener('click', () => {
+            // If an inline text edit is currently active, toggle bold on selection or caret
+            const activeInlineSpan = document.querySelector('.pdf-extracted-text-line.is-editing');
+            if (activeInlineSpan) {
+                activeInlineSpan.dispatchEvent(new CustomEvent('toggle-bold'));
+                return;
+            }
+
+            // If an annotation popover is currently active, toggle its boldness
+            const activePopover = document.querySelector('.ann-edit-box');
+            if (activePopover) {
+                activePopover.dispatchEvent(new CustomEvent('toggle-bold'));
+                return;
+            }
+
+            // If an annotation layer is currently selected, toggle its boldness
             state.annBold = !state.annBold;
             boldToggle.classList.toggle('active', state.annBold);
+
             const sel = getSelectedLayerInfo ? getSelectedLayerInfo() : selectedLayerInfo;
-            if (sel && sel.layer && sel.page) {
+            if (sel && sel.layer && sel.page && sel.layer.type === 'annotation') {
                 sel.layer.bold = state.annBold;
+                if (sel.layer.runs && sel.layer.runs.length > 0) {
+                    sel.layer.runs.forEach(r => { r.bold = state.annBold; });
+                }
                 renderCardCanvas(sel.page);
             }
         });

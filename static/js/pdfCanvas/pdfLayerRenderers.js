@@ -8,7 +8,7 @@ import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers } from './pdfHistory.js';
 import { selectLayer, selectedLayerInfo } from './pdfLayerSelection.js';
 import { renderFormFieldElement } from './pdfFormFieldUI.js';
-import { renderPageTextOverlay } from './pdfTextLayer.js';
+import { renderPageTextOverlay, renderRunsToElement } from './pdfTextLayer.js';
 
 // ── Text Annotation Layer ───────────────────────────────────────────────────
 export function renderAnnotationLayer(wrap, page, layer, canvasScale, card) {
@@ -22,9 +22,13 @@ export function renderAnnotationLayer(wrap, page, layer, canvasScale, card) {
     marker.style.fontSize = `${fontSz}px`;
     marker.style.color = layer.color || '#ff0000';
     if (layer.fontFamily && layer.fontFamily !== 'inherit') marker.style.fontFamily = layer.fontFamily;
-    if (layer.bold) marker.style.fontWeight = 'bold';
 
-    marker.textContent = layer.text;
+    if (layer.runs && layer.runs.length > 0) {
+        renderRunsToElement(marker, layer.runs, layer.text, layer.bold);
+    } else {
+        marker.textContent = layer.text;
+        if (layer.bold) marker.style.fontWeight = 'bold';
+    }
 
     if (!layer.isFormField) {
         const delBtn = document.createElement('button');

@@ -51,7 +51,7 @@ import {
     getSelectedLayerInfo
 } from './pdfCanvas/pdfCardBuilder.js';
 
-import { extractPageTextLines, renderPageTextOverlay } from './pdfCanvas/pdfTextLayer.js';
+import { extractPageTextLines, renderPageTextOverlay, renderRunsToElement, extractRunsFromElement } from './pdfCanvas/pdfTextLayer.js';
 
 import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
 
@@ -83,7 +83,9 @@ export {
     selectedLayerInfo,
     getSelectedLayerInfo,
     extractPageTextLines,
-    renderPageTextOverlay
+    renderPageTextOverlay,
+    renderRunsToElement,
+    extractRunsFromElement
 };
 
 export function renderCardCanvas(page) {

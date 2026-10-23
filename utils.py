@@ -75,41 +75,68 @@ def apply_text_annotations(page, annotations):
         x = x_ratio * width
         y = (1.0 - y_ratio) * height  # Invert Y for PDF space
 
-        # Map basic font families to built-in reportlab fonts
-        ff_lower = font_family.lower()
-        if 'times' in ff_lower or 'serif' in ff_lower:
-            font_name = "Times-Bold" if is_bold else "Times-Roman"
-        elif 'courier' in ff_lower or 'mono' in ff_lower:
-            font_name = "Courier-Bold" if is_bold else "Courier"
-        else:
-            font_name = "Helvetica-Bold" if is_bold else "Helvetica"
-
-        can.setFillColor(HexColor(color_hex))
-        can.setFont(font_name, font_size)
-
-        available_width = max(20.0, width - x - 8.0)
-
-        # Word wrap text so lines don't overflow the right edge of the page
-        wrapped_lines = []
-        for paragraph in text.split('\n'):
-            if not paragraph:
-                wrapped_lines.append('')
-                continue
-            words = paragraph.split(' ')
-            current_line = []
-            for word in words:
-                candidate = ' '.join(current_line + [word]) if current_line else word
-                if can.stringWidth(candidate, font_name, font_size) <= available_width or not current_line:
-                    current_line.append(word)
+        runs = ann.get('runs')
+        if runs and isinstance(runs, list) and len(runs) > 0:
+            cur_x = x
+            cur_y = y - font_size
+            line_height = font_size * 1.15
+            for r in runs:
+                r_text = r.get('text', '')
+                if not r_text:
+                    continue
+                r_bold = bool(r.get('bold', False))
+                if 'times' in ff_lower or 'serif' in ff_lower:
+                    f_name = "Times-Bold" if r_bold else "Times-Roman"
+                elif 'courier' in ff_lower or 'mono' in ff_lower:
+                    f_name = "Courier-Bold" if r_bold else "Courier"
                 else:
-                    wrapped_lines.append(' '.join(current_line))
-                    current_line = [word]
-            if current_line:
-                wrapped_lines.append(' '.join(current_line))
+                    f_name = "Helvetica-Bold" if r_bold else "Helvetica"
+                can.setFillColor(HexColor(color_hex))
+                can.setFont(f_name, font_size)
 
-        line_height = font_size * 1.15
-        for i, line in enumerate(wrapped_lines):
-            can.drawString(x, y - font_size - (i * line_height), line)
+                parts = r_text.split('\n')
+                for p_idx, part in enumerate(parts):
+                    if p_idx > 0:
+                        cur_x = x
+                        cur_y -= line_height
+                    if part:
+                        can.drawString(cur_x, cur_y, part)
+                        cur_x += can.stringWidth(part, f_name, font_size)
+        else:
+            # Map basic font families to built-in reportlab fonts
+            if 'times' in ff_lower or 'serif' in ff_lower:
+                font_name = "Times-Bold" if is_bold else "Times-Roman"
+            elif 'courier' in ff_lower or 'mono' in ff_lower:
+                font_name = "Courier-Bold" if is_bold else "Courier"
+            else:
+                font_name = "Helvetica-Bold" if is_bold else "Helvetica"
+
+            can.setFillColor(HexColor(color_hex))
+            can.setFont(font_name, font_size)
+
+            available_width = max(20.0, width - x - 8.0)
+
+            # Word wrap text so lines don't overflow the right edge of the page
+            wrapped_lines = []
+            for paragraph in text.split('\n'):
+                if not paragraph:
+                    wrapped_lines.append('')
+                    continue
+                words = paragraph.split(' ')
+                current_line = []
+                for word in words:
+                    candidate = ' '.join(current_line + [word]) if current_line else word
+                    if can.stringWidth(candidate, font_name, font_size) <= available_width or not current_line:
+                        current_line.append(word)
+                    else:
+                        wrapped_lines.append(' '.join(current_line))
+                        current_line = [word]
+                if current_line:
+                    wrapped_lines.append(' '.join(current_line))
+
+            line_height = font_size * 1.15
+            for i, line in enumerate(wrapped_lines):
+                can.drawString(x, y - font_size - (i * line_height), line)
 
     can.save()
     packet.seek(0)
@@ -406,38 +433,29 @@ def apply_text_edits(page, text_edits):
 
             # 2. Exact font family & style
             font_cand = edit.get('origPdfFont') or edit.get('rawFontName') or edit.get('fontFamily', '')
-            flags = edit.get('origPdfFlags', 0)
-            is_bold = bool(flags & 2) or ('bold' in font_cand.lower()) or ('black' in font_cand.lower()) or bool(edit.get('bold', False))
+            flags = int(edit.get('origPdfFlags') or 0)
             is_italic = bool(flags & 4) or ('italic' in font_cand.lower()) or ('oblique' in font_cand.lower())
 
             fc_lower = font_cand.lower()
-            if 'times' in fc_lower or 'serif' in fc_lower or 'roman' in fc_lower or 'georgia' in fc_lower or 'cambria' in fc_lower:
-                if is_bold and is_italic:
-                    fontname = "tibi"
-                elif is_bold:
-                    fontname = "tibo"
-                elif is_italic:
-                    fontname = "tiit"
+            is_serif = ('times' in fc_lower or 'serif' in fc_lower or 'roman' in fc_lower or 'georgia' in fc_lower or 'cambria' in fc_lower)
+            is_mono = ('courier' in fc_lower or 'mono' in fc_lower or 'consolas' in fc_lower)
+
+            def get_font_name_for_bold(bold_flag):
+                if is_serif:
+                    if bold_flag and is_italic: return "tibi"
+                    elif bold_flag: return "tibo"
+                    elif is_italic: return "tiit"
+                    else: return "tiro"
+                elif is_mono:
+                    if bold_flag and is_italic: return "cobi"
+                    elif bold_flag: return "cobo"
+                    elif is_italic: return "coit"
+                    else: return "cour"
                 else:
-                    fontname = "tiro"
-            elif 'courier' in fc_lower or 'mono' in fc_lower or 'consolas' in fc_lower:
-                if is_bold and is_italic:
-                    fontname = "cobi"
-                elif is_bold:
-                    fontname = "cobo"
-                elif is_italic:
-                    fontname = "coit"
-                else:
-                    fontname = "cour"
-            else:
-                if is_bold and is_italic:
-                    fontname = "hebi"
-                elif is_bold:
-                    fontname = "hebo"
-                elif is_italic:
-                    fontname = "heit"
-                else:
-                    fontname = "helv"
+                    if bold_flag and is_italic: return "hebi"
+                    elif bold_flag: return "hebo"
+                    elif is_italic: return "heit"
+                    else: return "helv"
 
             # 3. Exact font color
             if 'origPdfColor' in edit and edit['origPdfColor'] is not None:
@@ -461,15 +479,43 @@ def apply_text_edits(page, text_edits):
             else:
                 baseline_y = y1 - (font_size * 0.18)
 
-            pt = fitz.Point(x0, baseline_y)
-            try:
-                doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fontname, color=color_rgb)
-            except Exception:
+            runs = edit.get('runs')
+            if runs and isinstance(runs, list) and len(runs) > 0:
+                cur_x = x0
+                for r in runs:
+                    r_text = r.get('text', '')
+                    if not r_text:
+                        continue
+                    r_bold = bool(r.get('bold', False))
+                    fname = get_font_name_for_bold(r_bold)
+                    pt = fitz.Point(cur_x, baseline_y)
+                    try:
+                        doc_page.insert_text(pt, r_text, fontsize=font_size, fontname=fname, color=color_rgb)
+                    except Exception:
+                        try:
+                            fb = "hebo" if r_bold else "helv"
+                            doc_page.insert_text(pt, r_text, fontsize=font_size, fontname=fb, color=color_rgb)
+                        except Exception as ex:
+                            print(f"PyMuPDF insert_text failed for run: {ex}")
+                    try:
+                        cur_x += fitz.get_text_length(r_text, fontname=fname, fontsize=font_size)
+                    except Exception:
+                        cur_x += len(r_text) * (font_size * 0.5)
+            else:
+                if 'bold' in edit and edit['bold'] is not None:
+                    is_bold = bool(edit['bold'])
+                else:
+                    is_bold = bool(flags & 2) or ('bold' in font_cand.lower()) or ('black' in font_cand.lower())
+                fontname = get_font_name_for_bold(is_bold)
+                pt = fitz.Point(x0, baseline_y)
                 try:
-                    fallback_font = "hebo" if is_bold else "helv"
-                    doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fallback_font, color=color_rgb)
-                except Exception as ex:
-                    print(f"PyMuPDF insert_text failed: {ex}")
+                    doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fontname, color=color_rgb)
+                except Exception:
+                    try:
+                        fallback_font = "hebo" if is_bold else "helv"
+                        doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fallback_font, color=color_rgb)
+                    except Exception as ex:
+                        print(f"PyMuPDF insert_text failed: {ex}")
 
         out_io = BytesIO(doc.tobytes())
         doc.close()

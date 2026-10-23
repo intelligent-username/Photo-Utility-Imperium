@@ -410,7 +410,7 @@
     border: none;
     outline: none;
     font-family: var(--font-sans);
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.1;
     padding: 0;
     margin: 0;
@@ -422,6 +422,13 @@
     word-break: break-word;
     box-sizing: border-box;
     min-width: 2ch;
+    cursor: text;
+}
+
+.ann-edit-box .ann-input[contenteditable="true"]:empty:before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.45);
+    pointer-events: none;
 }
 
 .ann-box-del-btn {

@@ -5,6 +5,7 @@
 import { getState } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers } from './pdfHistory.js';
+import { renderRunsToElement, extractRunsFromElement } from './pdfTextLayer.js';
 
 export function getContrastBgColor(hexColor) {
     let r = 0, g = 0, b = 0;
@@ -352,12 +353,18 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     box.style.top = `${(yR * 100).toFixed(1)}%`;
     box.style.maxWidth = `calc(100% - ${leftPct}%)`;
 
-    const input = document.createElement('textarea');
+    const input = isFormField ? document.createElement('textarea') : document.createElement('div');
+    if (isFormField) {
+        input.rows = 1;
+    } else {
+        input.contentEditable = 'true';
+        input.spellcheck = false;
+        input.dataset.placeholder = 'Text...';
+    }
     input.className = 'ann-input';
     input.id = options.fieldId ? `form-field-input-${options.fieldId}` : `ann-input-${Date.now()}`;
     input.name = options.fieldId || 'annotation-text';
     input.autocomplete = 'off';
-    input.rows = 1;
     input.style.maxWidth = '100%';
     let currentAnnColor = existingAnn ? (existingAnn.color || (options.color || state.annColor)) : (options.color ? options.color : (options.date ? state.dateColor : state.annColor));
     let currentAnnSize = existingAnn ? (existingAnn.fontSize || state.annSize) : (options.fontSize ? options.fontSize : (options.date ? state.dateSize : state.annSize));
@@ -376,11 +383,13 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     const canvasScale = wrapRect.width > 0 ? (wrapRect.width / 612.0) : (state.viewMode === 'full' ? 0.95 : (state.viewMode === 'small' ? 0.26 : 0.55));
 
     const autoResize = () => {
-        input.style.height = 'auto';
-        input.style.height = `${input.scrollHeight}px`;
-        const lines = input.value.split('\n');
-        const maxLen = Math.max(...lines.map(l => l.length), 1);
-        input.cols = Math.max(2, maxLen + 1);
+        if (isFormField) {
+            input.style.height = 'auto';
+            input.style.height = `${input.scrollHeight}px`;
+            const lines = (input.value || '').split('\n');
+            const maxLen = Math.max(...lines.map(l => l.length), 1);
+            input.cols = Math.max(2, maxLen + 1);
+        }
     };
 
     const controls = document.createElement('div');
@@ -453,19 +462,60 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     });
 
+    const mainBoldBtn = document.getElementById('ann-bold-toggle');
+    if (mainBoldBtn) {
+        mainBoldBtn.classList.toggle('active', !!currentAnnBold);
+    }
+
     const boldBtn = document.createElement('button');
     boldBtn.type = 'button';
     boldBtn.className = 'ann-popover-bold-btn' + (currentAnnBold ? ' active' : '');
     boldBtn.innerHTML = '<b>B</b>';
     boldBtn.title = 'Toggle Bold (Ctrl+B)';
+
+    const updatePopoverBoldState = () => {
+        try {
+            const isB = isFormField ? currentAnnBold : document.queryCommandState('bold');
+            boldBtn.classList.toggle('active', isB);
+            if (mainBoldBtn) mainBoldBtn.classList.toggle('active', isB);
+            state.annBold = isB;
+            currentAnnBold = isB;
+        } catch (_) {}
+    };
+
+    const togglePopoverBold = () => {
+        if (isFormField) {
+            currentAnnBold = !currentAnnBold;
+            boldBtn.classList.toggle('active', currentAnnBold);
+            input.style.fontWeight = currentAnnBold ? 'bold' : 'normal';
+            state.annBold = currentAnnBold;
+            if (mainBoldBtn) mainBoldBtn.classList.toggle('active', currentAnnBold);
+            autoResize();
+        } else {
+            input.focus();
+            document.execCommand('bold', false, null);
+            updatePopoverBoldState();
+        }
+    };
+
+    boldBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+    });
     boldBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        currentAnnBold = !currentAnnBold;
-        boldBtn.classList.toggle('active', currentAnnBold);
-        input.style.fontWeight = currentAnnBold ? 'bold' : 'normal';
-        autoResize();
+        togglePopoverBold();
     });
+
+    const onPopoverToggleBold = () => {
+        togglePopoverBold();
+    };
+    box.addEventListener('toggle-bold', onPopoverToggleBold);
+
+    if (!isFormField) {
+        input.addEventListener('keyup', updatePopoverBoldState);
+        input.addEventListener('mouseup', updatePopoverBoldState);
+    }
 
     if (!isFormField) {
         controls.appendChild(colorPicker);
@@ -475,11 +525,23 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         box.appendChild(controls);
     }
 
-    input.value = existingAnn ? existingAnn.text : (options.initialText || '');
-    input.placeholder = isFormField ? '' : 'Text...';
+    const initialText = existingAnn ? existingAnn.text : (options.initialText || '');
+    if (isFormField) {
+        input.value = initialText;
+        input.placeholder = '';
+        if (currentAnnBold) input.style.fontWeight = 'bold';
+    } else {
+        if (existingAnn && existingAnn.runs && existingAnn.runs.length > 0) {
+            renderRunsToElement(input, existingAnn.runs, initialText, currentAnnBold);
+        } else if (currentAnnBold) {
+            renderRunsToElement(input, [{ text: initialText, bold: true }], initialText, true);
+        } else {
+            input.textContent = initialText;
+        }
+    }
+
     input.style.color = currentAnnColor;
     if (currentAnnFont && currentAnnFont !== 'inherit') input.style.fontFamily = currentAnnFont;
-    if (currentAnnBold) input.style.fontWeight = 'bold';
 
     const fontSz = Math.max(9, currentAnnSize * canvasScale);
     input.style.fontSize = `${fontSz}px`;
@@ -488,6 +550,9 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
     wrap.appendChild(box);
     autoResize();
     input.focus();
+    if (!isFormField) {
+        updatePopoverBoldState();
+    }
 
     let committed = false;
 
@@ -496,20 +561,28 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         committed = true;
 
         snapshotPageLayers(page);
-        // Form fields preserve spacing (leading/trailing spaces are intentional positioning).
-        // Regular annotations trim whitespace.
-        const text = isFormField ? input.value : input.value.trim();
+        // Form fields preserve spacing. Regular annotations trim whitespace.
+        const extracted = isFormField
+            ? { text: input.value, runs: [], allBold: false, hasPartialBold: false }
+            : extractRunsFromElement(input, currentAnnBold);
+        const text = isFormField ? input.value : extracted.text.trim();
+        const runs = isFormField ? [] : extracted.runs.map(r => ({
+            text: r.text,
+            bold: !!r.bold
+        })).filter(r => r.text.length > 0);
         const isEmpty = isFormField ? (text.length === 0) : !text;
+
         if (existingAnn) {
             if (isEmpty) {
                 const idx = page.layers.indexOf(existingAnn);
                 if (idx !== -1) page.layers.splice(idx, 1);
             } else {
                 existingAnn.text = text;
+                existingAnn.runs = runs;
+                existingAnn.bold = extracted.allBold;
                 existingAnn.color = currentAnnColor;
                 existingAnn.fontSize = currentAnnSize;
                 if (currentAnnFont && currentAnnFont !== 'inherit') existingAnn.fontFamily = currentAnnFont;
-                existingAnn.bold = currentAnnBold;
                 if (isFormField) {
                     existingAnn.isFormField = true;
                     if (options.fieldId) existingAnn.fieldId = options.fieldId;
@@ -520,13 +593,14 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
                 type: 'annotation',
                 id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 text,
+                runs,
+                bold: extracted.allBold,
                 xRatio: xR,
                 yRatio: yR,
                 color: currentAnnColor,
                 fontSize: currentAnnSize,
             };
             if (currentAnnFont && currentAnnFont !== 'inherit') ann.fontFamily = currentAnnFont;
-            ann.bold = currentAnnBold;
             if (isFormField) {
                 ann.isFormField = true;
                 if (options.fieldId) ann.fieldId = options.fieldId;
@@ -649,11 +723,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
             commit();
         } else if (!isFormField && (e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
             e.preventDefault();
-            currentAnnBold = !currentAnnBold;
-            const bBtn = box.querySelector('.ann-popover-bold-btn');
-            if (bBtn) bBtn.classList.toggle('active', currentAnnBold);
-            input.style.fontWeight = currentAnnBold ? 'bold' : 'normal';
-            autoResize();
+            togglePopoverBold();
         } else if (!isFormField && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '.' || e.key === '>')) {
             e.preventDefault();
             setFontSize(currentAnnSize + 2);
