@@ -409,8 +409,8 @@ def apply_text_edits(page, text_edits):
             except Exception as ex:
                 print(f"Error querying original PDF span properties: {ex}")
 
-            pad_x = 0.5
-            pad_y = 0.5
+            pad_x = 1.0
+            pad_y = 1.2
             rect = fitz.Rect(max(0.0, x0 - pad_x), max(0.0, y0 - pad_y), min(page_w, x1 + pad_x), min(page_h, y1 + pad_y))
             doc_page.add_redact_annot(rect, fill=(1, 1, 1))
 
@@ -479,6 +479,35 @@ def apply_text_edits(page, text_edits):
             else:
                 baseline_y = y1 - (font_size * 0.18)
 
+            word_spacing = float(edit.get('wordSpacing') or 0.0)
+
+            def insert_spaced_text(start_pt, text_str, font_name, f_size, c_rgb, extra_space):
+                if extra_space <= 0.05 or ' ' not in text_str:
+                    try:
+                        doc_page.insert_text(start_pt, text_str, fontsize=f_size, fontname=font_name, color=c_rgb)
+                    except Exception:
+                        fb = "hebo" if "bo" in font_name else "helv"
+                        doc_page.insert_text(start_pt, text_str, fontsize=f_size, fontname=fb, color=c_rgb)
+                    try:
+                        return fitz.get_text_length(text_str, fontname=font_name, fontsize=f_size)
+                    except Exception:
+                        return len(text_str) * (f_size * 0.5)
+
+                words = text_str.split(' ')
+                cx = start_pt.x
+                std_sp_w = fitz.get_text_length(' ', fontname=font_name, fontsize=f_size)
+                for w_idx, w in enumerate(words):
+                    if w:
+                        try:
+                            doc_page.insert_text(fitz.Point(cx, start_pt.y), w, fontsize=f_size, fontname=font_name, color=c_rgb)
+                        except Exception:
+                            fb = "hebo" if "bo" in font_name else "helv"
+                            doc_page.insert_text(fitz.Point(cx, start_pt.y), w, fontsize=f_size, fontname=fb, color=c_rgb)
+                        cx += fitz.get_text_length(w, fontname=font_name, fontsize=f_size)
+                    if w_idx < len(words) - 1:
+                        cx += std_sp_w + extra_space
+                return cx - start_pt.x
+
             runs = edit.get('runs')
             if runs and isinstance(runs, list) and len(runs) > 0:
                 cur_x = x0
@@ -489,18 +518,8 @@ def apply_text_edits(page, text_edits):
                     r_bold = bool(r.get('bold', False))
                     fname = get_font_name_for_bold(r_bold)
                     pt = fitz.Point(cur_x, baseline_y)
-                    try:
-                        doc_page.insert_text(pt, r_text, fontsize=font_size, fontname=fname, color=color_rgb)
-                    except Exception:
-                        try:
-                            fb = "hebo" if r_bold else "helv"
-                            doc_page.insert_text(pt, r_text, fontsize=font_size, fontname=fb, color=color_rgb)
-                        except Exception as ex:
-                            print(f"PyMuPDF insert_text failed for run: {ex}")
-                    try:
-                        cur_x += fitz.get_text_length(r_text, fontname=fname, fontsize=font_size)
-                    except Exception:
-                        cur_x += len(r_text) * (font_size * 0.5)
+                    adv = insert_spaced_text(pt, r_text, fname, font_size, color_rgb, word_spacing)
+                    cur_x += adv
             else:
                 if 'bold' in edit and edit['bold'] is not None:
                     is_bold = bool(edit['bold'])
@@ -508,14 +527,7 @@ def apply_text_edits(page, text_edits):
                     is_bold = bool(flags & 2) or ('bold' in font_cand.lower()) or ('black' in font_cand.lower())
                 fontname = get_font_name_for_bold(is_bold)
                 pt = fitz.Point(x0, baseline_y)
-                try:
-                    doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fontname, color=color_rgb)
-                except Exception:
-                    try:
-                        fallback_font = "hebo" if is_bold else "helv"
-                        doc_page.insert_text(pt, new_text, fontsize=font_size, fontname=fallback_font, color=color_rgb)
-                    except Exception as ex:
-                        print(f"PyMuPDF insert_text failed: {ex}")
+                insert_spaced_text(pt, new_text, fontname, font_size, color_rgb, word_spacing)
 
         out_io = BytesIO(doc.tobytes())
         doc.close()

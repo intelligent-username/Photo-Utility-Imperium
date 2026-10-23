@@ -81,9 +81,9 @@ export async function extractPageTextLines(pdfPage) {
 
             // In PDF coordinate space, (x, y) is bottom-left of the glyph
             const leftRatio = Math.max(0, Math.min(1.0, x / vp.width));
-            const topRatio = Math.max(0, Math.min(1.0, (vp.height - (y + fontHeight)) / vp.height));
+            const topRatio = Math.max(0, Math.min(1.0, (vp.height - (y + fontHeight * 0.95)) / vp.height));
             const widthRatio = Math.max(0.005, Math.min(1.0 - leftRatio, itemWidth / vp.width));
-            const heightRatio = Math.max(0.005, Math.min(1.0 - topRatio, (fontHeight * 1.15) / vp.height));
+            const heightRatio = Math.max(0.005, Math.min(1.0 - topRatio, (fontHeight * 1.30) / vp.height));
 
             // Extract real font name and styles
             const style = styles[it.fontName] || {};
@@ -350,15 +350,86 @@ export function extractRunsFromElement(rootNode, defaultBold = false) {
 }
 
 /**
+ * Measures text using an offscreen canvas and computes word-spacing or letter-spacing
+ * to precisely match the PDF line's target width.
+ */
+let _measureCtx = null;
+export function computeLineSpacing(text, targetPixelWidth, fontSize, fontFamily, isBold) {
+    if (!text || !targetPixelWidth || targetPixelWidth <= 0 || !fontSize || fontSize <= 0) {
+        return { wordSpacing: 0, letterSpacing: 0 };
+    }
+
+    try {
+        if (!_measureCtx) {
+            const c = document.createElement('canvas');
+            _measureCtx = c.getContext('2d', { willReadFrequently: true });
+        }
+        if (!_measureCtx) return { wordSpacing: 0, letterSpacing: 0 };
+
+        const weight = isBold ? '700' : '400';
+        _measureCtx.font = `${weight} ${fontSize}px ${fontFamily || 'Arial, "Helvetica Neue", Helvetica, sans-serif'}`;
+        const naturalWidth = _measureCtx.measureText(text).width;
+
+        if (!naturalWidth || naturalWidth <= 0) return { wordSpacing: 0, letterSpacing: 0 };
+
+        const diff = targetPixelWidth - naturalWidth;
+        if (Math.abs(diff) <= 2) {
+            return { wordSpacing: 0, letterSpacing: 0 };
+        }
+
+        const spaceCount = (text.match(/ /g) || []).length;
+        if (diff > 2) {
+            if (spaceCount >= 2) {
+                const extraPerSpace = diff / spaceCount;
+                if (extraPerSpace <= 28) {
+                    return { wordSpacing: parseFloat(extraPerSpace.toFixed(2)), letterSpacing: 0 };
+                }
+            }
+            const charCount = Math.max(1, text.length - 1);
+            const extraPerChar = diff / charCount;
+            if (extraPerChar <= 8) {
+                return { wordSpacing: 0, letterSpacing: parseFloat(extraPerChar.toFixed(2)) };
+            }
+        } else if (diff < -2) {
+            if (spaceCount >= 2) {
+                const shrinkPerSpace = diff / spaceCount;
+                if (shrinkPerSpace >= -3.5) {
+                    return { wordSpacing: parseFloat(shrinkPerSpace.toFixed(2)), letterSpacing: 0 };
+                }
+            }
+            const shrinkPerChar = diff / Math.max(1, text.length - 1);
+            if (shrinkPerChar >= -1.5) {
+                return { wordSpacing: 0, letterSpacing: parseFloat(shrinkPerChar.toFixed(2)) };
+            }
+        }
+    } catch (_) {}
+
+    return { wordSpacing: 0, letterSpacing: 0 };
+}
+
+/**
  * Activates direct in-place contenteditable editing with typography identical to the canvas result.
  */
 function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, linePixelHeight) {
     const card = document.getElementById(page.id);
     if (card) card.draggable = false;
 
+    const wrapRect = wrap.getBoundingClientRect();
+    const canvas = wrap.querySelector('canvas');
+    const currentWrapWidth = wrapRect.width || (canvas ? canvas.clientWidth : 612);
+    const linePixelWidth = line.widthRatio * currentWrapWidth;
+
     const edit = page.textEdits ? page.textEdits[line.id] : null;
     const initialText = edit ? edit.text : (line.originalText || line.text);
     let currentBold = (edit && edit.bold !== undefined) ? edit.bold : Boolean(line.bold);
+
+    const spacing = computeLineSpacing(
+        initialText,
+        linePixelWidth,
+        displayFontSize,
+        line.fontFamily,
+        currentBold
+    );
 
     span.classList.add('is-editing');
     span.contentEditable = 'true';
@@ -373,11 +444,23 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
     span.style.fontSize = `${displayFontSize}px`;
     span.style.fontWeight = '400';
     span.style.color = (edit && edit.color) || line.color || '#000000';
-    span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
+    span.style.lineHeight = `${Math.round(linePixelHeight * 0.95)}px`;
     span.style.whiteSpace = 'pre';
-    span.style.padding = '0';
+    span.style.padding = '1px 3px';
+    span.style.boxSizing = 'border-box';
     span.style.margin = '0';
     span.style.zIndex = '35';
+
+    if (spacing.wordSpacing !== 0) {
+        span.style.wordSpacing = `${spacing.wordSpacing}px`;
+    } else {
+        span.style.wordSpacing = 'normal';
+    }
+    if (spacing.letterSpacing !== 0) {
+        span.style.letterSpacing = `${spacing.letterSpacing}px`;
+    } else {
+        span.style.letterSpacing = 'normal';
+    }
 
     // Populate initial content: prioritize structured runs, fallback to bold tag or plain text
     if (edit && edit.runs && edit.runs.length > 0) {
@@ -501,7 +584,15 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
             span.style.fontWeight = origBold ? '700' : '400';
             span.title = `Click to edit text: "${line.text}"`;
         } else {
-            // New direct text edit preserving exact original font, size, and color with partial bold runs
+            // Compute word spacing in PDF points for backend vector insertion
+            const currentWrapH = wrap.getBoundingClientRect().height || (canvas ? canvas.clientHeight : 800);
+            const curScale = (page._pdfPage && page._pdfPage.getViewport({ scale: 1.0 }).height > 0)
+                ? (currentWrapH / page._pdfPage.getViewport({ scale: 1.0 }).height)
+                : 1.0;
+            const updatedSpacing = computeLineSpacing(newText, line.widthRatio * currentWrapWidth, displayFontSize, line.fontFamily, extracted.allBold);
+            const pdfWordSpacing = (curScale > 0 && updatedSpacing.wordSpacing) ? parseFloat((updatedSpacing.wordSpacing / curScale).toFixed(2)) : 0;
+
+            // New direct text edit preserving exact original font, size, color, and justified word spacing
             page.textEdits[line.id] = {
                 id: line.id,
                 originalText: origText,
@@ -516,6 +607,7 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
                 fontSize: line.fontSize,
                 fontFamily: line.fontFamily,
                 rawFontName: line.rawFontName || '',
+                wordSpacing: pdfWordSpacing,
                 color: (edit && edit.color) || line.color || '#000000'
             };
             line.text = newText;
@@ -525,6 +617,7 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
             renderRunsToElement(span, runs, newText, extracted.allBold);
             span.style.backgroundColor = '#ffffff';
             span.style.width = 'fit-content';
+            span.style.minWidth = `${(line.widthRatio * 100).toFixed(3)}%`;
             span.style.fontWeight = '400';
             span.title = `Edited text: "${newText}" (Click to edit)`;
         }
@@ -550,6 +643,7 @@ function activateDirectInlineEdit(wrap, page, line, span, displayFontSize, lineP
             }
             span.style.backgroundColor = '#ffffff';
             span.style.width = 'fit-content';
+            span.style.minWidth = `${(line.widthRatio * 100).toFixed(3)}%`;
         } else {
             span.innerHTML = '';
             span.style.backgroundColor = 'transparent';
@@ -593,6 +687,7 @@ export function renderPageTextOverlay(wrap, page) {
     const canvas = wrap.querySelector('canvas');
     const wrapRect = wrap.getBoundingClientRect();
     const currentWrapHeight = wrapRect.height || (canvas ? canvas.clientHeight : 800);
+    const currentWrapWidth = wrapRect.width || (canvas ? canvas.clientWidth : 612);
 
     // Compute scale ratio between PDF points (viewport 1.0) and screen pixels
     const pdfPage = page._pdfPage;
@@ -640,9 +735,22 @@ export function renderPageTextOverlay(wrap, page) {
         span.style.fontSize = `${displayFontSize}px`;
         span.style.fontWeight = isLineBold ? '700' : '400';
         span.style.color = (edit && edit.color) || line.color || '#000000';
-        span.style.lineHeight = `${Math.round(linePixelHeight)}px`;
-        span.style.padding = '0';
+        span.style.lineHeight = `${Math.round(linePixelHeight * 0.95)}px`;
+        span.style.padding = '1px 3px';
+        span.style.boxSizing = 'border-box';
         span.style.margin = '0';
+
+        // Apply dynamic spacing (justified or character tracking) to match underlying canvas
+        const linePixelWidth = line.widthRatio * currentWrapWidth;
+        const spacing = computeLineSpacing(
+            currentText,
+            linePixelWidth,
+            displayFontSize,
+            line.fontFamily,
+            isLineBold
+        );
+        span.style.wordSpacing = (spacing.wordSpacing !== 0) ? `${spacing.wordSpacing}px` : 'normal';
+        span.style.letterSpacing = (spacing.letterSpacing !== 0) ? `${spacing.letterSpacing}px` : 'normal';
 
         if (hasEdit) {
             if (edit.runs && edit.runs.length > 0) {
@@ -652,6 +760,8 @@ export function renderPageTextOverlay(wrap, page) {
                 span.style.fontWeight = isLineBold ? '700' : '400';
             }
             span.style.backgroundColor = '#ffffff';
+            span.style.width = 'fit-content';
+            span.style.minWidth = `${(line.widthRatio * 100).toFixed(3)}%`;
             span.title = `Edited text: "${currentText}" (Click to edit)`;
         } else {
             span.innerText = '';
