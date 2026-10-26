@@ -1,41 +1,38 @@
 // ===========================================
-//  pdfHistory.js — In-memory undo / redo stacks
+//  pdfHistory.js — In-memory undo / redo engine & history entry application
 // ===========================================
 
 import { getState } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
+import {
+    MAX_UNDO,
+    cloneLayers,
+    cloneTextEdits,
+    cloneFormFields,
+    snapshotPageLayers,
+    snapshotPageFormFields,
+    snapshotAllFormFields,
+    snapshotPageCrop,
+    snapshotAllCrops,
+    snapshotPagesOrder,
+    snapshotPageExcluded,
+    snapshotStandardize
+} from './pdfHistorySnapshots.js';
 
-export const MAX_UNDO = 50;
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function cloneLayers(layers) {
-    return (layers || []).map(l => ({
-        ...l,
-        runs: l.runs ? l.runs.map(r => ({ ...r })) : undefined
-    }));
-}
-
-function cloneTextEdits(edits) {
-    if (!edits) return {};
-    const copy = {};
-    for (const k of Object.keys(edits)) {
-        copy[k] = {
-            ...edits[k],
-            runs: edits[k].runs ? edits[k].runs.map(r => ({ ...r })) : undefined
-        };
-    }
-    return copy;
-}
-
-function cloneFormFields(fields) {
-    return (fields || []).map(f => ({ ...f }));
-}
+export {
+    MAX_UNDO,
+    snapshotPageLayers,
+    snapshotPageFormFields,
+    snapshotAllFormFields,
+    snapshotPageCrop,
+    snapshotAllCrops,
+    snapshotPagesOrder,
+    snapshotPageExcluded,
+    snapshotStandardize
+};
 
 /**
  * Take a "forward" snapshot of the current state for the given entry type.
- * Used by performUndo to save what it's about to overwrite onto the redoStack,
- * and by performRedo to save what it's about to overwrite back onto the undoStack.
  */
 function currentSnapshot(state, entry) {
     if (entry.type === 'standardize') {
@@ -88,18 +85,9 @@ function currentSnapshot(state, entry) {
     return null;
 }
 
-function pushUndo(entry) {
-    const state = getState();
-    // Any new action clears the redo stack
-    state.redoStack = [];
-    state.undoStack.push(entry);
-    if (state.undoStack.length > MAX_UNDO) {
-        state.undoStack.shift();
-    }
-}
-
-// ─── Apply an entry's snapshot to state ──────────────────────────────────────
-
+/**
+ * Applies a snapshot entry to mutate state back to that point in time.
+ */
 function applyEntry(state, entry, syncGridCb) {
     if (entry.type === 'standardize') {
         entry.snapshot.forEach(({ id, standardized, aspectRatio }) => {
@@ -120,7 +108,6 @@ function applyEntry(state, entry, syncGridCb) {
         });
         if (typeof syncGridCb === 'function') syncGridCb();
         else {
-            // fallback re-render all
             state.pages.forEach(p => renderCardCanvas(p));
         }
     } else if (entry.type === 'page_layers') {
@@ -199,93 +186,12 @@ function applyEntry(state, entry, syncGridCb) {
     }
 }
 
-// ─── Snapshot APIs ──────────────────────────────────────────────────────────
-
-/** Call BEFORE mutating page.layers or page.textEdits */
-export function snapshotPageLayers(page) {
-    if (!page) return;
-    pushUndo({
-        type: 'page_layers',
-        pageId: page.id,
-        snapshot: {
-            layers: cloneLayers(page.layers),
-            textEdits: cloneTextEdits(page.textEdits)
-        }
-    });
-}
-
-/** Call BEFORE mutating page.formFields (or both formFields + layers) */
-export function snapshotPageFormFields(page) {
-    pushUndo({
-        type: 'page_form_fields',
-        pageId: page.id,
-        snapshot: {
-            formFields: cloneFormFields(page.formFields),
-            layers: cloneLayers(page.layers)
-        }
-    });
-}
-
-/** Call BEFORE deleting all form fields across all pages */
-export function snapshotAllFormFields() {
-    const state = getState();
-    pushUndo({
-        type: 'all_form_fields',
-        snapshot: state.pages.map(p => ({
-            id: p.id,
-            formFields: cloneFormFields(p.formFields),
-            layers: cloneLayers(p.layers)
-        }))
-    });
-}
-
-/** Call BEFORE mutating page.cropBox */
-export function snapshotPageCrop(page) {
-    pushUndo({ type: 'page_crop', pageId: page.id, snapshot: page.cropBox ? { ...page.cropBox } : null });
-}
-
-/** Call BEFORE calling applyCropToAll */
-export function snapshotAllCrops() {
-    const state = getState();
-    pushUndo({
-        type: 'all_crops',
-        snapshot: state.pages.map(p => ({ id: p.id, cropBox: p.cropBox ? { ...p.cropBox } : null })),
-    });
-}
-
-/** Call BEFORE mutating pages order (reorder, insert blank, remove pages, etc.) */
-export function snapshotPagesOrder() {
-    const state = getState();
-    pushUndo({
-        type: 'pages_order',
-        snapshot: state.pages.slice(),
-    });
-}
-
-/** Call BEFORE toggling page.excluded */
-export function snapshotPageExcluded(page) {
-    pushUndo({ type: 'page_excluded', pageId: page.id, snapshot: page.excluded });
-}
-
-/** Call BEFORE standardizing sizes (adds maxed rect) */
-export function snapshotStandardize() {
-    const state = getState();
-    pushUndo({
-        type: 'standardize',
-        snapshot: state.pages.map(p => ({ id: p.id, standardized: p.standardized ? { ...p.standardized } : null, aspectRatio: p.aspectRatio })),
-    });
-}
-
-// ─── Undo / Redo ────────────────────────────────────────────────────────────
-
 /** Ctrl+Z: undo last action */
 export function performUndo(syncGridCb) {
     const state = getState();
     if (state.undoStack.length === 0) return;
 
     const entry = state.undoStack.pop();
-
-    // Save current state to redoStack so we can redo
     const forward = currentSnapshot(state, entry);
     if (forward) {
         state.redoStack.push(forward);
@@ -301,8 +207,6 @@ export function performRedo(syncGridCb) {
     if (state.redoStack.length === 0) return;
 
     const entry = state.redoStack.pop();
-
-    // Save current state back to undoStack (without clearing redoStack this time)
     const backward = currentSnapshot(state, entry);
     if (backward) {
         state.undoStack.push(backward);

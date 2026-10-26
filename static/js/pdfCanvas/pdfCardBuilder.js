@@ -2,13 +2,12 @@
 //  pdfCardBuilder.js — Page card DOM generation, grid sync & facade
 // ===========================================
 
-import { getState, createPageObject, setAppMode } from './pdfState.js';
-import { openAnnotationInput, startWhiteout, formatDate, startDrawLine } from './pdfAnnotations.js';
-import { startCrop, handleOverlayClick, removeOverlay } from './pdfCropOverlay.js';
+import { getState, createPageObject } from './pdfState.js';
+import { removeOverlay } from './pdfCropOverlay.js';
 import { renderCardCanvas } from './pdfRender.js';
-import { snapshotPageLayers, snapshotPageExcluded, snapshotPagesOrder } from './pdfHistory.js';
-import { initGhostPreview, deselectAllLayers, hideGhost } from './pdfLayerSelection.js';
-import { startCreateFormField } from './pdfFormFieldUI.js';
+import { snapshotPagesOrder } from './pdfHistory.js';
+import { initGhostPreview, deselectAllLayers } from './pdfLayerSelection.js';
+import { attachCardEventListeners } from './pdfCardEvents.js';
 
 // ── Re-exports for backwards compatibility ──────────────────────────────────
 export {
@@ -114,17 +113,25 @@ export function buildCard(page) {
     actions.className = 'page-actions';
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'page-action-btn' + (page.excluded ? ' restore-btn' : '');
+    delBtn.className = 'page-action-btn';
     delBtn.innerHTML = '&times;';
-    delBtn.title = page.excluded ? 'Restore page' : 'Exclude page';
+    delBtn.title = 'Remove page';
     delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        snapshotPageExcluded(page);
-        page.excluded = !page.excluded;
-        card.classList.toggle('excluded', page.excluded);
-        delBtn.title = page.excluded ? 'Restore page' : 'Exclude page';
-        if (page.excluded) delBtn.classList.add('restore-btn');
-        else delBtn.classList.remove('restore-btn');
+        const pageIdx = state.pages.indexOf(page);
+        if (pageIdx !== -1) {
+            if (state.pages.length <= 1) {
+                alert('Cannot remove the only remaining page in the document.');
+                return;
+            }
+            snapshotPagesOrder();
+            deselectAllLayers();
+            if (state.overlaySource && state.overlaySource === page) {
+                state.overlaySource = null;
+            }
+            state.pages.splice(pageIdx, 1);
+            syncGrid();
+        }
     });
     actions.appendChild(delBtn);
     card.appendChild(actions);
@@ -152,162 +159,8 @@ export function buildCard(page) {
     card.appendChild(addBlankBtn);
 
     updateOverlayBadge(card, page);
-
-    card.addEventListener('dragstart', (e) => {
-        if (state.mode !== 'select') { e.preventDefault(); return; }
-        if (e.target.closest('.ann-marker, .signature-rect, .crop-rect, .ann-edit-box, .ann-delete-btn, .signature-del-btn, .whiteout-rect-interactive, .whiteout-del-btn, .page-actions, .page-action-btn')) {
-            e.preventDefault();
-            return;
-        }
-        e.dataTransfer.setData('text/plain', page.id);
-        card.classList.add('dragging');
-    });
-    card.addEventListener('dragend', () => {
-        card.classList.remove('dragging');
-        document.querySelectorAll('.pdf-page-card.drag-over').forEach(c => c.classList.remove('drag-over'));
-    });
-    card.addEventListener('dragover', (e) => {
-        if (state.mode !== 'select') return;
-        e.preventDefault();
-        card.classList.add('drag-over');
-    });
-    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-    card.addEventListener('drop', (e) => {
-        if (state.mode !== 'select') return;
-        e.preventDefault();
-        card.classList.remove('drag-over');
-        const fromId = e.dataTransfer.getData('text/plain');
-        if (!fromId || fromId === page.id) return;
-        const fromIdx = state.pages.findIndex(p => p.id === fromId);
-        const toIdx = state.pages.findIndex(p => p.id === page.id);
-        if (fromIdx < 0 || toIdx < 0) return;
-        snapshotPagesOrder();
-        const [moved] = state.pages.splice(fromIdx, 1);
-        state.pages.splice(toIdx, 0, moved);
-        syncGrid();
-    });
-
-    card.addEventListener('click', (e) => {
-        if (state.mode === 'overlay') {
-            e.stopPropagation();
-            handleOverlayClick(page, card);
-        }
-    });
-
-    wrap.addEventListener('click', (e) => {
-        if (!e.target.closest('.ann-marker, .signature-rect, .overlay-rect, .whiteout-rect-interactive')) {
-            deselectAllLayers();
-        }
-        if (state.mode === 'annotate') {
-            if (e.target.closest('.ann-marker') || e.target.closest('.ann-edit-box') || e.target.closest('.ann-input')) return;
-            e.stopPropagation();
-            const rect = canvas.getBoundingClientRect();
-            const xR = (e.clientX - rect.left) / rect.width;
-            const yR = (e.clientY - rect.top) / rect.height;
-            openAnnotationInput(wrap, page, xR, yR);
-        } else if (state.mode === 'signature' && state.activeSignature) {
-            if (e.target.closest('.signature-rect')) return;
-            e.stopPropagation();
-            const rect = canvas.getBoundingClientRect();
-            const sig = state.activeSignature;
-            const aspect = sig.aspectRatio || (sig.naturalWidth && sig.naturalHeight ? sig.naturalWidth / sig.naturalHeight : 3.0);
-            const targetWR = sig.widthRatio || state.lastSignatureWidthRatio || 0.22;
-            const minW = Math.max(0.08, 48 / (rect.width || 1));
-            const wRatio = Math.max(minW, Math.min(0.95, targetWR));
-
-            const sigW = wRatio * rect.width;
-            const sigH = (sigW / aspect);
-            const hRatio = sigH / (rect.height || 1);
-
-            const clickX = e.clientX - rect.left - sigW / 2;
-            const clickY = e.clientY - rect.top - sigH / 2;
-            const clickLeft = Math.max(0, Math.min(1.0 - wRatio, clickX / (rect.width || 1)));
-            const clickTop = Math.max(0, Math.min(1.0 - hRatio, clickY / (rect.height || 1)));
-
-            snapshotPageLayers(page);
-            page.layers.push({
-                type: 'signature',
-                id: `sig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                text: sig.text,
-                fontFamily: sig.fontFamily,
-                color: sig.color,
-                dataUrl: sig.dataUrl,
-                leftRatio: clickLeft,
-                topRatio: clickTop,
-                widthRatio: wRatio,
-                heightRatio: hRatio
-            });
-
-            hideGhost();
-            const cursorBtn = document.getElementById('ann-tool-cursor');
-            if (cursorBtn) {
-                cursorBtn.click();
-            } else {
-                setAppMode('select');
-            }
-
-            renderCardCanvas(page);
-        } else if (state.mode === 'date') {
-            if (e.target.closest('.ann-marker, .signature-rect')) return;
-            e.stopPropagation();
-            const rect = canvas.getBoundingClientRect();
-            const xR = (e.clientX - rect.left) / rect.width;
-            const yR = (e.clientY - rect.top) / rect.height;
-
-            const ann = {
-                type: 'annotation',
-                id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                text: formatDate(state.dateFormat),
-                xRatio: Math.max(0, Math.min(0.95, xR)),
-                yRatio: Math.max(0, Math.min(0.95, yR)),
-                color: state.dateColor,
-                fontSize: state.dateSize,
-                fontFamily: state.dateFont,
-                bold: state.dateBold
-            };
-
-            snapshotPageLayers(page);
-            page.layers.push(ann);
-
-            hideGhost();
-            const cursorBtn = document.getElementById('ann-tool-cursor');
-            if (cursorBtn) {
-                cursorBtn.click();
-            } else {
-                setAppMode('select');
-            }
-
-            renderCardCanvas(page);
-
-            // Auto-select placed date stamp so user can immediately resize or reposition it
-            const cardEl = document.getElementById(page.id);
-            if (cardEl) {
-                const markers = cardEl.querySelectorAll('.ann-marker');
-                const lastMarker = markers[markers.length - 1];
-                if (lastMarker) {
-                    selectLayer(page, ann, lastMarker);
-                }
-            }
-        }
-    });
-
-    wrap.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.crop-rect') || e.target.closest('.overlay-rect') || e.target.closest('.ann-edit-box') || e.target.closest('.whiteout-rect') || e.target.closest('.whiteout-rect-interactive') || e.target.closest('.pdf-form-field-creating')) return;
-        if (state.mode === 'crop') {
-            e.preventDefault();
-            startCrop(e, wrap, page);
-        } else if (state.mode === 'whiteout') {
-            e.preventDefault();
-            startWhiteout(e, wrap, page);
-        } else if (state.mode === 'field-form-create') {
-            e.preventDefault();
-            startCreateFormField(e, wrap, page);
-        } else if (state.mode === 'line') {
-            e.preventDefault();
-            startDrawLine(e, wrap, page);
-        }
-    });
-
+    attachCardEventListeners(card, wrap, canvas, page, syncGrid);
     initGhostPreview();
+
     return card;
 }
