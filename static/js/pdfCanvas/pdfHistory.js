@@ -79,7 +79,7 @@ function currentSnapshot(state, entry) {
         return { ...entry, snapshot: state.pages.map(p => ({ id: p.id, cropBox: p.cropBox ? { ...p.cropBox } : null })) };
     }
     if (entry.type === 'pages_order') {
-        return { ...entry, snapshot: state.pages.map(p => ({ id: p.id, excluded: p.excluded })) };
+        return { ...entry, snapshot: state.pages.slice() };
     }
     if (entry.type === 'page_excluded') {
         const page = state.pages.find(p => p.id === entry.pageId);
@@ -167,14 +167,20 @@ function applyEntry(state, entry, syncGridCb) {
         });
 
     } else if (entry.type === 'pages_order') {
-        const orderedPages = entry.snapshot
-            .map(({ id, excluded }) => {
-                const page = state.pages.find(p => p.id === id);
-                if (page) page.excluded = excluded;
-                return page;
-            })
-            .filter(Boolean);
-        state.pages = orderedPages;
+        if (Array.isArray(entry.snapshot)) {
+            if (entry.snapshot.length > 0 && entry.snapshot[0] && entry.snapshot[0].id && !entry.snapshot[0].fileName && entry.snapshot[0].excluded !== undefined) {
+                const orderedPages = entry.snapshot
+                    .map(({ id, excluded }) => {
+                        const page = state.pages.find(p => p.id === id);
+                        if (page) page.excluded = excluded;
+                        return page;
+                    })
+                    .filter(Boolean);
+                state.pages = orderedPages;
+            } else {
+                state.pages = entry.snapshot.slice();
+            }
+        }
         if (typeof syncGridCb === 'function') syncGridCb();
 
     } else if (entry.type === 'page_excluded') {
@@ -247,12 +253,12 @@ export function snapshotAllCrops() {
     });
 }
 
-/** Call BEFORE mutating pages order (reorder, insert blank, etc.) */
+/** Call BEFORE mutating pages order (reorder, insert blank, remove pages, etc.) */
 export function snapshotPagesOrder() {
     const state = getState();
     pushUndo({
         type: 'pages_order',
-        snapshot: state.pages.map(p => ({ id: p.id, excluded: p.excluded })),
+        snapshot: state.pages.slice(),
     });
 }
 

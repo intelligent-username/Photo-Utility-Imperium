@@ -53,6 +53,8 @@ import {
 
 import { extractPageTextLines, renderPageTextOverlay, renderRunsToElement, extractRunsFromElement } from './pdfCanvas/pdfTextLayer.js';
 
+import { openRemovePagesModal, parsePageRanges, formatPageRanges, removePagesByIndices } from './pdfCanvas/pdfRemovePages.js';
+
 import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
 
 export {
@@ -85,7 +87,11 @@ export {
     extractPageTextLines,
     renderPageTextOverlay,
     renderRunsToElement,
-    extractRunsFromElement
+    extractRunsFromElement,
+    openRemovePagesModal,
+    parsePageRanges,
+    formatPageRanges,
+    removePagesByIndices
 };
 
 export function renderCardCanvas(page) {

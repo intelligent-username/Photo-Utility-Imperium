@@ -17,7 +17,8 @@ import {
     performUndo,
     performRedo,
     selectedLayerInfo,
-    getSelectedLayerInfo
+    getSelectedLayerInfo,
+    openRemovePagesModal
 } from './pdfCanvas.js';
 
 export function setupToolbarControls() {
@@ -305,6 +306,14 @@ export function setupToolbarControls() {
     if (annotateBtn) annotateBtn.addEventListener('click', () => toggleMode(annotateBtn, 'annotate'));
     if (cropBtn) cropBtn.addEventListener('click', () => toggleMode(cropBtn, 'crop'));
     if (overlayBtn) overlayBtn.addEventListener('click', () => toggleMode(overlayBtn, 'overlay'));
+    const removeBtn = document.getElementById('remove-pages-btn');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            deselectAllLayers();
+            commitActivePlacement();
+            openRemovePagesModal();
+        });
+    }
     if (whiteoutBtn) whiteoutBtn.addEventListener('click', () => toggleMode(whiteoutBtn, 'whiteout'));
     if (fieldFormBtn) fieldFormBtn.addEventListener('click', () => toggleMode(fieldFormBtn, 'field-form'));
 
