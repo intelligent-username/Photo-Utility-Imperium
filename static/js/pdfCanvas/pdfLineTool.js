@@ -5,6 +5,9 @@
 import { getState } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
 import { snapshotPageLayers } from './pdfHistory.js';
+import { selectLayer } from './pdfLayerSelection.js';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function startDrawLine(e, wrap, page) {
     const state = getState();
@@ -36,7 +39,27 @@ export function startDrawLine(e, wrap, page) {
     lineEl.setAttribute('stroke-width', scaledThick.toFixed(2));
     lineEl.setAttribute('stroke-linecap', 'butt');
 
+    // Live endpoint indicators so the line's ends are visible while drawing.
+    const makeDraftDot = () => {
+        const dot = document.createElementNS(SVG_NS, 'circle');
+        dot.setAttribute('class', 'pdf-line-draft-handle');
+        dot.setAttribute('r', '4.5');
+        dot.setAttribute('fill', '#ffffff');
+        dot.setAttribute('stroke', state.annColor || '#000000');
+        dot.setAttribute('stroke-width', '2');
+        dot.style.pointerEvents = 'none';
+        return dot;
+    };
+    const startDot = makeDraftDot();
+    startDot.setAttribute('cx', startX);
+    startDot.setAttribute('cy', startY);
+    const endDot = makeDraftDot();
+    endDot.setAttribute('cx', startX);
+    endDot.setAttribute('cy', startY);
+
     svg.appendChild(lineEl);
+    svg.appendChild(startDot);
+    svg.appendChild(endDot);
     wrap.appendChild(svg);
 
     let curX = startX;
@@ -64,6 +87,8 @@ export function startDrawLine(e, wrap, page) {
 
         lineEl.setAttribute('x2', curX);
         lineEl.setAttribute('y2', curY);
+        endDot.setAttribute('cx', curX);
+        endDot.setAttribute('cy', curY);
     };
 
     const onUp = () => {
@@ -85,6 +110,13 @@ export function startDrawLine(e, wrap, page) {
                 thickness: state.annLineWidth || 2
             };
             page.layers.push(lineLayer);
+
+            // Select the line we just drew so its endpoint handles are immediately
+            // available for resizing/moving without an extra click.
+            selectLayer(page, lineLayer, null);
+            // The trailing click of this same mouse gesture must not deselect it.
+            wrap._skipNextClickDeselect = true;
+
             renderCardCanvas(page);
         }
     };

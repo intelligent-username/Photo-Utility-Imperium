@@ -29,7 +29,7 @@ export function cloneFormFields(fields) {
     return (fields || []).map(f => ({ ...f }));
 }
 
-export function pushUndo(entry) {
+function pushUndo(entry) {
     const state = getState();
     state.redoStack = [];
     state.undoStack.push(entry);

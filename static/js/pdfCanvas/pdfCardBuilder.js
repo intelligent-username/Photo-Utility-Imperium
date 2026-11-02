@@ -37,13 +37,13 @@ export {
 } from './pdfLayerRenderers.js';
 
 // ── Page Card Helpers ───────────────────────────────────────────────────────
-export function indexLabel(page) {
+function indexLabel(page) {
     const state = getState();
     const idx = state.pages.indexOf(page);
     return idx >= 0 ? `${idx + 1}` : '1';
 }
 
-export function updateOverlayBadge(card, page) {
+function updateOverlayBadge(card, page) {
     let badge = card.querySelector('.overlay-badge');
     if (page.overlays && page.overlays.length > 0) {
         if (!badge) {
@@ -65,7 +65,7 @@ export function updateOverlayBadge(card, page) {
     }
 }
 
-export function insertBlankAfter(targetPage) {
+function insertBlankAfter(targetPage) {
     const state = getState();
     const idx = state.pages.indexOf(targetPage);
     const newPage = createPageObject({

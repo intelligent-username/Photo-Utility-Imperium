@@ -70,6 +70,7 @@ def apply_text_annotations(page, annotations):
         color_hex = ann.get('color', '#3b82f6')
         font_size = int(ann.get('fontSize', 16))
         font_family = ann.get('fontFamily', '')
+        ff_lower = font_family.lower()
         is_bold = bool(ann.get('bold', False))
 
         x = x_ratio * width

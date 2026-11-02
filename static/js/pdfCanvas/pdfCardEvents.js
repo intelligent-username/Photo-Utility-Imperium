@@ -65,8 +65,12 @@ export function attachCardEventListeners(card, wrap, canvas, page, syncGrid) {
 
     // 3. Canvas click placements (annotate, signature stamp, date stamp)
     wrap.addEventListener('click', (e) => {
-        if (!e.target.closest('.ann-marker, .signature-rect, .overlay-rect, .whiteout-rect-interactive')) {
+        const skipDeselect = wrap._skipNextClickDeselect;
+        wrap._skipNextClickDeselect = false;
+        if (!skipDeselect && !e.target.closest('.ann-marker, .signature-rect, .overlay-rect, .whiteout-rect-interactive, .pdf-line-layer-svg')) {
             deselectAllLayers();
+            // Selection was cleared, so any visible line endpoint handles are stale.
+            document.querySelectorAll('.pdf-line-handle').forEach(h => h.remove());
         }
         if (state.mode === 'annotate') {
             if (e.target.closest('.ann-marker') || e.target.closest('.ann-edit-box') || e.target.closest('.ann-input')) return;
@@ -162,6 +166,8 @@ export function attachCardEventListeners(card, wrap, canvas, page, syncGrid) {
 
     // 4. Drawing / tool mousedown dispatchers
     wrap.addEventListener('mousedown', (e) => {
+        // Any new gesture invalidates the "just drew a line" click suppression.
+        wrap._skipNextClickDeselect = false;
         if (e.target.closest('.crop-rect') || e.target.closest('.overlay-rect') || e.target.closest('.ann-edit-box') || e.target.closest('.whiteout-rect') || e.target.closest('.whiteout-rect-interactive') || e.target.closest('.pdf-form-field-creating')) return;
         if (state.mode === 'crop') {
             e.preventDefault();

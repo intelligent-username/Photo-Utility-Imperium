@@ -59,7 +59,7 @@ export function addCropControls(rect, wrap, page) {
     makeCropInteractive(rect, wrap, page);
 }
 
-export function makeCropInteractive(rect, wrap, page) {
+function makeCropInteractive(rect, wrap, page) {
     if (rect._isInteractive) return;
     rect._isInteractive = true;
 

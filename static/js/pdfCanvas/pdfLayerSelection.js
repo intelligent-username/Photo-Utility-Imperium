@@ -131,7 +131,7 @@ export function deleteSelectedLayer() {
     return false;
 }
 
-export function getGhostEl() {
+function getGhostEl() {
     if (!ghostEl) {
         ghostEl = document.createElement('div');
         ghostEl.className = 'placement-ghost';

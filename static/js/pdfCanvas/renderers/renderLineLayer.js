@@ -7,6 +7,19 @@ import { renderCardCanvas } from '../pdfRender.js';
 import { snapshotPageLayers } from '../pdfHistory.js';
 import { selectLayer, selectedLayerInfo } from '../pdfLayerSelection.js';
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Keep a two-circle handle group (large hit area + visible dot) on a ratio point. */
+function positionHandle(handle, xRatio, yRatio) {
+    if (!handle) return;
+    const x = `${(xRatio * 100).toFixed(3)}%`;
+    const y = `${(yRatio * 100).toFixed(3)}%`;
+    handle._hit.setAttribute('cx', x);
+    handle._hit.setAttribute('cy', y);
+    handle._dot.setAttribute('cx', x);
+    handle._dot.setAttribute('cy', y);
+}
+
 export function renderLineLayer(wrap, page, layer, card) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'pdf-line-layer-svg');
@@ -63,6 +76,11 @@ export function renderLineLayer(wrap, page, layer, card) {
         e.stopPropagation();
         selectLayer(page, layer, svg);
 
+        // Selecting a line (including by click) exposes its endpoint handles right away.
+        line.setAttribute('stroke-dasharray', '4 2');
+        line.setAttribute('filter', 'drop-shadow(0 0 3px var(--primary))');
+        ensureEndpointHandles();
+
         const cardEl = card || document.getElementById(page.id);
         if (cardEl) cardEl.draggable = false;
 
@@ -95,14 +113,8 @@ export function renderLineLayer(wrap, page, layer, card) {
             hitLine.setAttribute('y1', `${(layer.y1Ratio * 100).toFixed(3)}%`);
             hitLine.setAttribute('x2', `${(layer.x2Ratio * 100).toFixed(3)}%`);
             hitLine.setAttribute('y2', `${(layer.y2Ratio * 100).toFixed(3)}%`);
-            if (h1) {
-                h1.setAttribute('cx', `${(layer.x1Ratio * 100).toFixed(3)}%`);
-                h1.setAttribute('cy', `${(layer.y1Ratio * 100).toFixed(3)}%`);
-            }
-            if (h2) {
-                h2.setAttribute('cx', `${(layer.x2Ratio * 100).toFixed(3)}%`);
-                h2.setAttribute('cy', `${(layer.y2Ratio * 100).toFixed(3)}%`);
-            }
+            positionHandle(h1, layer.x1Ratio, layer.y1Ratio);
+            positionHandle(h2, layer.x2Ratio, layer.y2Ratio);
         };
 
         const onUp = () => {
@@ -122,81 +134,117 @@ export function renderLineLayer(wrap, page, layer, card) {
     svg.appendChild(hitLine);
     svg.appendChild(line);
 
-    // Endpoint resize handles (when selected)
+    // Endpoint resize handles (built on demand, so a line can be selected without a re-render)
     let h1 = null, h2 = null;
-    if (isSelected) {
-        const createEndpointHandle = (pointNum) => {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            const xProp = pointNum === 1 ? 'x1Ratio' : 'x2Ratio';
-            const yProp = pointNum === 1 ? 'y1Ratio' : 'y2Ratio';
-            const otherXProp = pointNum === 1 ? 'x2Ratio' : 'x1Ratio';
-            const otherYProp = pointNum === 1 ? 'y2Ratio' : 'y1Ratio';
 
-            circle.setAttribute('cx', `${(layer[xProp] * 100).toFixed(3)}%`);
-            circle.setAttribute('cy', `${(layer[yProp] * 100).toFixed(3)}%`);
-            circle.setAttribute('r', '6');
-            circle.setAttribute('fill', '#ffffff');
-            circle.setAttribute('stroke', 'var(--primary)');
-            circle.setAttribute('stroke-width', '2');
-            circle.style.pointerEvents = 'auto';
-            circle.style.cursor = 'crosshair';
+    const createEndpointHandle = (pointNum) => {
+        const xProp = pointNum === 1 ? 'x1Ratio' : 'x2Ratio';
+        const yProp = pointNum === 1 ? 'y1Ratio' : 'y2Ratio';
+        const otherXProp = pointNum === 1 ? 'x2Ratio' : 'x1Ratio';
+        const otherYProp = pointNum === 1 ? 'y2Ratio' : 'y1Ratio';
 
-            circle.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                const cardEl = card || document.getElementById(page.id);
-                if (cardEl) cardEl.draggable = false;
-                snapshotPageLayers(page);
-                const wRect = wrap.getBoundingClientRect();
-                let moved = false;
+        const group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('class', 'pdf-line-handle');
+        group.style.pointerEvents = 'auto';
+        group.style.cursor = 'crosshair';
 
-                const onMove = (me) => {
-                    let curX = Math.max(0, Math.min(wRect.width, me.clientX - wRect.left)) / (wRect.width || 1);
-                    let curY = Math.max(0, Math.min(wRect.height, me.clientY - wRect.top)) / (wRect.height || 1);
+        // Generous invisible hit area so the endpoint is easy to grab.
+        const hit = document.createElementNS(SVG_NS, 'circle');
+        hit.setAttribute('class', 'pdf-line-handle-hit');
+        hit.setAttribute('r', '14');
+        hit.setAttribute('fill', 'transparent');
+        hit.style.pointerEvents = 'all';
 
-                    // Holding Ctrl snaps resizing line to horizontal or vertical
-                    if (me.ctrlKey) {
-                        const anchorX = layer[otherXProp];
-                        const anchorY = layer[otherYProp];
-                        const dx = Math.abs(curX - anchorX);
-                        const dy = Math.abs(curY - anchorY);
-                        if (dx >= dy) {
-                            curY = anchorY; // horizontal
-                        } else {
-                            curX = anchorX; // vertical
-                        }
-                    }
+        // Visible endpoint dot (the UI indicator).
+        const dot = document.createElementNS(SVG_NS, 'circle');
+        dot.setAttribute('class', 'pdf-line-handle-dot');
+        dot.setAttribute('r', '5.5');
+        dot.setAttribute('fill', '#ffffff');
+        dot.setAttribute('stroke', 'var(--primary)');
+        dot.setAttribute('stroke-width', '2');
+        dot.style.pointerEvents = 'none';
+        dot.style.filter = 'drop-shadow(0 0 2px rgba(0, 0, 0, 0.55))';
 
-                    layer[xProp] = curX;
-                    layer[yProp] = curY;
+        group._hit = hit;
+        group._dot = dot;
+        group.appendChild(hit);
+        group.appendChild(dot);
+        positionHandle(group, layer[xProp], layer[yProp]);
+
+        group.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const cardEl = card || document.getElementById(page.id);
+            if (cardEl) cardEl.draggable = false;
+
+            const wRect = wrap.getBoundingClientRect();
+            const startClientX = e.clientX;
+            const startClientY = e.clientY;
+            let moved = false;
+            let snapshotted = false;
+
+            const onMove = (me) => {
+                if (!moved) {
+                    if (Math.abs(me.clientX - startClientX) < 2 && Math.abs(me.clientY - startClientY) < 2) return;
                     moved = true;
+                    // Only record history once the endpoint actually moves.
+                    snapshotPageLayers(page);
+                    snapshotted = true;
+                }
 
-                    line.setAttribute(pointNum === 1 ? 'x1' : 'x2', `${(curX * 100).toFixed(3)}%`);
-                    line.setAttribute(pointNum === 1 ? 'y1' : 'y2', `${(curY * 100).toFixed(3)}%`);
-                    hitLine.setAttribute(pointNum === 1 ? 'x1' : 'x2', `${(curX * 100).toFixed(3)}%`);
-                    hitLine.setAttribute(pointNum === 1 ? 'y1' : 'y2', `${(curY * 100).toFixed(3)}%`);
-                    circle.setAttribute('cx', `${(curX * 100).toFixed(3)}%`);
-                    circle.setAttribute('cy', `${(curY * 100).toFixed(3)}%`);
-                };
+                let curX = Math.max(0, Math.min(wRect.width, me.clientX - wRect.left)) / (wRect.width || 1);
+                let curY = Math.max(0, Math.min(wRect.height, me.clientY - wRect.top)) / (wRect.height || 1);
 
-                const onUp = () => {
-                    window.removeEventListener('mousemove', onMove);
-                    window.removeEventListener('mouseup', onUp);
-                    if (cardEl) cardEl.draggable = (getState().mode === 'select');
-                    if (moved) renderCardCanvas(page);
-                };
+                // Holding Ctrl snaps resizing line to horizontal or vertical
+                if (me.ctrlKey) {
+                    const anchorX = layer[otherXProp];
+                    const anchorY = layer[otherYProp];
+                    const dx = Math.abs(curX - anchorX);
+                    const dy = Math.abs(curY - anchorY);
+                    if (dx >= dy) {
+                        curY = anchorY; // horizontal
+                    } else {
+                        curX = anchorX; // vertical
+                    }
+                }
 
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-            });
+                layer[xProp] = curX;
+                layer[yProp] = curY;
 
-            return circle;
-        };
+                line.setAttribute(pointNum === 1 ? 'x1' : 'x2', `${(curX * 100).toFixed(3)}%`);
+                line.setAttribute(pointNum === 1 ? 'y1' : 'y2', `${(curY * 100).toFixed(3)}%`);
+                hitLine.setAttribute(pointNum === 1 ? 'x1' : 'x2', `${(curX * 100).toFixed(3)}%`);
+                hitLine.setAttribute(pointNum === 1 ? 'y1' : 'y2', `${(curY * 100).toFixed(3)}%`);
+                positionHandle(group, curX, curY);
+            };
 
+            const onUp = () => {
+                window.removeEventListener('mousemove', onMove);
+                window.removeEventListener('mouseup', onUp);
+                if (cardEl) cardEl.draggable = (getState().mode === 'select');
+                if (moved && snapshotted) renderCardCanvas(page);
+            };
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+        });
+
+        return group;
+    };
+
+    const ensureEndpointHandles = () => {
+        if (h1 && h2) return;
+        // Drop handles left behind by other lines' SVGs.
+        document.querySelectorAll('.pdf-line-handle').forEach(h => {
+            if (!svg.contains(h)) h.remove();
+        });
         h1 = createEndpointHandle(1);
         h2 = createEndpointHandle(2);
         svg.appendChild(h1);
         svg.appendChild(h2);
-    }
+    };
+
+    if (isSelected) ensureEndpointHandles();
 
     wrap.appendChild(svg);
     return svg;

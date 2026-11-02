@@ -674,3 +674,26 @@
 }
 
 
+
+/* ── Line tool endpoint handles ─────────────────────────────────────────── */
+.pdf-line-handle {
+    pointer-events: auto;
+    cursor: crosshair;
+}
+
+.pdf-line-handle .pdf-line-handle-dot {
+    transition: fill 0.12s ease, stroke-width 0.12s ease;
+}
+
+.pdf-line-handle:hover .pdf-line-handle-dot {
+    fill: var(--primary);
+    stroke-width: 2.5;
+}
+
+.pdf-line-handle:active {
+    cursor: crosshair;
+}
+
+.pdf-line-draft-handle {
+    pointer-events: none;
+}

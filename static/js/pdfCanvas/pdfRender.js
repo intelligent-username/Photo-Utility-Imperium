@@ -48,7 +48,7 @@ async function drawOriginalMaxed(ctx, page, vpWidth, vpHeight) {
     ctx.drawImage(tmp, rx, ry, rW, rH);
 }
 
-export async function getPageCanvasCache(page, targetWidth) {
+async function getPageCanvasCache(page, targetWidth) {
     if (!page._pdfPage && !page.isBlank && !page.standardized) return null;
 
     if (!page._cacheCanvas || page._cacheWidth !== targetWidth) {

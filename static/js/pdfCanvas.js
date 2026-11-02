@@ -4,13 +4,10 @@
 
 import {
     getState,
-    setViewMode as stateSetViewMode,
     cycleViewMode as stateCycleViewMode,
-    createPageObject,
     setAppMode,
     resetState as stateResetState,
-    updateStatusBar,
-    updateModeBanner
+    updateStatusBar
 } from './pdfCanvas/pdfState.js';
 
 import {
@@ -20,90 +17,50 @@ import {
 } from './pdfCanvas/pdfRender.js';
 
 import {
-    openAnnotationInput,
     formatDate,
     generateSignatureDataUrl,
     saveSignatureStamp,
     removeSignatureStamp,
-    loadSavedSignatures,
-    getFormFieldMetrics,
-    getSortedFormFields,
-    findAnnotationForField,
-    startDrawLine
+    loadSavedSignatures
 } from './pdfCanvas/pdfAnnotations.js';
 
 import {
-    applyCropToAll as applyCropToAllCore,
-    removeOverlay as removeOverlayCore,
-    addCropControls,
-    syncRectToPercentage
-} from './pdfCanvas/pdfCropOverlay.js';
-
-import {
-    buildCard,
     syncGrid,
-    renderCardLayers,
     commitActivePlacement,
     deleteSelectedLayer,
-    selectLayer,
     deselectAllLayers,
     selectedLayerInfo,
     getSelectedLayerInfo
 } from './pdfCanvas/pdfCardBuilder.js';
 
-import { extractPageTextLines, renderPageTextOverlay, renderRunsToElement, extractRunsFromElement } from './pdfCanvas/pdfTextLayer.js';
-
-import { openRemovePagesModal, parsePageRanges, formatPageRanges, removePagesByIndices } from './pdfCanvas/pdfRemovePages.js';
+import { openRemovePagesModal } from './pdfCanvas/pdfRemovePages.js';
 
 import { performUndo as performUndoCore, performRedo as performRedoCore } from './pdfCanvas/pdfHistory.js';
 
 export {
     getState,
-    createPageObject,
     setAppMode,
     updateStatusBar,
-    updateModeBanner,
-    openAnnotationInput,
     formatDate,
     generateSignatureDataUrl,
     saveSignatureStamp,
     removeSignatureStamp,
     loadSavedSignatures,
-    getFormFieldMetrics,
-    getSortedFormFields,
-    findAnnotationForField,
-    startDrawLine,
-    buildCard,
     syncGrid,
-    addCropControls,
-    syncRectToPercentage,
-    renderCardLayers,
     commitActivePlacement,
     deleteSelectedLayer,
-    selectLayer,
     deselectAllLayers,
     selectedLayerInfo,
     getSelectedLayerInfo,
-    extractPageTextLines,
-    renderPageTextOverlay,
-    renderRunsToElement,
-    extractRunsFromElement,
-    openRemovePagesModal,
-    parsePageRanges,
-    formatPageRanges,
-    removePagesByIndices
+    openRemovePagesModal
 };
 
 export function renderCardCanvas(page) {
     return renderCardCanvasCore(page);
 }
 
-export function reRenderCanvases() {
+function reRenderCanvases() {
     return reRenderCanvasesCore();
-}
-
-export function setViewMode(viewMode) {
-    return stateSetViewMode(viewMode, reRenderCanvases);
 }
 
 export function cycleViewMode() {
@@ -116,14 +73,6 @@ export function resetState() {
 
 export function loadFiles(fileList) {
     return loadFilesCore(fileList);
-}
-
-export function applyCropToAll(sourcePage) {
-    return applyCropToAllCore(sourcePage);
-}
-
-export function removeOverlay(targetPage) {
-    return removeOverlayCore(targetPage);
 }
 
 export function performUndo() {

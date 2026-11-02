@@ -12,7 +12,6 @@ import {
 
 export function setupDateDropdown(selectAnnSubTool) {
     const state = getState();
-    const dateMenu = document.getElementById('date-dropdown-menu');
     const dateFontOptions = document.querySelectorAll('.date-font-option');
     const datePreviewText = document.getElementById('date-preview-text');
     const dateColorInput = document.getElementById('date-color');
