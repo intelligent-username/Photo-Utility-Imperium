@@ -1,0 +1,55 @@
+<!-- Create Signature Modal -->
+<div id="create-signature-modal" class="pdf-modal-backdrop hidden">
+  <div class="pdf-modal-dialog">
+    <div class="pdf-modal-header">
+      <h3>Create Your Signature</h3>
+      <button id="close-sig-modal-btn" class="pdf-modal-close">&times;</button>
+    </div>
+    <div class="pdf-modal-body">
+      <div class="form-group mb-3">
+        <label for="sig-name-input" class="form-label">Typed Name / Initials</label>
+        <input type="text" id="sig-name-input" name="sig-name-input" class="form-control sig-text-input" value="" placeholder="Type your name or initials..." autocomplete="off" />
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="form-label">Font Style</label>
+        <div class="sig-font-grid">
+          <button type="button" class="sig-font-option active" data-font="Caveat">
+            <span class="font-name">Caveat (Casual / Playful)</span>
+            <div class="sig-font-preview" style="font-family: 'Caveat', cursive;">Signature</div>
+          </button>
+          <button type="button" class="sig-font-option" data-font="Pinyon Script">
+            <span class="font-name">Pinyon Script (Copperplate)</span>
+            <div class="sig-font-preview" style="font-family: 'Pinyon Script', cursive;">Signature</div>
+          </button>
+          <button type="button" class="sig-font-option" data-font="Monsieur La Doulaise">
+            <span class="font-name">Monsieur La Doulaise (Flourished)</span>
+            <div class="sig-font-preview" style="font-family: 'Monsieur La Doulaise', cursive;">Signature</div>
+          </button>
+          <button type="button" class="sig-font-option" data-font="Great Vibes">
+            <span class="font-name">Great Vibes (Formal Calligraphy)</span>
+            <div class="sig-font-preview" style="font-family: 'Great Vibes', cursive;">Signature</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="form-label">Ink Color</label>
+        <div class="sig-color-palette">
+          <button type="button" class="sig-color-dot active" data-color="#0b1220" style="background: #0b1220;" title="Dark Ink"></button>
+          <button type="button" class="sig-color-dot" data-color="#1d4ed8" style="background: #1d4ed8;" title="Blue Ink"></button>
+          <button type="button" class="sig-color-dot" data-color="#dc2626" style="background: #dc2626;" title="Red Ink"></button>
+        </div>
+      </div>
+
+      <div class="sig-live-preview-box">
+        <span class="preview-tag">LIVE PREVIEW</span>
+        <div id="sig-live-preview-text" class="sig-live-preview-text" style="font-family: 'Caveat', cursive; color: #0b1220;">Signature</div>
+      </div>
+    </div>
+    <div class="pdf-modal-footer">
+      <button id="cancel-sig-modal-btn" class="btn btn-secondary">Cancel</button>
+      <button id="save-sig-modal-btn" class="btn btn-primary">Save Signature</button>
+    </div>
+  </div>
+</div>

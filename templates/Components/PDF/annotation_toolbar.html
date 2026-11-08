@@ -1,0 +1,148 @@
+      <!-- DocHub-style Secondary Annotation Toolbar Sub-Banner -->
+      <div id="pdf-annotation-bar" class="pdf-annotation-bar hidden">
+        <div class="ann-bar-left">
+          <button class="ann-tool-btn active" id="ann-tool-cursor" data-tooltip="`Esc`&#10;Cursor mode (Select &amp; Move)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+              <path d="M13 13l6 6"></path>
+            </svg>
+            <span>Cursor</span>
+          </button>
+          <button class="ann-tool-btn" id="ann-tool-text" data-tooltip="`T`&#10;Text Annotation">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 7 4 4 20 4 20 7"></polyline>
+              <line x1="9" y1="20" x2="15" y2="20"></line>
+              <line x1="12" y1="4" x2="12" y2="20"></line>
+            </svg>
+            <span>Text</span>
+          </button>
+          <button class="ann-tool-btn" id="ann-tool-line" data-tooltip="`L`&#10;Draw Line (Hold Ctrl to snap)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="20" x2="20" y2="4"></line>
+            </svg>
+            <span>Line</span>
+          </button>
+          <!-- Sign Dropdown Menu inside Annotation Bar -->
+          <div class="pdf-dropdown-wrapper" id="sign-dropdown-wrapper">
+            <button class="ann-tool-btn" id="ann-tool-sign" data-tooltip="`S`&#10;Signatures &amp; stamps">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+              </svg>
+              <span>Sign</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"></path></svg>
+            </button>
+            <div id="sign-dropdown-menu" class="pdf-dropdown-menu hidden">
+              <button id="create-sig-btn" class="dropdown-item primary-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Create new signature...</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-header-title">SIGNATURE STAMPS</div>
+              <div id="signature-stamps-list" class="signature-stamps-list">
+                <!-- Dynamic signature stamps rendered here -->
+              </div>
+            </div>
+          </div>
+          <!-- Date Stamp Dropdown Menu inside Annotation Bar -->
+          <div class="pdf-dropdown-wrapper" id="date-dropdown-wrapper">
+            <button class="ann-tool-btn" id="ann-tool-date" data-tooltip="`D`&#10;Date stamp">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span>Date</span>
+              <span class="ann-tool-caret" id="ann-tool-date-caret" title="Date stamp settings">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"></path></svg>
+              </span>
+            </button>
+            <div id="date-dropdown-menu" class="pdf-dropdown-menu hidden">
+              <div class="date-preview-box">
+                <span class="preview-tag">PREVIEW</span>
+                <div id="date-preview-text" class="date-preview-text">Aug. 7th, 2026</div>
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-header-title">DATE FORMAT</div>
+              <div class="date-format-options">
+                <!-- Dynamic draggable date format cards rendered here -->
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-header-title">FONT</div>
+              <div class="date-font-options">
+                <button type="button" class="date-font-option active" data-font="Arial">Arial</button>
+                <button type="button" class="date-font-option" data-font="Times New Roman" data-bold="true">Bold TNR</button>
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="date-props-row">
+                <div class="date-color-group">
+                  <span class="ann-bar-label">Color</span>
+                  <div class="color-palette">
+                    <button class="color-dot active" data-color="#000000" style="background: #000000;" title="Black"></button>
+                    <button class="color-dot" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
+                    <button class="color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+                  </div>
+                </div>
+                <div class="ann-bar-sep"></div>
+                <div class="date-size-group">
+                  <span class="ann-bar-label">Size</span>
+                  <div class="size-pill-control">
+                    <button type="button" class="size-btn" id="date-size-minus" title="Decrease Size">-</button>
+                    <input type="number" id="date-size" name="date-size" class="size-input-field" value="16" min="8" max="72" autocomplete="off" />
+                    <button type="button" class="size-btn" id="date-size-plus" title="Increase Size">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ann-bar-right" id="ann-bar-controls">
+          <!-- Color Swatch Palette -->
+          <div class="ann-color-picker-group">
+            <span class="ann-bar-label">Color</span>
+            <div class="color-palette">
+              <button class="color-dot" data-color="#ff0000" style="background: #ff0000;" title="Red"></button>
+              <button class="color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+              <button class="color-dot active" data-color="#000000" style="background: #000000;" title="Black"></button>
+              <div class="custom-color-wrapper" title="Custom Color">
+                <input type="color" id="ann-color" name="ann-color" class="custom-color-input" value="#000000" />
+                <span class="custom-color-swatch" id="custom-color-swatch" style="background: #000000;"></span>
+              </div>
+            </div>
+          </div>
+          <div class="ann-bar-sep"></div>
+          <!-- Font Family Selector -->
+          <div class="ann-font-picker-group">
+            <span class="ann-bar-label">Font</span>
+            <select id="ann-font" name="ann-font" class="ann-toolbar-select">
+              <option value="Helvetica, Arial, sans-serif">Sans (Helvetica)</option>
+              <option value="Times New Roman, serif">Serif (Times)</option>
+              <option value="Courier New, monospace">Mono (Courier)</option>
+            </select>
+          </div>
+          <div class="ann-bar-sep"></div>
+          <!-- Boldness Toggle -->
+          <button type="button" class="ann-tool-btn ann-bold-toggle-btn" id="ann-bold-toggle" title="Toggle Bold">
+            <b>B</b>
+          </button>
+          <div class="ann-bar-sep"></div>
+          <!-- Size Stepper Pill -->
+          <div class="ann-size-stepper" id="ann-text-size-stepper">
+            <span class="ann-bar-label">Size</span>
+            <div class="size-pill-control">
+              <button type="button" class="size-btn" id="ann-size-minus" title="Decrease Size">-</button>
+              <input type="number" id="ann-size" name="ann-size" class="size-input-field" value="16" min="8" max="72" autocomplete="off" />
+              <button type="button" class="size-btn" id="ann-size-plus" title="Increase Size">+</button>
+            </div>
+          </div>
+          <!-- Line Thickness Stepper Pill -->
+          <div class="ann-size-stepper hidden" id="ann-line-thickness-stepper">
+            <span class="ann-bar-label">Weight</span>
+            <div class="size-pill-control">
+              <button type="button" class="size-btn" id="ann-line-minus" title="Thinner Line">-</button>
+              <input type="number" id="ann-line-width" name="ann-line-width" class="size-input-field" value="2" min="1" max="24" autocomplete="off" />
+              <button type="button" class="size-btn" id="ann-line-plus" title="Thicker Line">+</button>
+            </div>
+          </div>
+        </div>
+      </div>

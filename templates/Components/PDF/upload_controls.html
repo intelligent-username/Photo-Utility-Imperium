@@ -1,0 +1,16 @@
+  <!-- Left Side: Upload & Controls -->
+  <div class="col-md-4">
+    <h2 class="tool-title">PDF Editor</h2>
+
+    {% set upload_text = "Drag & Drop or Click to Upload PDFs" %}
+    {% set upload_accept = "application/pdf" %}
+    {% include 'Components/upload_area.html' %}
+
+    <div class="d-flex align-items-center mt-3 pdf-action-row">
+      <button id="export-pdf-btn" class="btn btn-success mr-3">Export PDF</button>
+      <button id="reset-btn" class="btn btn-danger mr-3">Reset</button>
+      <button id="standardize-pdf-btn" class="btn btn-secondary">Standardize size</button>
+    </div>
+
+    <ul id="file-list" class="list-group mt-3"></ul>
+  </div>
