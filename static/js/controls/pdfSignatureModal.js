@@ -6,8 +6,7 @@ import {
     getState,
     loadSavedSignatures,
     removeSignatureStamp,
-    saveSignatureStamp,
-    generateSignatureDataUrl
+    saveSignatureStamp
 } from '../pdfCanvas.js';
 
 export function setupSignatureModal(selectAnnSubTool) {
@@ -207,16 +206,7 @@ export function setupSignatureModal(selectAnnSubTool) {
                 return;
             }
 
-            const dataUrl = await generateSignatureDataUrl(text, currentSigFont, currentSigColor);
-            const newStamp = {
-                id: 'sig_' + Date.now(),
-                text: text,
-                fontFamily: currentSigFont,
-                color: currentSigColor,
-                dataUrl: dataUrl
-            };
-
-            saveSignatureStamp(newStamp);
+            const newStamp = await saveSignatureStamp(text, currentSigFont, currentSigColor);
             state.activeSignature = newStamp;
             closeSigModal();
             renderSignatureStampsList();

@@ -158,9 +158,9 @@ export function renderLineLayer(wrap, page, layer, card) {
         // Visible endpoint dot (the UI indicator).
         const dot = document.createElementNS(SVG_NS, 'circle');
         dot.setAttribute('class', 'pdf-line-handle-dot');
-        dot.setAttribute('r', '5.5');
+        dot.setAttribute('r', '4.5');
         dot.setAttribute('fill', '#ffffff');
-        dot.setAttribute('stroke', 'var(--primary)');
+        dot.setAttribute('stroke', '#3b82f6');
         dot.setAttribute('stroke-width', '2');
         dot.style.pointerEvents = 'none';
         dot.style.filter = 'drop-shadow(0 0 2px rgba(0, 0, 0, 0.55))';
@@ -233,7 +233,9 @@ export function renderLineLayer(wrap, page, layer, card) {
     };
 
     const ensureEndpointHandles = () => {
-        if (h1 && h2) return;
+        // Handles can be torn down externally by deselectAllLayers (e.g. selectLayer,
+        // tool switches), so verify they are still attached before reusing them.
+        if (h1 && h2 && svg.contains(h1) && svg.contains(h2)) return;
         // Drop handles left behind by other lines' SVGs.
         document.querySelectorAll('.pdf-line-handle').forEach(h => {
             if (!svg.contains(h)) h.remove();

@@ -8,8 +8,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 580px;
-  max-height: 100%;
+  height: clamp(280px, 60vh, 580px);
+  min-height: 280px;
   padding: 28px;
   margin: 0;
   border: 1.5px dashed rgba(148, 163, 184, 0.35);
@@ -19,8 +19,7 @@
   box-sizing: border-box;
   transition:
     border-color 0.2s ease,
-    transform 0.2s ease,
-    background 0.2s ease;
+    background-color 0.2s ease;
   cursor: pointer;
 }
 
@@ -32,6 +31,11 @@
 .upload-area.dragging {
   border-color: var(--primary-2);
   background: rgba(255, 209, 102, 0.06);
+}
+
+.upload-area:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .upload-area input[type="file"] {
@@ -92,7 +96,7 @@
 
 .upload-area h3 {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
@@ -112,6 +116,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
   margin-bottom: 8px;
 }
 
@@ -127,6 +134,14 @@
   object-fit: contain;
   border-radius: 10px;
   border: 1px solid var(--border);
+}
+
+/* Keep image-tool previews comfortable without changing PDF editor sizing. */
+body:is([data-page="BR"], [data-page="IC"], [data-page="NR"], [data-page="FC"]) #image-preview img,
+body:is([data-page="BR"], [data-page="IC"], [data-page="NR"], [data-page="FC"]) #result img {
+  height: clamp(240px, 55vh, 600px);
+  min-height: 0;
+  max-width: 100%;
 }
 
 /* PDF Preview */
@@ -165,6 +180,7 @@
 
 #file-list li span.file-name {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -219,4 +235,33 @@ iframe {
   box-sizing: border-box;
   overflow: hidden;
   display: block;
+}
+
+body[data-page="FC"] :is(#preview-pdf, #output-pdf) {
+  height: clamp(320px, 65vh, 680px);
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .upload-area {
+    height: auto;
+    min-height: 240px;
+    padding: 24px;
+  }
+
+  .icon-cloud {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-area,
+  #file-list li .remove-file-btn {
+    transition: none;
+  }
+
+  #file-list li {
+    animation: none;
+  }
 }

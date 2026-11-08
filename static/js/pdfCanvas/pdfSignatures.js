@@ -105,17 +105,28 @@ export function removeSignatureStamp(stampId) {
     }
 }
 
+function isValidSignatureStamp(stamp) {
+    if (!stamp || typeof stamp.text !== 'string') return false;
+    if (!stamp.text.trim() || stamp.text === '[object Object]') return false;
+    return stamp.dataUrl == null || typeof stamp.dataUrl === 'string';
+}
+
 export function loadSavedSignatures() {
     const state = getState();
     try {
         const raw = localStorage.getItem('pdf_saved_signatures');
         if (raw) {
-            state.signatures = JSON.parse(raw);
-            if (state.signatures.length > 0) {
-                state.activeSignature = state.signatures[0];
+            const parsed = JSON.parse(raw);
+            const signatures = Array.isArray(parsed) ? parsed.filter(isValidSignatureStamp) : [];
+            if (!Array.isArray(parsed) || signatures.length !== parsed.length) {
+                localStorage.setItem('pdf_saved_signatures', JSON.stringify(signatures));
+            }
+            state.signatures = signatures;
+            if (signatures.length > 0) {
+                state.activeSignature = signatures[0];
             }
             // Auto re-trim any signatures with outdated wide canvases
-            state.signatures.forEach(async (s) => {
+            signatures.forEach(async (s) => {
                 if (s.text && s.fontFamily) {
                     const fresh = await generateSignatureDataUrl(s.text, s.fontFamily, s.color || '#000000');
                     s.dataUrl = fresh.dataUrl;

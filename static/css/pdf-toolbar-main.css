@@ -1,0 +1,243 @@
+/* ===========================================
+   PDF Editor — Toolbars & Sub-banners
+   =========================================== */
+
+/* Unified Top Toolbar */
+.pdf-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 14px;
+    height: 48px;
+    margin: 0;
+    background: var(--bg-soft);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.pdf-toolbar::-webkit-scrollbar {
+    height: 3px;
+}
+.pdf-toolbar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.pdf-toolbar .toolbar-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.pdf-toolbar .toolbar-group-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.pdf-toolbar .toolbar-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.pdf-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: color var(--transition), background-color var(--transition), border-color var(--transition);
+    white-space: nowrap;
+}
+
+.pdf-toolbar-btn:hover {
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.pdf-toolbar-btn.active {
+    background: rgba(245, 185, 66, 0.12);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Secondary Annotation Toolbar Sub-Banner */
+.pdf-annotation-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: nowrap;
+    /* The bar is width-constrained by its parent; when the controls no longer
+       fit they scroll horizontally instead of spilling out of the rounded box. */
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    background: rgba(18, 18, 18, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px;
+    margin: 0;
+    z-index: 20;
+    transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pdf-annotation-bar.hidden {
+    display: none !important;
+}
+
+.pdf-annotation-bar::-webkit-scrollbar {
+    height: 6px;
+}
+
+.pdf-annotation-bar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pdf-annotation-bar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 3px;
+}
+
+.pdf-annotation-bar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.34);
+}
+
+/* Never let controls squeeze/wrap — the bar scrolls instead. */
+.pdf-annotation-bar > *,
+.ann-bar-left > *,
+.ann-bar-right > * {
+    flex: 0 0 auto;
+}
+
+.ann-bar-left,
+.ann-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ann-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition), background-color var(--transition), border-color var(--transition);
+}
+
+.ann-tool-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ann-tool-btn.active {
+    background: rgba(245, 185, 66, 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.ann-tool-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 2px;
+    padding: 2px 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: inherit;
+    transition: background 0.15s ease;
+}
+
+.ann-tool-caret:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.ann-bar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+}
+
+.ann-color-picker-group,
+.ann-font-picker-group,
+.ann-size-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ann-toolbar-select {
+    height: 26px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    padding: 0 6px;
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+
+.ann-toolbar-select:focus,
+.ann-toolbar-select:hover {
+    border-color: var(--primary);
+}
+
+.ann-bold-toggle-btn {
+    height: 26px;
+    width: 28px;
+    padding: 0;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ann-bold-toggle-btn.active {
+    background: var(--primary) !important;
+    color: #0b1220 !important;
+    border-color: var(--primary) !important;
+}
+
+.ann-bar-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+

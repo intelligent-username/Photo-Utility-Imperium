@@ -108,6 +108,8 @@ export function deselectAllLayers() {
         l.removeAttribute('stroke-dasharray');
         l.removeAttribute('filter');
     });
+    // Endpoint handles are a selection-only affordance; remove them on deselect.
+    document.querySelectorAll('.pdf-line-handle').forEach(handle => handle.remove());
     selectedLayerInfo = null;
     const state = getState();
     if (state.mode !== 'annotate') {

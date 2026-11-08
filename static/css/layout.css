@@ -41,6 +41,7 @@ body[data-page] .col-md-4 {
     width: fit-content !important;
     max-width: 100% !important;
     flex: 0 0 auto !important;
+    min-width: 0;
 }
 
 body[data-page] .col-md-4 > * {
@@ -51,10 +52,15 @@ body[data-page] .col-md-4 > * {
 body[data-page] .col-md-8 {
     flex: 1 1 0% !important;
     max-width: 100% !important;
+    min-width: 0;
 }
 
 /* Align right column content with the upload area (below the .tool-title) */
 @media (min-width: 768px) {
+    body[data-page] .col-md-4 {
+        max-width: 45% !important;
+    }
+
     body[data-page] .col-md-8 {
         padding-top: 0;
     }
@@ -99,18 +105,70 @@ body[data-page] .col-md-8 {
   letter-spacing: -0.02em;
 }
 
-/* Responsive column padding fix */
-@media (max-width: 768px) {
-  .col-md-6:nth-child(2) {
-    padding-left: 0;
+.minimal-hero {
+  padding: 32px 0 8px;
+}
+
+.minimal-hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.minimal-hero .lead {
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.home-tools h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.home-tools .card {
+  padding: 20px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.home-tools .card:hover,
+.home-tools .card:focus-visible {
+  background: #222226;
+  border-color: rgba(245, 185, 66, 0.65);
+}
+
+.home-tools .card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.home-tools .card p {
+  line-height: 1.5;
+}
+
+.home-tools .card-tool-icon svg {
+  color: var(--muted);
+  stroke: currentColor;
+}
+
+.home-tools .card-tool-icon img {
+  filter: brightness(0) invert(0.65) !important;
+}
+
+@media (max-width: 767.98px) {
+  body[data-page] .col-md-4,
+  body[data-page] .col-md-8 {
+    width: 100% !important;
+    flex: 0 0 100% !important;
   }
 
-  .app-brand .brand-text {
-    font-size: 0.95rem;
+  .minimal-hero {
+    padding-top: 16px;
   }
+}
 
-  .app-nav .nav-link {
-    margin: 0.35rem 0;
-    display: block;
+@media (prefers-reduced-motion: reduce) {
+  .home-tools .card {
+    transition: none;
   }
 }

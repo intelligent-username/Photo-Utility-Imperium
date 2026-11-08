@@ -1,0 +1,196 @@
+/* Crop overlay & Handles */
+.crop-rect {
+    position: absolute;
+    border: 2px dashed var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+    pointer-events: auto;
+    cursor: move;
+    z-index: 10;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+
+.crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--primary);
+    border: 1px solid #0b1220;
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.crop-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.crop-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.crop-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.crop-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.crop-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.crop-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.crop-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.crop-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+
+.crop-apply-all-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--primary);
+    color: #0b1220;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    cursor: pointer;
+    z-index: 15;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    opacity: 0.9;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.crop-apply-all-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* PDF Form Field Detection Boxes */
+.pdf-form-field {
+    position: absolute;
+    border: 1px dashed rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.05);
+    border-radius: 2px;
+    cursor: text;
+    pointer-events: auto;
+    z-index: 5;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    box-sizing: border-box;
+}
+
+.pdf-form-field:hover {
+    border-color: rgba(59, 130, 246, 0.85);
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.grid-mode-field-form-create .page-canvas-wrap {
+    cursor: crosshair !important;
+}
+
+.grid-mode-field-form-delete .pdf-form-field {
+    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.08);
+    cursor: pointer;
+}
+
+.grid-mode-field-form-delete .pdf-form-field:hover {
+    border-color: rgba(239, 68, 68, 0.95);
+    background: rgba(239, 68, 68, 0.25);
+}
+
+.pdf-form-field-handle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    background: #3b82f6;
+    border: 1px solid #ffffff;
+    border-radius: 2px;
+    z-index: 20;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.pdf-form-field:hover .pdf-form-field-handle,
+.pdf-form-field.selected .pdf-form-field-handle {
+    opacity: 1;
+}
+
+.pdf-form-field-handle.handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.pdf-form-field-handle.handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.pdf-form-field-handle.handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.pdf-form-field-handle.handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+/* Annotation Markers & Badges */
+.ann-marker {
+    position: absolute;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 2px;
+    border: none;
+    outline: 1px dashed transparent;
+    outline-offset: 2px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
+    cursor: move;
+    user-select: none;
+    transition: outline-color 0.15s ease, background 0.15s ease;
+}
+
+.ann-marker:active {
+    cursor: grabbing;
+}
+
+.ann-marker.selected {
+    outline-color: var(--primary) !important;
+    background: rgba(245, 185, 66, 0.15) !important;
+}
+
+.pdf-page-grid.grid-mode-annotate .ann-marker:hover,
+.ann-marker:hover {
+    outline-color: rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.ann-marker.is-form-field {
+    padding: 0;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.ann-marker.is-form-field.selected,
+.ann-marker.is-form-field:hover,
+.pdf-page-grid.grid-mode-annotate .ann-marker.is-form-field:hover {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.ann-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.8);
+    color: #fff;
+    border: none;
+    font-size: 0.65rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 2px;
+    opacity: 0.75;
+    transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.ann-marker:hover .ann-delete-btn {
+    opacity: 1;
+}
+
+.ann-delete-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+

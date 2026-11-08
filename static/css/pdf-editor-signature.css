@@ -1,0 +1,128 @@
+.signature-stamps-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.sig-stamp-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    cursor: grab;
+    transition: border-color var(--transition), transform var(--transition), background-color var(--transition), opacity var(--transition);
+    user-select: none;
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 100%;
+}
+
+.sig-stamp-card.col-full {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.sig-stamp-card.col-half {
+    flex: 0 0 calc(50% - 3px);
+    width: calc(50% - 3px);
+    max-width: calc(50% - 3px);
+    padding: 6px 8px;
+}
+
+.sig-stamp-card.col-half .sig-stamp-preview {
+    font-size: 1.05rem;
+}
+
+.sig-stamp-card:active {
+    cursor: grabbing;
+}
+
+.sig-stamp-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.sig-stamp-card.active {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.sig-stamp-card.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+    border-color: var(--primary);
+}
+
+.sig-stamp-card.drag-over {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+}
+
+.sig-stamp-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    flex: 1;
+}
+
+.sig-stamp-handle {
+    color: #9ca3af;
+    font-size: 1rem;
+    cursor: grab;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.sig-stamp-card:hover .sig-stamp-handle {
+    color: var(--primary);
+}
+
+.sig-stamp-preview {
+    font-size: 1.2rem;
+    color: #0b1220;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+}
+
+.sig-stamp-del {
+    border: none;
+    background: transparent;
+    color: #888;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.sig-stamp-del:hover {
+    color: var(--danger);
+}
+
+@media (max-width: 767px) {
+    .pdf-editor-workspace {
+        height: clamp(320px, 65vh, 580px);
+    }
+
+    .pdf-result-area iframe {
+        height: clamp(320px, 60vh, 500px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pdf-editor-workspace *,
+    .pdf-dropdown-menu *,
+    .pdf-status-bar {
+        transition: none;
+    }
+}

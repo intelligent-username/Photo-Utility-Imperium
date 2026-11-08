@@ -1,0 +1,182 @@
+/* ===========================================
+   PDF Editor — Signature Modal & Layer Overlay
+   =========================================== */
+
+/* Modal Dialog */
+.pdf-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.pdf-modal-backdrop.hidden {
+    display: none !important;
+}
+
+.pdf-modal-dialog {
+    width: 460px;
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    background: var(--panel-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.pdf-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+}
+
+.pdf-modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.pdf-modal-close {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.3rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.pdf-modal-close:hover {
+    color: var(--text);
+}
+
+.pdf-modal-body {
+    padding: 20px;
+}
+
+.sig-text-input {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+}
+
+.sig-font-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.sig-font-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color var(--transition), background-color var(--transition);
+    text-align: left;
+}
+
+.sig-font-option:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sig-font-option.active {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.12);
+}
+
+.sig-font-option .font-name {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    margin-bottom: 4px;
+}
+
+.sig-font-preview {
+    font-size: 1.25rem;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.sig-color-palette {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sig-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform var(--transition), border-color var(--transition);
+}
+
+.sig-color-dot.active {
+    border-color: #ffffff;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 1px var(--panel-elev), 0 0 0 2px #fff;
+}
+
+.sig-live-preview-box {
+    position: relative;
+    background: #ffffff;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.preview-tag {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #999;
+    letter-spacing: 0.05em;
+}
+
+.sig-live-preview-text {
+    font-size: 2.2rem;
+    line-height: 1;
+    text-align: center;
+    user-select: none;
+}
+
+.pdf-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-soft);
+}
+

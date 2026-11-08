@@ -4,10 +4,10 @@
 
 import { getState } from './pdfState.js';
 import { renderCardCanvas } from './pdfRender.js';
-import { snapshotPageLayers } from './pdfHistory.js';
-import { renderRunsToElement, extractRunsFromElement } from './pdfTextLayer.js';
 import { getContrastBgColor } from './pdfDateUtils.js';
-import { getFormFieldMetrics, getSortedFormFields, findAnnotationForField } from './pdfFormFieldMetrics.js';
+import { navigateAnnotationField } from './pdfAnnotationNavigation.js';
+import { saveAnnotationInput } from './pdfAnnotationSave.js';
+import { initializeAnnotationInput } from './pdfAnnotationInput.js';
 
 export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, existingMarker = null, options = {}) {
     const state = getState();
@@ -197,26 +197,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         box.appendChild(controls);
     }
 
-    const initialText = existingAnn ? existingAnn.text : (options.initialText || '');
-    if (isFormField) {
-        input.value = initialText;
-        input.placeholder = '';
-        if (currentAnnBold) input.style.fontWeight = 'bold';
-    } else {
-        if (existingAnn && existingAnn.runs && existingAnn.runs.length > 0) {
-            renderRunsToElement(input, existingAnn.runs, initialText, currentAnnBold);
-        } else if (currentAnnBold) {
-            renderRunsToElement(input, [{ text: initialText, bold: true }], initialText, true);
-        } else {
-            input.textContent = initialText;
-        }
-    }
-
-    input.style.color = currentAnnColor;
-    if (currentAnnFont && currentAnnFont !== 'inherit') input.style.fontFamily = currentAnnFont;
-
-    const fontSz = Math.max(9, currentAnnSize * canvasScale);
-    input.style.fontSize = `${fontSz}px`;
+    initializeAnnotationInput({ input, existingAnn, options, isFormField, currentAnnBold, currentAnnColor, currentAnnFont, currentAnnSize, canvasScale });
 
     box.appendChild(input);
     wrap.appendChild(box);
@@ -232,56 +213,7 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (committed) return;
         committed = true;
 
-        snapshotPageLayers(page);
-        // Form fields preserve spacing. Regular annotations trim whitespace.
-        const extracted = isFormField
-            ? { text: input.value, runs: [], allBold: false, hasPartialBold: false }
-            : extractRunsFromElement(input, currentAnnBold);
-        const text = isFormField ? input.value : extracted.text.trim();
-        const runs = isFormField ? [] : extracted.runs.map(r => ({
-            text: r.text,
-            bold: !!r.bold
-        })).filter(r => r.text.length > 0);
-        const isEmpty = isFormField ? (text.length === 0) : !text;
-
-        if (existingAnn) {
-            if (isEmpty) {
-                const idx = page.layers.indexOf(existingAnn);
-                if (idx !== -1) page.layers.splice(idx, 1);
-            } else {
-                existingAnn.text = text;
-                existingAnn.runs = runs;
-                existingAnn.bold = extracted.allBold;
-                existingAnn.color = currentAnnColor;
-                existingAnn.fontSize = currentAnnSize;
-                if (currentAnnFont && currentAnnFont !== 'inherit') existingAnn.fontFamily = currentAnnFont;
-                if (isFormField) {
-                    existingAnn.isFormField = true;
-                    if (options.fieldId) existingAnn.fieldId = options.fieldId;
-                }
-            }
-        } else if (!isEmpty) {
-            const ann = {
-                type: 'annotation',
-                id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                text,
-                runs,
-                bold: extracted.allBold,
-                xRatio: xR,
-                yRatio: yR,
-                color: currentAnnColor,
-                fontSize: currentAnnSize,
-            };
-            if (currentAnnFont && currentAnnFont !== 'inherit') ann.fontFamily = currentAnnFont;
-            if (isFormField) {
-                ann.isFormField = true;
-                if (options.fieldId) ann.fieldId = options.fieldId;
-            }
-            if (options.sourceTextId) {
-                ann.sourceTextId = options.sourceTextId;
-            }
-            page.layers.push(ann);
-        }
+        saveAnnotationInput({ page, input, isFormField, existingAnn, options, xR, yR, currentAnnBold, currentAnnColor, currentAnnSize, currentAnnFont });
         box.remove();
         renderCardCanvas(page);
     };
@@ -326,69 +258,15 @@ export function openAnnotationInput(wrap, page, xR, yR, existingAnn = null, exis
         if (mainSize) mainSize.value = currentAnnSize;
     };
 
-    const navigateToField = (direction) => {
-        const currentSorted = getSortedFormFields(page);
-        if (currentSorted.length <= 1) return;
-
-        let currentIdx = -1;
-        if (options.fieldId) {
-            currentIdx = currentSorted.findIndex(f => f.id === options.fieldId);
-        }
-        if (currentIdx === -1) {
-            let bestDist = Infinity;
-            currentSorted.forEach((f, idx) => {
-                const dx = f.leftRatio - xR;
-                const dy = f.topRatio - yR;
-                const dist = dx * dx + dy * dy;
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    currentIdx = idx;
-                }
-            });
-        }
-        if (currentIdx === -1) currentIdx = 0;
-
-        const nextIndex = (currentIdx + direction + currentSorted.length) % currentSorted.length;
-        const nextField = currentSorted[nextIndex];
-        if (!nextField) return;
-
-        document.removeEventListener('pointerdown', onDocClick);
-        commit();
-
-        const metrics = getFormFieldMetrics(nextField, page);
-        const nextExisting = findAnnotationForField(page, nextField);
-
-        if (nextExisting) {
-            const nextMarker = [...wrap.querySelectorAll('.ann-marker')].find(el => {
-                const elLeft = parseFloat(el.style.left);
-                const elTop = parseFloat(el.style.top);
-                return Math.abs(elLeft - nextExisting.xRatio * 100) < 2 &&
-                       Math.abs(elTop - nextExisting.yRatio * 100) < 2;
-            }) || null;
-            openAnnotationInput(wrap, page, nextExisting.xRatio, nextExisting.yRatio, nextExisting, nextMarker, {
-                isFormField: true,
-                fieldId: nextField.id,
-                fieldIndex: nextIndex
-            });
-        } else {
-            openAnnotationInput(wrap, page, metrics.xRatio, metrics.yRatio, null, null, {
-                fontSize: metrics.fontSize,
-                color: '#000000',
-                isFormField: true,
-                fieldId: nextField.id,
-                fieldIndex: nextIndex,
-                initialText: nextField.fieldValue || ''
-            });
-        }
-    };
-
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.removeEventListener('pointerdown', onDocClick);
             commit();
         } else if (e.key === 'Tab' && isFormField) {
             e.preventDefault();
-            navigateToField(e.shiftKey ? -1 : 1);
+            navigateAnnotationField({
+                direction: e.shiftKey ? -1 : 1, wrap, page, xR, yR, options, onDocClick, commit, openAnnotationInput
+            });
         } else if (e.key === 'Enter' && isFormField && !e.shiftKey) {
             e.preventDefault();
             document.removeEventListener('pointerdown', onDocClick);

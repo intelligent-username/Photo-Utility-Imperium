@@ -10,6 +10,7 @@
 
 .app-footer .footer-inner {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
@@ -21,7 +22,6 @@
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 400;
-  letter-spacing: -0.01em;
 }
 
 .footer-link {
@@ -39,15 +39,14 @@
   color: var(--text);
 }
 
+.footer-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+
 .app-footer .footer-github-logo {
   width: 16px;
   height: 16px;
-  color: var(--success);
+  color: currentColor;
   fill: currentColor;
-  transition: color var(--transition), transform var(--transition);
-}
-
-.footer-link:hover .footer-github-logo {
-  color: #fff;
-  transform: scale(1.1);
 }

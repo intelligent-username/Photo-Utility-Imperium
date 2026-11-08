@@ -1,0 +1,84 @@
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text);
+    background-color: var(--bg-soft);
+    background-clip: padding-box;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    color: var(--text);
+    background-color: var(--bg-soft);
+    border-color: var(--primary);
+    outline: 0;
+    box-shadow: none;
+}
+
+.form-control:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.form-control:disabled,
+.quality-slider:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.form-control:focus-visible,
+.quality-slider:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* List Group */
+.list-group {
+    display: flex;
+    flex-direction: column;
+    padding-left: 0;
+    margin-bottom: 0;
+    list-style: none;
+}
+
+/* Badges */
+.file-size-badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--panel-elev);
+    color: var(--primary);
+    border: 1px solid var(--border);
+}
+
+.file-size-badge.savings {
+    color: var(--success);
+}
+
+.file-name-badge {
+    display: inline-block;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--panel-elev);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'Consolas', 'Monaco', monospace;
+    max-width: min(200px, 100%);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+

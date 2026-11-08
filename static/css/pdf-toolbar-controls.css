@@ -1,0 +1,139 @@
+/* Color Palette Dots & Custom Swatch */
+.color-palette {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+}
+
+.color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.color-dot:hover {
+    border-color: rgba(255, 255, 255, 0.65);
+}
+
+.color-dot.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 1px #18181b, 0 0 0 2px #fff;
+}
+
+/* Custom Color Circle Picker */
+.custom-color-wrapper {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    transition: border-color var(--transition);
+}
+
+.custom-color-wrapper:hover {
+    border-color: #fff;
+}
+
+.custom-color-input {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 40px;
+    height: 40px;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.custom-color-swatch {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #ff0000;
+    pointer-events: none;
+}
+
+/* Font Size Stepper Pill */
+.size-pill-control {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 4px;
+    overflow: hidden;
+}
+
+.size-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+    user-select: none;
+}
+
+.size-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--primary);
+}
+
+.size-input-field {
+    width: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-align: center;
+    font-family: var(--font-sans);
+    -moz-appearance: textfield;
+}
+
+/* Keep the focus indicator inside the scrollable toolbars and stepper. */
+.pdf-toolbar-btn:focus-visible,
+.ann-tool-btn:focus-visible,
+.ann-toolbar-select:focus-visible,
+.color-dot:focus-visible,
+.size-btn:focus-visible,
+.size-input-field:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+.custom-color-wrapper:focus-within {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.pdf-toolbar-btn:disabled,
+.ann-tool-btn:disabled,
+.size-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.size-input-field::-webkit-inner-spin-button,
+.size-input-field::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+

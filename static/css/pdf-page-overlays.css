@@ -1,0 +1,145 @@
+/* Overlay Layer Rect */
+.overlay-rect {
+    position: absolute;
+    border: none;
+    background: transparent;
+    pointer-events: none;
+    box-sizing: border-box;
+    border-radius: 2px;
+}
+
+.overlay-rect .overlay-rect-label,
+.overlay-rect .overlay-handle,
+.overlay-rect .overlay-del-btn {
+    display: none;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect {
+    border: 2px solid var(--accent);
+    background: rgba(192, 132, 252, 0.15);
+    pointer-events: auto;
+    cursor: move;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(192, 132, 252, 0.25);
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-rect-label,
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-handle {
+    display: block;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect .overlay-del-btn {
+    display: inline-flex;
+}
+
+.pdf-page-grid.grid-mode-overlay .overlay-rect:hover {
+    border-color: #e9d5ff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 10px rgba(192, 132, 252, 0.5);
+}
+
+.overlay-del-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 20;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+.overlay-rect-label {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.whiteout-rect-interactive {
+    position: absolute;
+    background: #ffffff;
+    pointer-events: auto;
+    z-index: 8;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.whiteout-rect-interactive:hover,
+.whiteout-rect-interactive.selected {
+    border: 1px dashed var(--primary);
+}
+
+.whiteout-del-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+    display: none;
+}
+
+.whiteout-rect-interactive:hover .whiteout-del-btn,
+.whiteout-rect-interactive.selected .whiteout-del-btn {
+    display: inline-flex;
+}
+
+.whiteout-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+.overlay-handle {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: var(--accent);
+    border: 1px solid #0b1220;
+    border-radius: 2px;
+    z-index: 12;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.overlay-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.overlay-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.overlay-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.overlay-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+

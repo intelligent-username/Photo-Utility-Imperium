@@ -69,8 +69,6 @@ export function attachCardEventListeners(card, wrap, canvas, page, syncGrid) {
         wrap._skipNextClickDeselect = false;
         if (!skipDeselect && !e.target.closest('.ann-marker, .signature-rect, .overlay-rect, .whiteout-rect-interactive, .pdf-line-layer-svg')) {
             deselectAllLayers();
-            // Selection was cleared, so any visible line endpoint handles are stale.
-            document.querySelectorAll('.pdf-line-handle').forEach(h => h.remove());
         }
         if (state.mode === 'annotate') {
             if (e.target.closest('.ann-marker') || e.target.closest('.ann-edit-box') || e.target.closest('.ann-input')) return;
@@ -180,6 +178,9 @@ export function attachCardEventListeners(card, wrap, canvas, page, syncGrid) {
             startCreateFormField(e, wrap, page);
         } else if (state.mode === 'line') {
             e.preventDefault();
+            // Starting a new line retires the previous line's endpoint handles so
+            // no stale resize affordance lingers while the user keeps drawing.
+            document.querySelectorAll('.pdf-line-handle').forEach(h => h.remove());
             startDrawLine(e, wrap, page);
         }
     });

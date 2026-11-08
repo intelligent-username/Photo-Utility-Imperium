@@ -1,0 +1,130 @@
+.placement-ghost {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    background: transparent;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+.placement-ghost-text {
+    white-space: nowrap;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-rect {
+    position: absolute;
+    background: transparent;
+    pointer-events: auto;
+    cursor: move;
+    z-index: 15;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    min-width: 32px;
+    min-height: 12px;
+}
+
+.signature-rect:active {
+    cursor: grabbing;
+}
+
+.signature-rect.selected {
+    outline: 1.5px dashed var(--primary);
+}
+
+.signature-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--primary);
+    border: 1px solid #000;
+    border-radius: 2px;
+    z-index: 20;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.signature-rect:hover .signature-handle,
+.signature-rect.selected .signature-handle {
+    opacity: 1;
+}
+
+.signature-handle.handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.signature-handle.handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.signature-handle.handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.signature-handle.handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+.signature-rect img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-rect-content {
+    font-size: 1.2rem;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+.signature-del-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: #ffffff;
+    border: 1px solid #000000;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    transition: background 0.15s ease, transform 0.15s ease;
+    display: none;
+}
+
+.signature-rect:hover .signature-del-btn {
+    display: inline-flex;
+}
+
+.signature-del-btn:hover {
+    background: var(--danger);
+    transform: scale(1.2);
+}
+
+.grid-mode-signature .pdf-page-card {
+    cursor: crosshair !important;
+}
+
+.grid-mode-signature .pdf-page-card:hover {
+    border-color: var(--primary);
+}
+
+.grid-mode-date .pdf-page-card {
+    cursor: crosshair !important;
+}
+
+.grid-mode-date .pdf-page-card:hover {
+    border-color: var(--primary);
+}
+

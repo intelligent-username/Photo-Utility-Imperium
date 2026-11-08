@@ -43,9 +43,9 @@ export function startDrawLine(e, wrap, page) {
     const makeDraftDot = () => {
         const dot = document.createElementNS(SVG_NS, 'circle');
         dot.setAttribute('class', 'pdf-line-draft-handle');
-        dot.setAttribute('r', '4.5');
+        dot.setAttribute('r', '4');
         dot.setAttribute('fill', '#ffffff');
-        dot.setAttribute('stroke', state.annColor || '#000000');
+        dot.setAttribute('stroke', '#3b82f6');
         dot.setAttribute('stroke-width', '2');
         dot.style.pointerEvents = 'none';
         return dot;

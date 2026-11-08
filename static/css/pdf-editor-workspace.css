@@ -1,0 +1,159 @@
+/* PDF Toolbar Header Area (aligns horizontally with left title) */
+.pdf-toolbar-header-area {
+    margin-top: 10px;
+    margin-bottom: 16px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.pdf-toolbar-header-area .pdf-toolbar {
+    width: 100%;
+    height: 44px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.pdf-toolbar-header-area .pdf-annotation-bar {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* PDF Editor Unified Workspace Window */
+.pdf-editor-workspace {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 580px;
+    margin-top: 0;
+    box-sizing: border-box;
+}
+
+/* Result preview container */
+.pdf-result-area {
+    margin-top: 14px;
+}
+
+.pdf-action-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+
+.pdf-result-area iframe {
+    width: 100%;
+    height: 500px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+}
+
+/* Status bar */
+.pdf-status-bar {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 4px 10px;
+    min-height: 1.4em;
+    margin-bottom: 6px;
+    transition: color var(--transition);
+}
+
+.pdf-status-bar:empty {
+    display: none;
+}
+
+/* Dropdown Menus & Stamps */
+.pdf-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.pdf-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    padding: 10px;
+    z-index: 100;
+}
+
+/* The annotation bar scrolls horizontally, and a scroll container clips its
+   absolutely positioned children. While open, the menu is lifted into the
+   viewport layer so it can extend below the bar. */
+.pdf-dropdown-menu.is-floating {
+    position: fixed;
+    top: var(--dd-top, 0px);
+    left: var(--dd-left, 0px);
+    z-index: 2000;
+}
+
+.pdf-dropdown-menu.hidden {
+    display: none !important;
+}
+
+#sign-dropdown-menu,
+#date-dropdown-menu {
+    width: 320px;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--transition);
+}
+
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.dropdown-item.primary-item {
+    color: var(--primary);
+    font-weight: 600;
+    background: rgba(245, 185, 66, 0.08);
+}
+
+.dropdown-item.primary-item:hover {
+    background: rgba(245, 185, 66, 0.18);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+}
+
+.dropdown-header-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+}
+

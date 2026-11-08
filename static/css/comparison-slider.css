@@ -60,21 +60,20 @@
     left: 50%;
     width: 3px;
     margin-left: -1.5px;
-    background: rgba(255, 255, 255, 0.9);
+    background: #fff;
     z-index: 3;
     cursor: ew-resize;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
-    transition: box-shadow var(--transition, 0.2s ease);
+    box-shadow: 0 0 0 1px #171717;
 }
 
 .img-comp-handle:hover {
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+    background: var(--primary-2);
 }
 
 .img-comp-handle:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
-    box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 0 1px #171717;
 }
 
 .img-comp-grip {
@@ -85,12 +84,12 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    background: #fff;
+    border: 1px solid #171717;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color 0.15s ease;
 }
 
 .img-comp-grip::before,
@@ -108,8 +107,7 @@
 .img-comp-grip::after  { left: 10px; }
 
 .img-comp-handle.dragging .img-comp-grip {
-    transform: translate(-50%, -50%) scale(1.1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    background: var(--primary-2);
 }
 
 .img-comp-label {
@@ -117,13 +115,10 @@
     bottom: 12px;
     padding: 4px 10px;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
+    background: #202020;
     color: #fff;
     font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     pointer-events: none;
     z-index: 4;
     font-family: var(--font-sans, sans-serif);
@@ -145,31 +140,34 @@
         width: 6px;
     }
     .img-comp-label {
-        font-size: 0.65rem;
-        padding: 3px 8px;
+        padding: 4px 8px;
     }
 }
 
 /* Toolbar below slider */
 .img-comp-toolbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
 }
 
 .img-comp-toolbar-left {
     display: flex;
+    flex-wrap: wrap;
+    min-width: 0;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .img-comp-toolbar-right {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 6px;
+    min-width: 0;
+    gap: 8px;
     margin-left: auto;
 }
 

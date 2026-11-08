@@ -1,0 +1,168 @@
+/* Date Stamp Options & Previews */
+.date-format-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0 8px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.date-format-card {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border: 1.5px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+    cursor: grab;
+    transition: border-color var(--transition), transform var(--transition), background-color var(--transition), opacity var(--transition);
+    user-select: none;
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 100%;
+}
+
+.date-format-card.col-full {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.date-format-card.col-half {
+    flex: 0 0 calc(50% - 3px);
+    width: calc(50% - 3px);
+    max-width: calc(50% - 3px);
+    padding: 6px 8px;
+}
+
+.date-format-card:active {
+    cursor: grabbing;
+}
+
+.date-format-card:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.date-format-card.active {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.15);
+}
+
+.date-format-card.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+    border-color: var(--primary);
+}
+
+.date-format-card.drag-over {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.25);
+}
+
+.date-format-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.date-format-handle {
+    color: #9ca3af;
+    font-size: 1rem;
+    cursor: grab;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.date-format-card:hover .date-format-handle {
+    color: var(--primary);
+}
+
+.date-format-label {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.date-font-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 10px 8px;
+}
+
+.date-format-option,
+.date-font-option {
+    flex: 1 1 auto;
+    min-width: calc(50% - 3px);
+    border: 1.5px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color var(--transition), background-color var(--transition);
+}
+
+.date-format-option:hover,
+.date-font-option:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.date-format-option.active,
+.date-font-option.active {
+    border-color: var(--primary);
+    background: rgba(245, 185, 66, 0.12);
+}
+
+.date-preview-box {
+    position: relative;
+    background: #ffffff;
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px 12px;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 10px 8px;
+}
+
+.date-preview-text {
+    font-size: 1rem;
+    line-height: 1.2;
+    text-align: center;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.date-props-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 10px 8px;
+}
+
+.date-color-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+

@@ -9,6 +9,7 @@ import { setupSignatureModal } from './controls/pdfSignatureModal.js';
 import { setupColorSizeControls } from './controls/pdfColorSizeControls.js';
 import { setupRichTooltips } from './controls/pdfRichTooltips.js';
 import { setupKeyboardShortcuts } from './controls/pdfKeyboardShortcuts.js';
+import { setupToolbarOverflow } from './controls/pdfToolbarOverflow.js';
 
 export function setupToolbarControls() {
     let dateDropdownControls = null;
@@ -31,6 +32,10 @@ export function setupToolbarControls() {
         clearModes,
         getDateDropdownControls: () => dateDropdownControls
     });
+
+    // Scrollable sub-bars + floating dropdown anchoring so open menus
+    // don't get clipped by the horizontal-scroll container.
+    setupToolbarOverflow();
 
     return { clearModes };
 }
